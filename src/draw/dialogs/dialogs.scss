@@ -1,0 +1,24 @@
+@use './makeAboutDialog.scss';
+@use './makeMessageDialog.scss';
+
+.dialog-container {
+	> dialog {
+		background-color: var(--background-color-1);
+		color: var(--foreground-color-1);
+		border: none;
+		outline: none;
+
+		box-shadow: 0 0 2px var(--shadow-color);
+		border-radius: 8px;
+
+		max-height: 90vh;
+		width: min(100%, 500px);
+		box-sizing: border-box;
+
+		&::backdrop {
+			backdrop-filter: blur(5px);
+			-webkit-backdrop-filter: blur(5px);
+			background-color: var(--background-color-transparent);
+		}
+	}
+}

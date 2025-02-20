@@ -1,0 +1,71 @@
+{
+  "name": "easy-draw",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "unbuild",
+    "dev": "unbuild --stub",
+    "test:cli": "node ./dist/cli.mjs -w -p 1234 -c awesome",
+    "lint": "tsc --noEmit",
+    "lint-es": "eslint --ext .ts,.tsx src --color",
+    "start": "esno src/index.ts",
+    "test": "vitest",
+    "verify-commit": "verify-commit-msg",
+    "prepare": "git-scm-hooks",
+    "changelog": "npx changeloggithub@latest --all true && git add CHANGELOG.md && git commit -m 'chore: update CHANGELOG.md'",
+    "release": "bumpp -r && npm run changelog"
+  },
+  "author": "hunghg255",
+  "devDependencies": {
+    "@hunghg255/eslint-config": "^0.0.16",
+    "@types/lodash": "^4.17.15",
+    "@types/lodash-es": "^4.17.12",
+    "@types/node": "^18.19.76",
+    "bumpp": "^9.11.1",
+    "esno": "^0.16.3",
+    "git-scm-hooks": "^0.0.7",
+    "lodash": "^4.17.21",
+    "prettier": "^3.5.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.3",
+    "unbuild": "^3.3.1",
+    "verify-commit-msg": "^0.0.10",
+    "vitest": "^0.34.6"
+  },
+  "git-hooks": {
+    "pre-commit": "npm run lint",
+    "commit-msg": "npm run verify-commit"
+  },
+  "keywords": [],
+  "homepage": "https://github.com/hunghg255/unbuild-package",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hunghg255/unbuild-package"
+  },
+  "bugs": {
+    "url": "https://github.com/hunghg255/unbuild-package/issues"
+  },
+  "dependencies": {
+    "@melloware/coloris": "^0.24.0",
+    "bezier-js": "^6.1.4",
+    "lodash-es": "^4.17.21"
+  }
+}

@@ -1,0 +1,95 @@
+/* Make color selection buttons fill their containing label */
+.toolbar-element .clr-field {
+	* {
+		cursor: pointer;
+	}
+
+	// Make the preview circular.
+	button {
+		$size: 1.2em;
+		width: $size;
+		height: $size;
+
+		// Center & move to left of input
+		top: 50%;
+		left: 0;
+
+		border-radius: 50%;
+		margin-left: 0;
+		margin-right: 0;
+	}
+
+	input {
+		opacity: 0;
+	}
+}
+
+.color-input-container {
+	display: inline-flex;
+	flex-direction: row;
+
+	.coloris_input {
+		// Ensure that the region that can be clicked to open the input is roughly
+		// the full height of the container.
+		// Because the color picker is always shown below or above the input, 5px is
+		// subtracted to make the picker better align with the input's container.
+		height: calc(100% - 6px);
+	}
+
+	&.picker-open .clr-field {
+		// Work around what seems to be a Coloris bug -- clicking on the input button
+		// keeps the color picker open (while clicking anywhere else closes the picker).
+		pointer-events: none;
+	}
+}
+
+$pipette-button-size: 30px;
+
+:root .color-input-container > button.pipetteButton {
+	width: $pipette-button-size;
+	height: $pipette-button-size;
+	padding: 0;
+	display: inline-flex;
+}
+
+.color-input-container {
+	> .color-input-wrapper {
+		display: flex;
+		justify-content: stretch;
+	}
+}
+
+.color-input-container .pipetteButton > svg {
+	width: 100%;
+}
+
+.color-input-container .pipetteButton {
+	.pickColorInstructions {
+		display: none;
+
+		font-size: 1em;
+		position: absolute;
+		margin-left: $pipette-button-size;
+
+		background-color: var(--background-color-1);
+		border-radius: $pipette-button-size;
+		padding: 4px;
+
+		opacity: 0;
+
+		transition: 0.2s ease opacity;
+		@media (prefers-reduced-motion: reduce) {
+			transition: none;
+		}
+	}
+}
+
+.color-input-container .pipetteButton.active {
+	background-color: var(--selection-background-color);
+	--icon-color: var(--selection-foreground-color);
+
+	.pickColorInstructions {
+		display: block;
+		opacity: 0.8;
+	}
+}

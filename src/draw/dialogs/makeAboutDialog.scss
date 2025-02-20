@@ -1,0 +1,21 @@
+.about-dialog-content > .scroll {
+	white-space: pre-wrap;
+	font-family: monospace;
+
+	& > details > summary {
+		cursor: pointer;
+	}
+
+	& > h2,
+	& > details > summary {
+		margin-top: 15px;
+
+		font-size: 1.2em;
+		font-weight: bold;
+
+		a {
+			color: var(--foreground-color-1);
+			text-decoration: underline;
+		}
+	}
+}

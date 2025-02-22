@@ -4,6 +4,6 @@
  * @internal
  */
 export default {
-	// Note: Auto-updated by prebuild.js:
-	number: '1.28.0',
+  // Note: Auto-updated by prebuild.js:
+  number: '1.28.0',
 };

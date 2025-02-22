@@ -1,9 +1,10 @@
 // @internal @packageDocumentation
 
-import { Color4 } from '~/math';
-import Editor from '../Editor';
-import { PointerEvt } from '../inputEvents';
+import { type Color4 } from '~/math';
+
 import BaseTool from './BaseTool';
+import type Editor from '../Editor';
+import { type PointerEvt } from '../inputEvents';
 
 type ColorListener = (color: Color4 | null) => void;
 
@@ -16,72 +17,72 @@ type ColorListener = (color: Color4 | null) => void;
  * @internal
  */
 export default class PipetteTool extends BaseTool {
-	private colorPreviewListener: ColorListener | null = null;
-	private colorSelectListener: ColorListener | null = null;
+  private colorPreviewListener: ColorListener | null = null;
+  private colorSelectListener: ColorListener | null = null;
 
-	public constructor(
-		private editor: Editor,
-		description: string,
-	) {
-		super(editor.notifier, description);
+  public constructor(
+    private editor: Editor,
+    description: string,
+  ) {
+    super(editor.notifier, description);
 
-		this.enabledValue().onUpdateAndNow(() => {
-			this.updateSelectingStatus();
-		});
-	}
+    this.enabledValue().onUpdateAndNow(() => {
+      this.updateSelectingStatus();
+    });
+  }
 
-	public override canReceiveInputInReadOnlyEditor() {
-		return true;
-	}
+  public override canReceiveInputInReadOnlyEditor() {
+    return true;
+  }
 
-	// Ensures that the root editor element correctly reflects whether color selection
-	// is in progress.
-	private updateSelectingStatus() {
-		const className = 'pipette--color-selection-in-progress';
+  // Ensures that the root editor element correctly reflects whether color selection
+  // is in progress.
+  private updateSelectingStatus() {
+    const className = 'pipette--color-selection-in-progress';
 
-		if (this.isEnabled() && this.colorSelectListener && this.colorPreviewListener) {
-			this.editor.getRootElement().classList.add(className);
-		} else {
-			this.editor.getRootElement().classList.remove(className);
-		}
-	}
+    if (this.isEnabled() && this.colorSelectListener && this.colorPreviewListener) {
+      this.editor.getRootElement().classList.add(className);
+    } else {
+      this.editor.getRootElement().classList.remove(className);
+    }
+  }
 
-	public setColorListener(
-		colorPreviewListener: ColorListener,
+  public setColorListener(
+    colorPreviewListener: ColorListener,
 
-		// Called when the gesture ends -- when the user has selected a color.
-		colorSelectListener: ColorListener,
-	) {
-		this.colorPreviewListener = colorPreviewListener;
-		this.colorSelectListener = colorSelectListener;
+    // Called when the gesture ends -- when the user has selected a color.
+    colorSelectListener: ColorListener,
+  ) {
+    this.colorPreviewListener = colorPreviewListener;
+    this.colorSelectListener = colorSelectListener;
 
-		this.updateSelectingStatus();
-	}
+    this.updateSelectingStatus();
+  }
 
-	public clearColorListener() {
-		this.colorPreviewListener = null;
-		this.colorSelectListener = null;
+  public clearColorListener() {
+    this.colorPreviewListener = null;
+    this.colorSelectListener = null;
 
-		this.updateSelectingStatus();
-	}
+    this.updateSelectingStatus();
+  }
 
-	public override onPointerDown({ current, allPointers }: PointerEvt): boolean {
-		if (this.colorPreviewListener && allPointers.length === 1) {
-			this.colorPreviewListener(this.editor.display.getColorAt(current.screenPos));
-			return true;
-		}
-		return false;
-	}
+  public override onPointerDown({ current, allPointers }: PointerEvt): boolean {
+    if (this.colorPreviewListener && allPointers.length === 1) {
+      this.colorPreviewListener(this.editor.display.getColorAt(current.screenPos));
+      return true;
+    }
+    return false;
+  }
 
-	public override onPointerMove({ current }: PointerEvt): void {
-		this.colorPreviewListener?.(this.editor.display.getColorAt(current.screenPos));
-	}
+  public override onPointerMove({ current }: PointerEvt): void {
+    this.colorPreviewListener?.(this.editor.display.getColorAt(current.screenPos));
+  }
 
-	public override onPointerUp({ current }: PointerEvt): void {
-		this.colorSelectListener?.(this.editor.display.getColorAt(current.screenPos));
-	}
+  public override onPointerUp({ current }: PointerEvt): void {
+    this.colorSelectListener?.(this.editor.display.getColorAt(current.screenPos));
+  }
 
-	public override onGestureCancel(): void {
-		this.colorSelectListener?.(null);
-	}
+  public override onGestureCancel(): void {
+    this.colorSelectListener?.(null);
+  }
 }

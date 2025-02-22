@@ -1,6 +1,6 @@
-import Editor from '../Editor';
-import { KeyPressEvent } from '../inputEvents';
 import BaseTool from './BaseTool';
+import type Editor from '../Editor';
+import { type KeyPressEvent } from '../inputEvents';
 
 /**
  * Handles keyboard events used, by default, to select tools. By default,
@@ -10,33 +10,33 @@ import BaseTool from './BaseTool';
  *
  */
 export default class ToolSwitcherShortcut extends BaseTool {
-	public constructor(private editor: Editor) {
-		super(editor.notifier, editor.localization.changeTool);
-	}
+  public constructor(private editor: Editor) {
+    super(editor.notifier, editor.localization.changeTool);
+  }
 
-	public override canReceiveInputInReadOnlyEditor() {
-		return true;
-	}
+  public override canReceiveInputInReadOnlyEditor() {
+    return true;
+  }
 
-	// @internal
-	public override onKeyPress({ key }: KeyPressEvent): boolean {
-		const toolController = this.editor.toolController;
-		const primaryTools = toolController.getPrimaryTools();
+  // @internal
+  public override onKeyPress({ key }: KeyPressEvent): boolean {
+    const toolController = this.editor.toolController;
+    const primaryTools = toolController.getPrimaryTools();
 
-		// Map keys 0-9 to primary tools.
-		const keyMatch = /^[0-9]$/.exec(key);
+    // Map keys 0-9 to primary tools.
+    const keyMatch = /^\d$/.exec(key);
 
-		let targetTool: BaseTool | undefined;
-		if (keyMatch) {
-			const targetIdx = parseInt(keyMatch[0], 10) - 1;
-			targetTool = primaryTools[targetIdx];
-		}
+    let targetTool: BaseTool | undefined;
+    if (keyMatch) {
+      const targetIdx = Number.parseInt(keyMatch[0], 10) - 1;
+      targetTool = primaryTools[targetIdx];
+    }
 
-		if (targetTool) {
-			targetTool.setEnabled(true);
-			return true;
-		}
+    if (targetTool) {
+      targetTool.setEnabled(true);
+      return true;
+    }
 
-		return false;
-	}
+    return false;
+  }
 }

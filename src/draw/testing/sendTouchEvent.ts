@@ -1,8 +1,9 @@
-import Editor from '../Editor';
-import { Vec2 } from '~/math';
-import Pointer, { PointerDevice } from '../Pointer';
-import { InputEvtType, PointerEvtType } from '../inputEvents';
+import { type Vec2 } from '~/math';
+
 import getUniquePointerId from './getUniquePointerId';
+import type Editor from '../Editor';
+import { InputEvtType, type PointerEvtType } from '../inputEvents';
+import Pointer, { PointerDevice } from '../Pointer';
 
 /**
  * Dispatch a touch event to the currently selected tool. Intended for unit tests.
@@ -40,33 +41,31 @@ import getUniquePointerId from './getUniquePointerId';
  * }
  * ```
  */
-const sendTouchEvent = (
-	editor: Editor,
-	eventType: PointerEvtType,
-	screenPos: Vec2,
-	allOtherPointers?: Pointer[],
-) => {
-	const canvasPos = editor.viewport.screenToCanvas(screenPos);
+function sendTouchEvent (editor: Editor,
+  eventType: PointerEvtType,
+  screenPos: Vec2,
+  allOtherPointers?: Pointer[]) {
+  const canvasPos = editor.viewport.screenToCanvas(screenPos);
 
-	// Get a unique ID for the main pointer
-	// (try to use id=0, but don't use it if it's already in use).
-	const ptrId = getUniquePointerId(allOtherPointers ?? []);
+  // Get a unique ID for the main pointer
+  // (try to use id=0, but don't use it if it's already in use).
+  const ptrId = getUniquePointerId(allOtherPointers ?? []);
 
-	const mainPointer = Pointer.ofCanvasPoint(
-		canvasPos,
-		eventType !== InputEvtType.PointerUpEvt,
-		editor.viewport,
-		ptrId,
-		PointerDevice.Touch,
-	);
+  const mainPointer = Pointer.ofCanvasPoint(
+    canvasPos,
+    eventType !== InputEvtType.PointerUpEvt,
+    editor.viewport,
+    ptrId,
+    PointerDevice.Touch,
+  );
 
-	editor.toolController.dispatchInputEvent({
-		kind: eventType,
-		allPointers: [...(allOtherPointers ?? []), mainPointer],
-		current: mainPointer,
-	});
+  editor.toolController.dispatchInputEvent({
+    kind: eventType,
+    allPointers: [...(allOtherPointers ?? []), mainPointer],
+    current: mainPointer,
+  });
 
-	return mainPointer;
-};
+  return mainPointer;
+}
 
 export default sendTouchEvent;

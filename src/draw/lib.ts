@@ -1,10 +1,10 @@
 /**
  * The main entrypoint for the NPM package. Everything exported by this file
- * is available through the [`js-draw` package](https://www.npmjs.com/package/js-draw).
+ * is available through the [`easy-draw` package](https://www.npmjs.com/package/easy-draw).
  *
  * ## Example
  *
- * [[include:doc-pages/inline-examples/main-js-draw-example.md]]
+ * [[include:doc-pages/inline-examples/main-easy-draw-example.md]]
  *
  * @see
  * - {@link Editor}
@@ -16,12 +16,14 @@
  */
 
 import Editor, { EditorSettings } from './Editor';
+import AbstractToolbar from './toolbar/AbstractToolbar';
+
 export * from './image/lib';
 export * from './types';
 export * from './inputEvents';
 export {
-	default as getLocalizationTable,
-	matchingLocalizationTable,
+  default as getLocalizationTable,
+  matchingLocalizationTable,
 } from './localizations/getLocalizationTable';
 export * from './localization';
 
@@ -43,8 +45,6 @@ export * from './util/lib';
 
 // @internal
 export { default as __js_draw__version } from './version';
-
-import AbstractToolbar from './toolbar/AbstractToolbar';
 
 export { Editor, EditorSettings, AbstractToolbar };
 

@@ -1,5 +1,5 @@
 // Code shared with Joplin (from when it was MIT licensed)
-// (js-draw was originally intended to be part of Joplin).
+// (easy-draw was originally intended to be part of Joplin).
 
 // @see EventDispatcher
 type Listener<Value> = (data: Value) => void;
@@ -7,7 +7,7 @@ type Listener<Value> = (data: Value) => void;
 type CallbackHandler<EventType> = (data: EventType) => void;
 
 export interface DispatcherEventListener {
-	remove: () => void;
+  remove: () => void;
 }
 
 /**
@@ -27,50 +27,50 @@ export interface DispatcherEventListener {
  *
  */
 export default class EventDispatcher<
-	EventKeyType extends string | symbol | number,
-	EventMessageType,
+  EventKeyType extends string | symbol | number,
+  EventMessageType,
 > {
-	private listeners: Partial<Record<EventKeyType, Array<Listener<EventMessageType>>>>;
-	public constructor() {
-		this.listeners = {};
-	}
+  private listeners: Partial<Record<EventKeyType, Array<Listener<EventMessageType>>>>;
+  public constructor() {
+    this.listeners = {};
+  }
 
-	public dispatch(eventName: EventKeyType, event: EventMessageType) {
-		const listenerList = this.listeners[eventName];
+  public dispatch(eventName: EventKeyType, event: EventMessageType) {
+    const listenerList = this.listeners[eventName];
 
-		if (listenerList) {
-			for (let i = 0; i < listenerList.length; i++) {
-				listenerList[i](event);
-			}
-		}
-	}
+    if (listenerList) {
+      for (const element of listenerList) {
+        element(event);
+      }
+    }
+  }
 
-	public on(
-		eventName: EventKeyType,
-		callback: CallbackHandler<EventMessageType>,
-	): DispatcherEventListener {
-		if (!this.listeners[eventName]) this.listeners[eventName] = [];
-		this.listeners[eventName]!.push(callback);
+  public on(
+    eventName: EventKeyType,
+    callback: CallbackHandler<EventMessageType>,
+  ): DispatcherEventListener {
+    if (!this.listeners[eventName]) this.listeners[eventName] = [];
+    this.listeners[eventName]!.push(callback);
 
-		return {
-			// Retuns false if the listener has already been removed, true otherwise.
-			remove: (): boolean => {
-				const originalListeners = this.listeners[eventName]!;
-				this.off(eventName, callback);
+    return {
+      // Retuns false if the listener has already been removed, true otherwise.
+      remove: (): boolean => {
+        const originalListeners = this.listeners[eventName]!;
+        this.off(eventName, callback);
 
-				return originalListeners.length !== this.listeners[eventName]!.length;
-			},
-		};
-	}
+        return originalListeners.length !== this.listeners[eventName]!.length;
+      },
+    };
+  }
 
-	/** Removes an event listener. This is equivalent to calling `.remove()` on the object returned by `.on`. */
-	public off(eventName: EventKeyType, callback: CallbackHandler<EventMessageType>) {
-		const listeners = this.listeners[eventName];
-		if (!listeners) return;
+  /** Removes an event listener. This is equivalent to calling `.remove()` on the object returned by `.on`. */
+  public off(eventName: EventKeyType, callback: CallbackHandler<EventMessageType>) {
+    const listeners = this.listeners[eventName];
+    if (!listeners) return;
 
-		// Replace the current list of listeners with a new, shortened list.
-		// This allows any iterators over this.listeners to continue iterating
-		// without skipping elements.
-		this.listeners[eventName] = listeners.filter((otherCallback) => otherCallback !== callback);
-	}
+    // Replace the current list of listeners with a new, shortened list.
+    // This allows any iterators over this.listeners to continue iterating
+    // without skipping elements.
+    this.listeners[eventName] = listeners.filter((otherCallback) => otherCallback !== callback);
+  }
 }

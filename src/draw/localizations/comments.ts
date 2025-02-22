@@ -1,4 +1,4 @@
-import { EditorLocalization } from '../localization';
+import { type EditorLocalization } from '../localization';
 
 /**
  * Comments to help translators create translations.
@@ -7,9 +7,9 @@ import { EditorLocalization } from '../localization';
  * translation and original source records.
  */
 const comments: Partial<Record<keyof EditorLocalization, string>> = {
-	pen: 'Likely unused',
-	dragAndDropHereOrBrowse: 'Uses {{curly braces}} to denote bold text',
-	closeSidebar: 'Currently used as an accessibilty label',
+  pen: 'Likely unused',
+  dragAndDropHereOrBrowse: 'Uses {{curly braces}} to denote bold text',
+  closeSidebar: 'Currently used as an accessibilty label',
 };
 
 export default comments;

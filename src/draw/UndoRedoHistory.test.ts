@@ -3,35 +3,35 @@ import { pathToRenderable } from './rendering/RenderablePathSpec';
 import createEditor from './testing/createEditor';
 
 describe('UndoRedoHistory', () => {
-	it('should keep history size below maximum', () => {
-		const editor = createEditor();
-		const stroke = new Stroke([
-			pathToRenderable(Path.fromString('m0,0 10,10'), { fill: Color4.red }),
-		]);
-		editor.dispatch(EditorImage.addComponent(stroke));
+  it('should keep history size below maximum', () => {
+    const editor = createEditor();
+    const stroke = new Stroke([
+      pathToRenderable(Path.fromString('m0,0 10,10'), { fill: Color4.red }),
+    ]);
+    editor.dispatch(EditorImage.addComponent(stroke));
 
-		for (let i = 0; i < editor.history['maxUndoRedoStackSize'] + 10; i++) {
-			editor.dispatch(stroke.transformBy(Mat33.translation(Vec2.of(1, 1))));
-		}
+    for (let i = 0; i < editor.history['maxUndoRedoStackSize'] + 10; i++) {
+      editor.dispatch(stroke.transformBy(Mat33.translation(Vec2.of(1, 1))));
+    }
 
-		expect(editor.history.undoStackSize).toBeLessThan(editor.history['maxUndoRedoStackSize']);
-		expect(editor.history.undoStackSize).toBeGreaterThan(
-			editor.history['maxUndoRedoStackSize'] / 10,
-		);
-		expect(editor.history.redoStackSize).toBe(0);
+    expect(editor.history.undoStackSize).toBeLessThan(editor.history['maxUndoRedoStackSize']);
+    expect(editor.history.undoStackSize).toBeGreaterThan(
+      editor.history['maxUndoRedoStackSize'] / 10,
+    );
+    expect(editor.history.redoStackSize).toBe(0);
 
-		const origUndoStackSize = editor.history.undoStackSize;
-		while (editor.history.undoStackSize > 0) {
-			editor.history.undo();
-		}
+    const origUndoStackSize = editor.history.undoStackSize;
+    while (editor.history.undoStackSize > 0) {
+      editor.history.undo();
+    }
 
-		// After undoing as much as possible, the stroke should still be present
-		expect(editor.image.findParent(stroke)).not.toBe(null);
+    // After undoing as much as possible, the stroke should still be present
+    expect(editor.image.findParent(stroke)).not.toBe(null);
 
-		// Undoing again shouldn't cause issues.
-		editor.history.undo();
-		expect(editor.image.findParent(stroke)).not.toBe(null);
+    // Undoing again shouldn't cause issues.
+    editor.history.undo();
+    expect(editor.image.findParent(stroke)).not.toBe(null);
 
-		expect(editor.history.redoStackSize).toBe(origUndoStackSize);
-	});
+    expect(editor.history.redoStackSize).toBe(origUndoStackSize);
+  });
 });

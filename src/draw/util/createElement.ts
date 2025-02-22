@@ -5,44 +5,44 @@ type ElementTagNames = keyof HTMLElementTagNameMap | keyof SVGElementTagNameMap;
  * New elements/properties should be added as necessary.
  */
 interface ElementToPropertiesMap {
-	path: {
-		d: string;
-		fill: string;
-		stroke: string;
-		transform: string;
-	};
-	rect: {
-		stroke: string;
-		fill: string;
-		x: number;
-		y: number;
-		width: number;
-		height: number;
-		transform: string;
-	};
-	pattern: {
-		viewBox: string;
-		width: string;
-		height: string;
-		patternUnits: 'userSpaceOnUse';
-	};
-	stop: {
-		offset: string;
-		'stop-color': string;
-	};
-	svg: {
-		viewBox: `${number} ${number} ${number} ${number}`;
-	};
+  path: {
+    d: string;
+    fill: string;
+    stroke: string;
+    transform: string;
+  };
+  rect: {
+    stroke: string;
+    fill: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    transform: string;
+  };
+  pattern: {
+    viewBox: string;
+    width: string;
+    height: string;
+    patternUnits: 'userSpaceOnUse';
+  };
+  stop: {
+    offset: string;
+    'stop-color': string;
+  };
+  svg: {
+    viewBox: `${number} ${number} ${number} ${number}`;
+  };
 }
 type EmptyObject = Record<never, never>;
 type ElementProperties<Tag extends ElementTagNames> = Tag extends keyof ElementToPropertiesMap
-	? Partial<ElementToPropertiesMap[Tag]>
-	: EmptyObject;
+  ? Partial<ElementToPropertiesMap[Tag]>
+  : EmptyObject;
 
 /** Contains options for creating an element with tag = `Tag`. */
 type ElementConfig<Tag extends ElementTagNames> = ElementProperties<Tag> & {
-	id?: string;
-	children?: (HTMLElement | SVGElement)[];
+  id?: string;
+  children?: (HTMLElement | SVGElement)[];
 };
 
 /**
@@ -50,14 +50,14 @@ type ElementConfig<Tag extends ElementTagNames> = ElementProperties<Tag> & {
  * (e.g. `HTMLButtonElement`).
  */
 type ElementTagToType<Tag extends ElementTagNames> = Tag extends keyof HTMLElementTagNameMap
-	? HTMLElementTagNameMap[Tag]
-	: Tag extends keyof SVGElementTagNameMap
-		? SVGElementTagNameMap[Tag]
-		: never;
+  ? HTMLElementTagNameMap[Tag]
+  : Tag extends keyof SVGElementTagNameMap
+    ? SVGElementTagNameMap[Tag]
+    : never;
 
 export enum ElementNamespace {
-	Html = 'html',
-	Svg = 'svg',
+  Html = 'html',
+  Svg = 'svg',
 }
 
 /**
@@ -66,54 +66,48 @@ export enum ElementNamespace {
  * Non-HTML elements (e.g. `svg` elements) should use the `elementType` parameter to select
  * the element namespace.
  */
-const createElement = <Tag extends ElementTagNames>(
-	tag: Tag,
-	props: ElementConfig<Tag>,
-	elementType: ElementNamespace = ElementNamespace.Html,
-): ElementTagToType<Tag> => {
-	let elem: ElementTagToType<Tag>;
-	if (elementType === ElementNamespace.Html) {
-		elem = document.createElement(tag) as ElementTagToType<Tag>;
-	} else if (elementType === ElementNamespace.Svg) {
-		elem = document.createElementNS('http://www.w3.org/2000/svg', tag) as ElementTagToType<Tag>;
-	} else {
-		throw new Error(`Unknown element type ${elementType}`);
-	}
+function createElement <Tag extends ElementTagNames>(tag: Tag,
+  props: ElementConfig<Tag>,
+  elementType: ElementNamespace = ElementNamespace.Html): ElementTagToType<Tag> {
+  let elem: ElementTagToType<Tag>;
+  if (elementType === ElementNamespace.Html) {
+    elem = document.createElement(tag) as ElementTagToType<Tag>;
+  } else if (elementType === ElementNamespace.Svg) {
+    elem = document.createElementNS('http://www.w3.org/2000/svg', tag) as ElementTagToType<Tag>;
+  } else {
+    throw new Error(`Unknown element type ${elementType}`);
+  }
 
-	for (const [key, value] of Object.entries(props)) {
-		if (key === 'children') continue;
+  for (const [key, value] of Object.entries(props)) {
+    if (key === 'children') continue;
 
-		if (typeof value !== 'string' && typeof value !== 'number') {
-			throw new Error(`Unsupported value type ${typeof value}`);
-		}
-		elem.setAttribute(key, value.toString());
-	}
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      throw new TypeError(`Unsupported value type ${typeof value}`);
+    }
+    elem.setAttribute(key, value.toString());
+  }
 
-	if (props.children) {
-		for (const item of props.children) {
-			elem.appendChild(item);
-		}
-	}
+  if (props.children) {
+    for (const item of props.children) {
+      elem.appendChild(item);
+    }
+  }
 
-	return elem;
-};
+  return elem;
+}
 
-export const createSvgElement = <Tag extends keyof SVGElementTagNameMap>(
-	tag: Tag,
-	props: ElementConfig<Tag>,
-) => {
-	return createElement(tag, props, ElementNamespace.Svg);
-};
+export function createSvgElement <Tag extends keyof SVGElementTagNameMap>(tag: Tag,
+  props: ElementConfig<Tag>) {
+  return createElement(tag, props, ElementNamespace.Svg);
+}
 
-export const createSvgElements = <Tag extends keyof SVGElementTagNameMap>(
-	tag: Tag,
-	elements: ElementConfig<Tag>[],
-) => {
-	return elements.map((props) => createSvgElement(tag, props));
-};
+export function createSvgElements <Tag extends keyof SVGElementTagNameMap>(tag: Tag,
+  elements: ElementConfig<Tag>[]) {
+  return elements.map((props) => createSvgElement(tag, props));
+}
 
-export const createSvgPaths = (...paths: ElementConfig<'path'>[]) => {
-	return createSvgElements('path', paths);
-};
+export function createSvgPaths (...paths: ElementConfig<'path'>[]) {
+  return createSvgElements('path', paths);
+}
 
 export default createElement;

@@ -1,5 +1,5 @@
 /**
- * This package contains general math utilities used by `js-draw`.
+ * This package contains general math utilities used by `easy-draw`.
  * These include 2D and 3D vectors, 2D paths, and 3x3 matrices.
  *
  * ```ts,runnable,console
@@ -22,17 +22,17 @@
 
 export { LineSegment2 } from './shapes/LineSegment2';
 export {
-	Path,
-	IntersectionResult as PathIntersectionResult,
-	CurveIndexRecord as PathCurveIndex,
-	stepCurveIndexBy as stepPathIndexBy,
-	compareCurveIndices as comparePathIndices,
-	PathCommandType,
-	PathCommand,
-	LinePathCommand,
-	MoveToPathCommand,
-	QuadraticBezierPathCommand,
-	CubicBezierPathCommand,
+  Path,
+  IntersectionResult as PathIntersectionResult,
+  CurveIndexRecord as PathCurveIndex,
+  stepCurveIndexBy as stepPathIndexBy,
+  compareCurveIndices as comparePathIndices,
+  PathCommandType,
+  PathCommand,
+  LinePathCommand,
+  MoveToPathCommand,
+  QuadraticBezierPathCommand,
+  CubicBezierPathCommand,
 } from './shapes/Path';
 export { Rect2 } from './shapes/Rect2';
 export { Parameterized2DShape } from './shapes/Parameterized2DShape';

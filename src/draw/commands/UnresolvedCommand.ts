@@ -1,6 +1,6 @@
-import EditorImage from '../image/EditorImage';
-import AbstractComponent from '../components/AbstractComponent';
 import SerializableCommand from './SerializableCommand';
+import type AbstractComponent from '../components/AbstractComponent';
+import type EditorImage from '../image/EditorImage';
 
 export type ResolveFromComponentCallback = () => SerializableCommand;
 
@@ -9,25 +9,25 @@ export type ResolveFromComponentCallback = () => SerializableCommand;
  * the command is created.
  */
 export default abstract class UnresolvedSerializableCommand extends SerializableCommand {
-	protected component: AbstractComponent | null;
-	protected readonly componentID: string;
+  protected component: AbstractComponent | null;
+  protected readonly componentID: string;
 
-	protected constructor(commandId: string, componentID: string, component?: AbstractComponent) {
-		super(commandId);
-		this.component = component ?? null;
-		this.componentID = componentID;
-	}
+  protected constructor(commandId: string, componentID: string, component?: AbstractComponent) {
+    super(commandId);
+    this.component = component ?? null;
+    this.componentID = componentID;
+  }
 
-	protected resolveComponent(image: EditorImage) {
-		if (this.component) {
-			return;
-		}
+  protected resolveComponent(image: EditorImage) {
+    if (this.component) {
+      return;
+    }
 
-		const component = image.lookupElement(this.componentID);
-		if (!component) {
-			throw new Error(`Unable to resolve component with ID ${this.componentID}`);
-		}
+    const component = image.lookupElement(this.componentID);
+    if (!component) {
+      throw new Error(`Unable to resolve component with ID ${this.componentID}`);
+    }
 
-		this.component = component;
-	}
+    this.component = component;
+  }
 }

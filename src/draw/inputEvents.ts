@@ -1,63 +1,64 @@
-import Pointer from './Pointer';
-import { Point2, Vec3 } from '~/math';
+import { type Point2, type Vec3 } from '~/math';
+
+import type Pointer from './Pointer';
 
 export type HTMLPointerEventName = 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel';
 export type HTMLPointerEventFilter = (
-	eventName: HTMLPointerEventName,
-	event: PointerEvent,
+  eventName: HTMLPointerEventName,
+  event: PointerEvent,
 ) => boolean;
 
 export interface PointerEvtListener {
-	onPointerDown(event: PointerEvt): boolean;
-	onPointerMove(event: PointerEvt): void;
-	onPointerUp(event: PointerEvt): void;
+  onPointerDown(event: PointerEvt): boolean;
+  onPointerMove(event: PointerEvt): void;
+  onPointerUp(event: PointerEvt): void;
 
-	// Called if a pointer that has been captured by this listener (by returning
-	// `true` from `onPointerDown`) is re-captured by another listener.
-	//
-	// When called, this method should cancel any changes being made by the current
-	// gesture.
-	onGestureCancel(): void;
+  // Called if a pointer that has been captured by this listener (by returning
+  // `true` from `onPointerDown`) is re-captured by another listener.
+  //
+  // When called, this method should cancel any changes being made by the current
+  // gesture.
+  onGestureCancel(): void;
 }
 
 export enum InputEvtType {
-	PointerDownEvt,
-	PointerMoveEvt,
-	PointerUpEvt,
-	GestureCancelEvt,
+  PointerDownEvt,
+  PointerMoveEvt,
+  PointerUpEvt,
+  GestureCancelEvt,
 
-	WheelEvt,
-	KeyPressEvent,
-	KeyUpEvent,
+  WheelEvt,
+  KeyPressEvent,
+  KeyUpEvent,
 
-	CopyEvent,
-	PasteEvent,
+  CopyEvent,
+  PasteEvent,
 
-	ContextMenu,
+  ContextMenu,
 }
 
 // [delta.x] is horizontal scroll,
 // [delta.y] is vertical scroll,
 // [delta.z] is zoom scroll (ctrl+scroll or pinch zoom)
 export interface WheelEvt {
-	readonly kind: InputEvtType.WheelEvt;
-	readonly delta: Vec3;
-	readonly screenPos: Point2;
+  readonly kind: InputEvtType.WheelEvt;
+  readonly delta: Vec3;
+  readonly screenPos: Point2;
 }
 
 interface BaseKeyEvent {
-	// key, as given by an HTML `KeyboardEvent`
-	readonly key: string;
-	readonly code: string;
+  // key, as given by an HTML `KeyboardEvent`
+  readonly key: string;
+  readonly code: string;
 
-	// If `ctrlKey` is undefined, that is equivalent to `ctrlKey = false`.
-	readonly ctrlKey: boolean | undefined;
+  // If `ctrlKey` is undefined, that is equivalent to `ctrlKey = false`.
+  readonly ctrlKey: boolean | undefined;
 
-	// If falsey, the `alt` key is not pressed.
-	readonly altKey: boolean | undefined;
+  // If falsey, the `alt` key is not pressed.
+  readonly altKey: boolean | undefined;
 
-	// If falsey, the `shift` key is not pressed.
-	readonly shiftKey: boolean | undefined;
+  // If falsey, the `shift` key is not pressed.
+  readonly shiftKey: boolean | undefined;
 }
 
 /**
@@ -68,7 +69,7 @@ interface BaseKeyEvent {
  * releases).
  */
 export interface KeyPressEvent extends BaseKeyEvent {
-	readonly kind: InputEvtType.KeyPressEvent;
+  readonly kind: InputEvtType.KeyPressEvent;
 }
 
 /**
@@ -79,50 +80,50 @@ export interface KeyPressEvent extends BaseKeyEvent {
  * releases).
  */
 export interface KeyUpEvent extends BaseKeyEvent {
-	readonly kind: InputEvtType.KeyUpEvent;
+  readonly kind: InputEvtType.KeyUpEvent;
 }
 
 export interface CopyEvent {
-	readonly kind: InputEvtType.CopyEvent;
-	setData(mime: string, data: string | Promise<Blob>): void;
+  readonly kind: InputEvtType.CopyEvent;
+  setData(mime: string, data: string | Promise<Blob>): void;
 }
 
 export interface PasteEvent {
-	readonly kind: InputEvtType.PasteEvent;
-	readonly data: string;
-	readonly mime: string;
+  readonly kind: InputEvtType.PasteEvent;
+  readonly data: string;
+  readonly mime: string;
 }
 
 // Event triggered when pointer capture is taken by a different [PointerEvtListener].
 export interface GestureCancelEvt {
-	readonly kind: InputEvtType.GestureCancelEvt;
+  readonly kind: InputEvtType.GestureCancelEvt;
 }
 
 interface PointerEvtBase {
-	readonly current: Pointer;
-	readonly allPointers: Pointer[];
+  readonly current: Pointer;
+  readonly allPointers: Pointer[];
 }
 
 export interface PointerDownEvt extends PointerEvtBase {
-	readonly kind: InputEvtType.PointerDownEvt;
+  readonly kind: InputEvtType.PointerDownEvt;
 }
 
 export interface PointerMoveEvt extends PointerEvtBase {
-	readonly kind: InputEvtType.PointerMoveEvt;
+  readonly kind: InputEvtType.PointerMoveEvt;
 }
 
 export interface PointerUpEvt extends PointerEvtBase {
-	readonly kind: InputEvtType.PointerUpEvt;
+  readonly kind: InputEvtType.PointerUpEvt;
 }
 
 export interface ContextMenuEvt {
-	readonly kind: InputEvtType.ContextMenu;
-	readonly screenPos: Point2;
-	readonly canvasPos: Point2;
+  readonly kind: InputEvtType.ContextMenu;
+  readonly screenPos: Point2;
+  readonly canvasPos: Point2;
 }
 
 /**
- * An internal `js-draw` pointer event type.
+ * An internal `easy-draw` pointer event type.
  *
  * This **is not** the same as a DOM pointer event.
  */
@@ -135,7 +136,7 @@ export type PointerEvtType =
 	| InputEvtType.PointerUpEvt;
 
 /**
- * An internal `js-draw` input event type.
+ * An internal `easy-draw` input event type.
  *
  * These are not DOM events.
  */
@@ -152,32 +153,30 @@ export type InputEvt =
 type KeyEventType = InputEvtType.KeyPressEvent | InputEvtType.KeyUpEvent;
 
 // Constructor
-const keyEventFromHTMLEvent = (
-	kind: KeyEventType,
-	event: KeyboardEvent,
-): KeyPressEvent | KeyUpEvent => {
-	return {
-		kind,
-		key: event.key,
-		code: event.code,
-		ctrlKey: event.ctrlKey || event.metaKey,
-		altKey: event.altKey,
-		shiftKey: event.shiftKey,
-	};
-};
+function keyEventFromHTMLEvent (kind: KeyEventType,
+  event: KeyboardEvent): KeyPressEvent | KeyUpEvent {
+  return {
+    kind,
+    key: event.key,
+    code: event.code,
+    ctrlKey: event.ctrlKey || event.metaKey,
+    altKey: event.altKey,
+    shiftKey: event.shiftKey,
+  };
+}
 
-export const keyUpEventFromHTMLEvent = (event: KeyboardEvent) => {
-	return keyEventFromHTMLEvent(InputEvtType.KeyUpEvent, event) as KeyUpEvent;
-};
+export function keyUpEventFromHTMLEvent (event: KeyboardEvent) {
+  return keyEventFromHTMLEvent(InputEvtType.KeyUpEvent, event) as KeyUpEvent;
+}
 
-export const keyPressEventFromHTMLEvent = (event: KeyboardEvent) => {
-	return keyEventFromHTMLEvent(InputEvtType.KeyPressEvent, event) as KeyPressEvent;
-};
+export function keyPressEventFromHTMLEvent (event: KeyboardEvent) {
+  return keyEventFromHTMLEvent(InputEvtType.KeyPressEvent, event) as KeyPressEvent;
+}
 
-export const isPointerEvt = (event: InputEvt): event is PointerEvt => {
-	return (
-		event.kind === InputEvtType.PointerDownEvt ||
+export function isPointerEvt (event: InputEvt): event is PointerEvt {
+  return (
+    event.kind === InputEvtType.PointerDownEvt ||
 		event.kind === InputEvtType.PointerMoveEvt ||
 		event.kind === InputEvtType.PointerUpEvt
-	);
-};
+  );
+}

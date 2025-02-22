@@ -1,5 +1,5 @@
-import { InputEvt } from '../../inputEvents';
 import InputMapper from './InputMapper';
+import { type InputEvt } from '../../inputEvents';
 
 /**
  * An `InputMapper` that applies a function to all events it receives.
@@ -7,11 +7,11 @@ import InputMapper from './InputMapper';
  * Useful for automated testing.
  */
 export default class FunctionMapper extends InputMapper {
-	public constructor(private fn: (event: InputEvt) => InputEvt) {
-		super();
-	}
+  public constructor(private fn: (event: InputEvt) => InputEvt) {
+    super();
+  }
 
-	public override onEvent(event: InputEvt): boolean {
-		return this.emit(this.fn(event));
-	}
+  public override onEvent(event: InputEvt): boolean {
+    return this.emit(this.fn(event));
+  }
 }

@@ -1,20 +1,21 @@
 import type { Rect2, Point2 } from '~/math';
-import Pointer from '../../Pointer';
+
+import type Pointer from '../../Pointer';
 
 export enum SelectionMode {
-	Lasso = 'lasso',
-	Rectangle = 'rect',
+  Lasso = 'lasso',
+  Rectangle = 'rect',
 }
 
 export enum ResizeMode {
-	Both,
-	HorizontalOnly,
-	VerticalOnly,
+  Both,
+  HorizontalOnly,
+  VerticalOnly,
 }
 
 export enum TransformMode {
-	Snap,
-	NoSnap,
+  Snap,
+  NoSnap,
 }
 
 /**
@@ -26,24 +27,24 @@ export enum TransformMode {
  * drag start/update/end events.
  */
 export interface SelectionBoxChild {
-	/**
+  /**
 	 * Update the position of this child, based on the screen position of
 	 * the selection box.
 	 */
-	updatePosition(selectionScreenBBox: Rect2): void;
+  updatePosition(selectionScreenBBox: Rect2): void;
 
-	/** @returns true iff `point` (in editor **canvas** coordinates) is in this child. */
-	containsPoint(point: Point2): boolean;
+  /** @returns true iff `point` (in editor **canvas** coordinates) is in this child. */
+  containsPoint(point: Point2): boolean;
 
-	/** Adds this component's HTMLElement to the given `container`. */
-	addTo(container: HTMLElement): void;
+  /** Adds this component's HTMLElement to the given `container`. */
+  addTo(container: HTMLElement): void;
 
-	/** Removes this from its parent container. */
-	remove(): void;
+  /** Removes this from its parent container. */
+  remove(): void;
 
-	// handleDragStart will only be called for points such that containsPoint
-	// returns true.
-	handleDragStart(pointer: Pointer): boolean;
-	handleDragUpdate(pointer: Pointer): void;
-	handleDragEnd(): void;
+  // handleDragStart will only be called for points such that containsPoint
+  // returns true.
+  handleDragStart(pointer: Pointer): boolean;
+  handleDragUpdate(pointer: Pointer): void;
+  handleDragEnd(): void;
 }

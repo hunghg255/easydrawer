@@ -1,16 +1,16 @@
+import SerializableCommand from './SerializableCommand';
 import AbstractComponent from '../components/AbstractComponent';
 import describeComponentList from '../components/util/describeComponentList';
-import Editor from '../Editor';
+import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
-import { EditorLocalization } from '../localization';
-import SerializableCommand from './SerializableCommand';
+import { type EditorLocalization } from '../localization';
 
 /**
  * Removes the given {@link AbstractComponent}s from the image.
  *
  * **Example**:
  * ```ts,runnable
- * import { Editor, Erase, uniteCommands, Color4, Path, Stroke, Rect2, pathToRenderable } from 'js-draw';
+ * import { Editor, Erase, uniteCommands, Color4, Path, Stroke, Rect2, pathToRenderable } from 'easy-draw';
  *
  * const editor = new Editor(document.body);
  * editor.addToolbar();
@@ -46,81 +46,81 @@ import SerializableCommand from './SerializableCommand';
  * ```
  */
 export default class Erase extends SerializableCommand {
-	private toRemove: AbstractComponent[];
-	private applied: boolean;
+  private toRemove: AbstractComponent[];
+  private applied: boolean;
 
-	public constructor(toRemove: AbstractComponent[]) {
-		super('erase');
+  public constructor(toRemove: AbstractComponent[]) {
+    super('erase');
 
-		// Clone the list
-		this.toRemove = toRemove.map((elem) => elem);
-		this.applied = false;
-	}
+    // Clone the list
+    this.toRemove = toRemove.map((elem) => elem);
+    this.applied = false;
+  }
 
-	public apply(editor: Editor) {
-		for (const part of this.toRemove) {
-			const parent = editor.image.findParent(part);
+  public apply(editor: Editor) {
+    for (const part of this.toRemove) {
+      const parent = editor.image.findParent(part);
 
-			if (parent) {
-				parent.remove();
-				editor.image.onDestroyElement(part);
-			}
-		}
+      if (parent) {
+        parent.remove();
+        editor.image.onDestroyElement(part);
+      }
+    }
 
-		this.applied = true;
-		editor.queueRerender();
-	}
+    this.applied = true;
+    editor.queueRerender();
+  }
 
-	public unapply(editor: Editor) {
-		for (const part of this.toRemove) {
-			if (!editor.image.findParent(part)) {
-				EditorImage.addComponent(part).apply(editor);
-			}
-		}
+  public unapply(editor: Editor) {
+    for (const part of this.toRemove) {
+      if (!editor.image.findParent(part)) {
+        EditorImage.addComponent(part).apply(editor);
+      }
+    }
 
-		this.applied = false;
-		editor.queueRerender();
-	}
+    this.applied = false;
+    editor.queueRerender();
+  }
 
-	public override onDrop(editor: Editor) {
-		if (this.applied) {
-			for (const part of this.toRemove) {
-				editor.image.onDestroyElement(part);
-			}
-		}
-	}
+  public override onDrop(editor: Editor) {
+    if (this.applied) {
+      for (const part of this.toRemove) {
+        editor.image.onDestroyElement(part);
+      }
+    }
+  }
 
-	public description(_editor: Editor, localizationTable: EditorLocalization): string {
-		if (this.toRemove.length === 0) {
-			return localizationTable.erasedNoElements;
-		}
+  public description(_editor: Editor, localizationTable: EditorLocalization): string {
+    if (this.toRemove.length === 0) {
+      return localizationTable.erasedNoElements;
+    }
 
-		const description =
+    const description =
 			describeComponentList(localizationTable, this.toRemove) ?? localizationTable.elements;
-		return localizationTable.eraseAction(description, this.toRemove.length);
-	}
+    return localizationTable.eraseAction(description, this.toRemove.length);
+  }
 
-	protected serializeToJSON() {
-		// If applied, the elements can't be fetched from the image because they're
-		// erased. Serialize and return the elements themselves.
-		const elems = this.toRemove.map((elem) => elem.serialize());
-		return elems;
-	}
+  protected serializeToJSON() {
+    // If applied, the elements can't be fetched from the image because they're
+    // erased. Serialize and return the elements themselves.
+    const elems = this.toRemove.map((elem) => elem.serialize());
+    return elems;
+  }
 
-	static {
-		SerializableCommand.register('erase', (json: any, editor) => {
-			if (!Array.isArray(json)) {
-				throw new Error('seralized erase data must be an array');
-			}
+  static {
+    SerializableCommand.register('erase', (json: any, editor) => {
+      if (!Array.isArray(json)) {
+        throw new TypeError('seralized erase data must be an array');
+      }
 
-			const elems = json.map((elemData: any) => {
-				const componentId = typeof elemData === 'string' ? elemData : `${elemData.id}`;
+      const elems = json.map((elemData: any) => {
+        const componentId = typeof elemData === 'string' ? elemData : `${elemData.id}`;
 
-				const component =
+        const component =
 					editor.image.lookupElement(componentId) ?? AbstractComponent.deserialize(elemData);
-				return component;
-			});
-			return new Erase(elems);
-		});
-	}
+        return component;
+      });
+      return new Erase(elems);
+    });
+  }
 }

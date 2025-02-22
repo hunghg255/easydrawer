@@ -1,6 +1,7 @@
-import { Point2, Rect2, Vec2 } from '~/math';
-import Viewport from '../../Viewport';
+import { type Point2, Rect2, Vec2 } from '~/math';
+
 import untilNextAnimationFrame from '../../util/untilNextAnimationFrame';
+import type Viewport from '../../Viewport';
 
 type ScrollByCallback = (delta: Vec2) => void;
 
@@ -8,96 +9,96 @@ type ScrollByCallback = (delta: Vec2) => void;
  * Automatically scrolls the viewport such that the user's pointer is visible.
  */
 export default class ToPointerAutoscroller {
-	private started: boolean = false;
-	private updateLoopId: number = 0;
-	private updateLoopRunning = false;
-	private targetPoint: Point2 | null = null;
-	private scrollRate: number = 1000; // px/s
+  private started = false;
+  private updateLoopId = 0;
+  private updateLoopRunning = false;
+  private targetPoint: Point2 | null = null;
+  private scrollRate = 1000; // px/s
 
-	public constructor(
-		private viewport: Viewport,
-		private scrollByCanvasDelta: ScrollByCallback,
-	) {}
+  public constructor(
+    private viewport: Viewport,
+    private scrollByCanvasDelta: ScrollByCallback,
+  ) {}
 
-	private getScrollForPoint(screenPoint: Point2) {
-		const screenSize = this.viewport.getScreenRectSize();
-		const screenRect = new Rect2(0, 0, screenSize.x, screenSize.y);
+  private getScrollForPoint(screenPoint: Point2) {
+    const screenSize = this.viewport.getScreenRectSize();
+    const screenRect = new Rect2(0, 0, screenSize.x, screenSize.y);
 
-		// Starts autoscrolling when the cursor is **outside of** this region
-		const marginSize = 44;
-		const autoscrollBoundary = screenRect.grownBy(-marginSize);
+    // Starts autoscrolling when the cursor is **outside of** this region
+    const marginSize = 44;
+    const autoscrollBoundary = screenRect.grownBy(-marginSize);
 
-		if (autoscrollBoundary.containsPoint(screenPoint)) {
-			return Vec2.zero;
-		}
+    if (autoscrollBoundary.containsPoint(screenPoint)) {
+      return Vec2.zero;
+    }
 
-		const closestEdgePoint = autoscrollBoundary.getClosestPointOnBoundaryTo(screenPoint);
-		const distToEdge = closestEdgePoint.distanceTo(screenPoint);
+    const closestEdgePoint = autoscrollBoundary.getClosestPointOnBoundaryTo(screenPoint);
+    const distToEdge = closestEdgePoint.distanceTo(screenPoint);
 
-		const toEdge = closestEdgePoint.minus(screenPoint);
+    const toEdge = closestEdgePoint.minus(screenPoint);
 
-		// Go faster for points further away from the boundary.
-		const maximumScaleFactor = 1.25;
-		const scaleFactor = Math.min(distToEdge / marginSize, maximumScaleFactor);
+    // Go faster for points further away from the boundary.
+    const maximumScaleFactor = 1.25;
+    const scaleFactor = Math.min(distToEdge / marginSize, maximumScaleFactor);
 
-		return toEdge.normalizedOrZero().times(scaleFactor);
-	}
+    return toEdge.normalizedOrZero().times(scaleFactor);
+  }
 
-	public start() {
-		this.started = true;
-	}
+  public start() {
+    this.started = true;
+  }
 
-	public onPointerMove(pointerScreenPosition: Point2) {
-		if (!this.started) {
-			return;
-		}
+  public onPointerMove(pointerScreenPosition: Point2) {
+    if (!this.started) {
+      return;
+    }
 
-		if (this.getScrollForPoint(pointerScreenPosition) === Vec2.zero) {
-			this.stopUpdateLoop();
-		} else {
-			this.targetPoint = pointerScreenPosition;
-			this.startUpdateLoop();
-		}
-	}
+    if (this.getScrollForPoint(pointerScreenPosition) === Vec2.zero) {
+      this.stopUpdateLoop();
+    } else {
+      this.targetPoint = pointerScreenPosition;
+      this.startUpdateLoop();
+    }
+  }
 
-	public stop() {
-		this.targetPoint = null;
-		this.started = false;
-		this.stopUpdateLoop();
-	}
+  public stop() {
+    this.targetPoint = null;
+    this.started = false;
+    this.stopUpdateLoop();
+  }
 
-	private startUpdateLoop() {
-		if (this.updateLoopRunning) {
-			return;
-		}
+  private startUpdateLoop() {
+    if (this.updateLoopRunning) {
+      return;
+    }
 
-		(async () => {
-			this.updateLoopId++;
-			const currentUpdateLoopId = this.updateLoopId;
+    (async () => {
+      this.updateLoopId++;
+      const currentUpdateLoopId = this.updateLoopId;
 
-			let lastUpdateTime = performance.now();
+      let lastUpdateTime = performance.now();
 
-			while (this.updateLoopId === currentUpdateLoopId && this.targetPoint) {
-				this.updateLoopRunning = true;
-				const currentTime = performance.now();
-				const deltaTimeMs = currentTime - lastUpdateTime;
+      while (this.updateLoopId === currentUpdateLoopId && this.targetPoint) {
+        this.updateLoopRunning = true;
+        const currentTime = performance.now();
+        const deltaTimeMs = currentTime - lastUpdateTime;
 
-				const scrollDirection = this.getScrollForPoint(this.targetPoint);
-				const screenScrollAmount = scrollDirection.times((this.scrollRate * deltaTimeMs) / 1000);
+        const scrollDirection = this.getScrollForPoint(this.targetPoint);
+        const screenScrollAmount = scrollDirection.times((this.scrollRate * deltaTimeMs) / 1000);
 
-				this.scrollByCanvasDelta(
-					this.viewport.screenToCanvasTransform.transformVec3(screenScrollAmount),
-				);
+        this.scrollByCanvasDelta(
+          this.viewport.screenToCanvasTransform.transformVec3(screenScrollAmount),
+        );
 
-				lastUpdateTime = currentTime;
-				await untilNextAnimationFrame();
-			}
+        lastUpdateTime = currentTime;
+        await untilNextAnimationFrame();
+      }
 
-			this.updateLoopRunning = false;
-		})();
-	}
+      this.updateLoopRunning = false;
+    })();
+  }
 
-	private stopUpdateLoop() {
-		this.updateLoopId++;
-	}
+  private stopUpdateLoop() {
+    this.updateLoopId++;
+  }
 }

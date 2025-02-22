@@ -1,22 +1,23 @@
-import type { RenderableImage } from '../../../rendering/renderers/AbstractRenderer';
-import fileToBase64Url from '../../../util/fileToBase64Url';
 import { Mat33 } from '~/math';
 
-const fileToImages = async (imageFile: File): Promise<RenderableImage[]> => {
-	const result: RenderableImage[] = [];
+import type { RenderableImage } from '../../../rendering/renderers/AbstractRenderer';
+import fileToBase64Url from '../../../util/fileToBase64Url';
 
-	const imageElement = new Image();
+async function fileToImages (imageFile: File): Promise<RenderableImage[]> {
+  const result: RenderableImage[] = [];
 
-	const base64Url = await fileToBase64Url(imageFile);
-	if (base64Url) {
-		result.push({
-			image: imageElement,
-			base64Url: base64Url,
-			transform: Mat33.identity,
-		});
-	}
+  const imageElement = new Image();
 
-	return result;
-};
+  const base64Url = await fileToBase64Url(imageFile);
+  if (base64Url) {
+    result.push({
+      image: imageElement,
+      base64Url: base64Url,
+      transform: Mat33.identity,
+    });
+  }
+
+  return result;
+}
 
 export default fileToImages;

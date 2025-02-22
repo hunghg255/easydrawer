@@ -1,11 +1,12 @@
 // Types related to the image editor
 
-import type EventDispatcher from './EventDispatcher';
 import type { Mat33, Point2, Vec2, Rect2, Color4 } from '~/math';
-import type BaseTool from './tools/BaseTool';
-import type AbstractComponent from './components/AbstractComponent';
+
 import type Command from './commands/Command';
+import type AbstractComponent from './components/AbstractComponent';
+import type EventDispatcher from './EventDispatcher';
 import type { WidgetContentLayoutManager } from './toolbar/widgets/layout/types';
+import type BaseTool from './tools/BaseTool';
 
 /**
  * The type of the {@link Editor.notifier}, which provides notifications for
@@ -15,37 +16,37 @@ export type EditorNotifier = EventDispatcher<EditorEventType, EditorEventDataTyp
 
 /** @see {@link EditorNotifier} */
 export enum EditorEventType {
-	ToolEnabled,
-	ToolDisabled,
-	ToolUpdated,
+  ToolEnabled,
+  ToolDisabled,
+  ToolUpdated,
 
-	UndoRedoStackUpdated,
-	CommandDone,
-	CommandUndone,
-	ObjectAdded,
+  UndoRedoStackUpdated,
+  CommandDone,
+  CommandUndone,
+  ObjectAdded,
 
-	ViewportChanged,
-	DisplayResized,
+  ViewportChanged,
+  DisplayResized,
 
-	SelectionUpdated,
+  SelectionUpdated,
 
-	ReadOnlyModeToggled,
+  ReadOnlyModeToggled,
 
-	/** @internal */
-	ColorPickerToggled,
+  /** @internal */
+  ColorPickerToggled,
 
-	/** @internal */
-	ColorPickerColorSelected,
+  /** @internal */
+  ColorPickerColorSelected,
 
-	/** @deprecated @internal */
-	ToolbarDropdownShown,
+  /** @deprecated @internal */
+  ToolbarDropdownShown,
 }
 
 // Types of `EditorUndoStackUpdated` events.
 export enum UndoEventType {
-	CommandDone,
-	CommandUndone,
-	CommandRedone,
+  CommandDone,
+  CommandUndone,
+  CommandRedone,
 }
 
 type EditorToolEventType =
@@ -54,75 +55,75 @@ type EditorToolEventType =
 	| EditorEventType.ToolUpdated;
 
 export interface EditorToolEvent {
-	readonly kind: EditorToolEventType;
-	readonly tool: BaseTool;
+  readonly kind: EditorToolEventType;
+  readonly tool: BaseTool;
 }
 
 export interface EditorObjectEvent {
-	readonly kind: EditorEventType.ObjectAdded;
-	readonly object: AbstractComponent;
+  readonly kind: EditorEventType.ObjectAdded;
+  readonly object: AbstractComponent;
 }
 
 export interface EditorViewportChangedEvent {
-	readonly kind: EditorEventType.ViewportChanged;
+  readonly kind: EditorEventType.ViewportChanged;
 
-	// Canvas -> screen transform
-	readonly newTransform: Mat33;
-	readonly oldTransform: Mat33;
+  // Canvas -> screen transform
+  readonly newTransform: Mat33;
+  readonly oldTransform: Mat33;
 }
 
 export interface DisplayResizedEvent {
-	readonly kind: EditorEventType.DisplayResized;
-	readonly newSize: Vec2;
+  readonly kind: EditorEventType.DisplayResized;
+  readonly newSize: Vec2;
 }
 
 export interface EditorUndoStackUpdated {
-	readonly kind: EditorEventType.UndoRedoStackUpdated;
+  readonly kind: EditorEventType.UndoRedoStackUpdated;
 
-	readonly undoStackSize: number;
-	readonly redoStackSize: number;
+  readonly undoStackSize: number;
+  readonly redoStackSize: number;
 
-	readonly command?: Command;
-	readonly stackUpdateType: UndoEventType;
+  readonly command?: Command;
+  readonly stackUpdateType: UndoEventType;
 }
 
 export interface CommandDoneEvent {
-	readonly kind: EditorEventType.CommandDone;
-	readonly command: Command;
+  readonly kind: EditorEventType.CommandDone;
+  readonly command: Command;
 }
 
 export interface CommandUndoneEvent {
-	readonly kind: EditorEventType.CommandUndone;
-	readonly command: Command;
+  readonly kind: EditorEventType.CommandUndone;
+  readonly command: Command;
 }
 
 export interface SelectionUpdated {
-	readonly kind: EditorEventType.SelectionUpdated;
-	readonly selectedComponents: AbstractComponent[];
-	readonly tool: BaseTool;
+  readonly kind: EditorEventType.SelectionUpdated;
+  readonly selectedComponents: AbstractComponent[];
+  readonly tool: BaseTool;
 }
 
 export interface ReadOnlyToggled {
-	readonly kind: EditorEventType.ReadOnlyModeToggled;
-	readonly editorIsReadOnly: boolean;
+  readonly kind: EditorEventType.ReadOnlyModeToggled;
+  readonly editorIsReadOnly: boolean;
 }
 
 export interface ColorPickerToggled {
-	readonly kind: EditorEventType.ColorPickerToggled;
-	readonly open: boolean;
+  readonly kind: EditorEventType.ColorPickerToggled;
+  readonly open: boolean;
 }
 
 export interface ColorPickerColorSelected {
-	readonly kind: EditorEventType.ColorPickerColorSelected;
-	readonly color: Color4;
+  readonly kind: EditorEventType.ColorPickerColorSelected;
+  readonly color: Color4;
 }
 
 export interface ToolbarDropdownShownEvent {
-	readonly kind: EditorEventType.ToolbarDropdownShown;
+  readonly kind: EditorEventType.ToolbarDropdownShown;
 
-	// True iff the source dropdown is toplevel.
-	readonly fromToplevelDropdown: boolean;
-	readonly layoutManager: WidgetContentLayoutManager;
+  // True iff the source dropdown is toplevel.
+  readonly fromToplevelDropdown: boolean;
+  readonly layoutManager: WidgetContentLayoutManager;
 }
 
 export type EditorEventDataType =
@@ -143,8 +144,8 @@ export type EditorEventDataType =
 // Returns null to continue loading without pause.
 // [totalToProcess] can be an estimate and may change if a better estimate becomes available.
 export type OnProgressListener = (
-	amountProcessed: number,
-	totalToProcess: number,
+  amountProcessed: number,
+  totalToProcess: number,
 ) => Promise<void> | null | void;
 
 export type ComponentAddedListener = (component: AbstractComponent) => Promise<void> | void;
@@ -155,23 +156,23 @@ export type ComponentAddedListener = (component: AbstractComponent) => Promise<v
 //
 // **Note**: In a future release, the `options` parameter may be required.
 export type OnDetermineExportRectListener = (
-	exportRect: Rect2,
-	options?: { autoresize: boolean },
+  exportRect: Rect2,
+  options?: { autoresize: boolean },
 ) => void;
 
 export interface ImageLoader {
-	start(
-		onAddComponent: ComponentAddedListener,
-		onProgressListener: OnProgressListener,
-		onDetermineExportRect?: OnDetermineExportRectListener,
-	): Promise<void>;
+  start(
+    onAddComponent: ComponentAddedListener,
+    onProgressListener: OnProgressListener,
+    onDetermineExportRect?: OnDetermineExportRectListener,
+  ): Promise<void>;
 }
 
 export interface StrokeDataPoint {
-	pos: Point2;
-	width: number;
+  pos: Point2;
+  width: number;
 
-	/** Time in milliseconds (e.g. as returned by `performance.now()`). */
-	time: number;
-	color: Color4;
+  /** Time in milliseconds (e.g. as returned by `performance.now()`). */
+  time: number;
+  color: Color4;
 }

@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect } from 'react'
-import './App.css'
 
 //@ts-expect-error
 import { Editor, 	AbstractToolbar,
@@ -118,7 +117,10 @@ console.log(makeEdgeToolbar);
 }, [])
   return (
     <>
-
+<div className='container'>
+  <div>1</div>
+  <div>2</div>
+</div>
     </>
   )
 }

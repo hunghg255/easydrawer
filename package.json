@@ -11,6 +11,21 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./styles.css": {
+      "import": "./dist/styles.css",
+      "require": "./dist/styles.css"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json",
+    "./*": "./dist/*"
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*",
+        "./*"
+      ]
     }
   },
   "files": [
@@ -18,8 +33,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
-    "watch": "tsup --watch",
+    "build": "NODE_ENV=production tsup && pnpm run build:css",
+    "build:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css && cp -R src/styles/assets/styles.css dist/styles.css",
     "prepublishOnly": "npm run build",
     "lint": "eslint src",
     "lint-fix": "npm run lint -- --fix",
@@ -29,16 +44,24 @@
     "prepare": "git-scm-hooks",
     "changelog": "npx changeloggithub@latest --all true && git add CHANGELOG.md && git commit -m 'chore: update CHANGELOG.md'",
     "release": "bumpp -r && npm run changelog",
-    "playground": "pnpm --dir ./playground run dev"
+    "dev:tsup": "NODE_ENV=development tsup --watch",
+    "dev:playground": "pnpm --dir ./playground run dev",
+    "dev:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css --watch",
+    "dev": "npm-run-all --parallel dev:css dev:tsup dev:playground"
   },
   "author": "hunghg255",
   "devDependencies": {
     "@hunghg255/eslint-config": "^0.0.16",
     "@types/node": "^18.19.76",
+    "autoprefixer": "^10.4.20",
     "bumpp": "^9.11.1",
     "esno": "^0.16.3",
     "git-scm-hooks": "^0.0.7",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.3",
+    "postcss-cli": "^11.0.0",
     "prettier": "^3.5.1",
+    "tailwindcss": "^3.4.17",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3",
     "verify-commit-msg": "^0.0.10",

@@ -1,3 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  outline: none !important;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  backface-visibility: hidden;
+  box-sizing: border-box;
+
+  /* WebKit (Chrome, Safari, Edge) specific scrollbar styles */
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    border-radius: 10px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, .4);
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+@-moz-document url-prefix() {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
+    scrollbar-width: 6px;
+  }
+}
+
+
+button {
+  @apply hover:bg-none;
+  @apply outline-none;
+  @apply border-none;
+  @apply transition-colors ease-linear;
+  @apply cursor-pointer;
+}
+
+input {
+  @apply outline-none;
+  @apply border-none;
+  @apply bg-none bg-transparent;
+  @apply outline-none;
+  @apply placeholder:text-neutral-500 placeholder:italic placeholder:text-xs;
+  @apply placeholder-shown:truncate;
+}
+
+svg {
+  @apply w-auto h-auto;
+  @apply pointer-events-none;
+}
+
+.container {
+  @apply flex;
+  @apply items-center;
+  @apply justify-center;
+}
+
+
 :root .insert-image-widget-dropdown-content.insert-image-widget-dropdown-content.insert-image-widget-dropdown-content>div>div {
   padding: 5px
 }

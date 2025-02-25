@@ -2915,11 +2915,11 @@ svg {
 .imageEditorContainer {
   --icon-color: var(--foreground-color-1)
 ;
-  color: var(--foreground-color-1);
+  /* color: var(--foreground-color-1); */
   font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--background-color-1);
+  /* background-color: var(--background-color-1); */
   width: 100%;
-  height: 400px;
+  height: 100vh;
   min-height: 220px;
   min-width: 100px;
   writing-mode: horizontal-tb;

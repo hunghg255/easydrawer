@@ -67,12 +67,12 @@
 		system-ui,
 		-apple-system,
 		sans-serif;
-	background-color: var(--background-color-1);
+	// background-color: var(--background-color-1);
 
 	// Set the width/height to a value that's independent of its content -- avoids
 	// ResizeObserver errors: https://developer.mozilla.org/en-US/docs/Web/API/ResizeObserver#observation_errors
 	width: 100%;
-	height: 400px;
+	height: 100vh;
 	min-height: 220px;
 	min-width: 100px;
 

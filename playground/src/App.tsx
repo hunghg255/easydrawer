@@ -1,20 +1,18 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect } from 'react'
 
-//@ts-expect-error
+
 import { Editor, 	AbstractToolbar,
 	EditorEventType,
 	EventDispatcher,
 	makeDropdownToolbar,
+  //@ts-expect-error
 	makeEdgeToolbar, } from 'easy-draw';
 
 function App() {
 useEffect(() => {
 
   const init = async () => {
-
-console.log(makeEdgeToolbar);
-
     // const editor = new Editor(document.body, {
     //   wheelEventsEnabled: false,
     // });
@@ -29,14 +27,16 @@ console.log(makeEdgeToolbar);
 
       // Specify a custom app name for the about dialog,
       // but not a custom version.
-      appInfo: {
-        name: 'easy-draw demo',
-        description: "An app demonstrating the easy-draw library's functionality.",
-      },
+      // appInfo: {
+      //   name: 'easy-draw demo',
+      //   description: "An app demonstrating the easy-draw library's functionality.",
+      // },
 
-      text: {
-        fonts: ['serif', 'sans-serif', 'monospace'],
-      },
+      // text: {
+      //   fonts: ['serif', 'sans-serif', 'monospace'],
+      // },
+      minZoom: 1,
+      maxZoom: 1,
     });
 
     // const { hasChanges } = watchForChanges(editor, appNotifier);
@@ -44,21 +44,41 @@ console.log(makeEdgeToolbar);
     // Although new Editor(parentElement) created an Editor, it doesn't have a toolbar
     // yet. `.addToolbar()` creates a toolbar and adds it to the document, using the
     // default toolbar layout.
-    let toolbar: any;
+    // let toolbar: any;
     // if (getIsEdgeToolbar()) {
     //   toolbar = makeEdgeToolbar(editor);
     //   toolbar.addDefaultToolWidgets();
     // } else {
       const dropdownToolbar = makeDropdownToolbar(editor);
       dropdownToolbar.addDefaultToolWidgets();
-      dropdownToolbar.addOverflowWidget();
-      toolbar = dropdownToolbar;
-    // }
 
-    const closeEditor = () => {
-      editor.remove();
-      // void reShowLaunchOptions(localization, appNotifier);
-    };
+
+      // dropdownToolbar.addOverflowWidget();
+//       toolbar = dropdownToolbar;
+//     // }
+// console.log({
+//   toolbar
+// });
+
+	// Loads from SVG data
+
+
+	// Adding tags to a toolbar button allows different styles to be applied.
+	// Also see addActionButton.
+
+// Add a custom button
+// dropdownToolbar.addActionButton({
+//   label: 'Custom Button',
+//   icon: createCustomIcon(),
+// }, () => {
+//   console.log('Click');
+
+//   // Do something here
+// });
+    // const closeEditor = () => {
+    //   editor.remove();
+    //   // void reShowLaunchOptions(localization, appNotifier);
+    // };
 
     // Add buttons in this order (exit, undo/redo, save) so that the
     // tab order matches the display order (which is set with CSS).
@@ -72,9 +92,11 @@ console.log(makeEdgeToolbar);
 
     // toolbar.addUndoRedoButtons();
 
-    const saveButton = toolbar.addSaveButton(() => {
-      // saveCallback();
-    });
+    // const saveButton = dropdownToolbar.addSaveButton(() => {
+    //   // saveCallback();
+    //   console.log('save');
+
+    // });
 
     // if (isDebugWidgetEnabled()) {
     //   toolbar.addWidget(new DebugToolbarWidget(editor));
@@ -101,14 +123,14 @@ console.log(makeEdgeToolbar);
     // First, ensure that users can't save an incomplete image by disabling save
     // and editing (disabling editing allows the exit button to still be clickable, so
     // long as there is nothing to save).
-    editor.setReadOnly(true);
-    saveButton.setDisabled(true);
+    // editor.setReadOnly(true);
+    // saveButton.setDisabled(true);
 
     // await editor.loadFromSVG(await getInitialSVGData());
 
     // After loading, re-enable editing.
-    editor.setReadOnly(false);
-    saveButton.setDisabled(false);
+    // editor.setReadOnly(false);
+    // saveButton.setDisabled(false);
 
   }
 
@@ -117,10 +139,7 @@ console.log(makeEdgeToolbar);
 }, [])
   return (
     <>
-<div className='container'>
-  <div>1</div>
-  <div>2</div>
-</div>
+
     </>
   )
 }

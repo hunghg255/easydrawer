@@ -127,6 +127,7 @@ export default abstract class AbstractToolbar {
       Color4.black.toHexString(),
       Color4.white.toHexString(),
     ];
+
     const presetColorEnd = swatches.length;
 
     // Keeps track of whether a Coloris initialization is scheduled.
@@ -264,6 +265,7 @@ export default abstract class AbstractToolbar {
   public addWidget(widget: BaseWidget) {
     // Prevent name collisions
     const id = widget.getUniqueIdIn(this.#widgetsById);
+
 
     // Add the widget
     this.#widgetsById[id] = widget;
@@ -580,13 +582,13 @@ export default abstract class AbstractToolbar {
         const widget = new PenToolWidget(this.editor, tool, this.localizationTable);
         this.addWidget(widget);
       } else if (tool instanceof EraserTool) {
-        this.addWidget(new EraserWidget(this.editor, tool, this.localizationTable));
+        // this.addWidget(new EraserWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof SelectionTool) {
-        this.addWidget(new SelectionToolWidget(this.editor, tool, this.localizationTable));
+        // this.addWidget(new SelectionToolWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof TextTool) {
-        this.addWidget(new TextToolWidget(this.editor, tool, this.localizationTable));
+        // this.addWidget(new TextToolWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof PanZoomTool) {
-        this.addWidget(new HandToolWidget(this.editor, tool, this.localizationTable));
+        // this.addWidget(new HandToolWidget(this.editor, tool, this.localizationTable));
       }
     }
   }
@@ -608,7 +610,7 @@ export default abstract class AbstractToolbar {
 	 */
   public addDefaultEditorControlWidgets() {
     this.addWidget(new DocumentPropertiesWidget(this.editor, this.localizationTable));
-    this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
+    // this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
   }
 
   public addDefaultActionButtons() {

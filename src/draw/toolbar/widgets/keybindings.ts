@@ -2,7 +2,7 @@ import KeyboardShortcutManager from '../../shortcuts/KeyboardShortcutManager';
 
 // Selection
 export const resizeImageToSelectionKeyboardShortcut =
-	'jsdraw.toolbar.SelectionTool.resizeImageToSelection';
+	'easydraw.toolbar.SelectionTool.resizeImageToSelection';
 KeyboardShortcutManager.registerDefaultKeyboardShortcut(
   resizeImageToSelectionKeyboardShortcut,
   ['ctrlOrMeta+r'],
@@ -11,7 +11,7 @@ KeyboardShortcutManager.registerDefaultKeyboardShortcut(
 
 // Pen tool
 export const selectStrokeTypeKeyboardShortcutIds: string[] = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(
-  (id) => `jsdraw.toolbar.PenTool.select-pen-${id}`,
+  (id) => `easydraw.toolbar.PenTool.select-pen-${id}`,
 );
 
 for (const [i, id] of selectStrokeTypeKeyboardShortcutIds.entries()) {
@@ -23,7 +23,7 @@ for (const [i, id] of selectStrokeTypeKeyboardShortcutIds.entries()) {
 }
 
 // Save
-export const saveKeyboardShortcut = 'jsdraw.toolbar.SaveActionWidget.save';
+export const saveKeyboardShortcut = 'easydraw.toolbar.SaveActionWidget.save';
 KeyboardShortcutManager.registerDefaultKeyboardShortcut(
   saveKeyboardShortcut,
   ['ctrlOrMeta+KeyS'],
@@ -31,5 +31,5 @@ KeyboardShortcutManager.registerDefaultKeyboardShortcut(
 );
 
 // Exit
-export const exitKeyboardShortcut = 'jsdraw.toolbar.ExitActionWidget.exit';
+export const exitKeyboardShortcut = 'easydraw.toolbar.ExitActionWidget.exit';
 KeyboardShortcutManager.registerDefaultKeyboardShortcut(exitKeyboardShortcut, ['Alt+KeyQ'], 'Exit');

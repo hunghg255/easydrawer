@@ -1,0 +1,39 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: white;
+  border-radius: 10px;
+  width: 300px;
+  cursor: pointer;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1000;
+  padding: 10px;
+  gap: 10px;
+}
+
+.wrapper > button {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #dbdbdb;
+  color: black;
+  border: none;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.imageEditorContainer {
+  position: relative;
+  z-index: 10;
+}
+
+.options button {
+  border: solid 1px #b3b3b3;
+  background-color: #f2f2f2;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 0 5px;
+}

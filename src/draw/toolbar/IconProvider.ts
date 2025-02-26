@@ -79,7 +79,7 @@ function makeRedoIcon (mirror: boolean) {
  * ```ts,runnable
  * import * as jsdraw from 'easy-draw';
  *
- * class CustomIconProvider extends jsdraw.IconProvider {
+ * class CustomIconProvider extends easydraw.IconProvider {
  *     // Use '☺' instead of the default dropdown symbol.
  *     public override makeDropdownIcon() {
  *         const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -92,14 +92,14 @@ function makeRedoIcon (mirror: boolean) {
  * }
  *
  * const icons = new CustomIconProvider();
- * const editor = new jsdraw.Editor(document.body, {
+ * const editor = new easydraw.Editor(document.body, {
  *     // The icon pack to use is specified through the editor's initial
  *     // configuration object:
  *     iconProvider: icons,
  * });
  *
  * // Add a toolbar that uses these icons
- * jsdraw.makeDropdownToolbar(editor).addDefaults();
+ * easydraw.makeDropdownToolbar(editor).addDefaults();
  * ```
  */
 export default class IconProvider {
@@ -318,7 +318,7 @@ export default class IconProvider {
     );
   }
 
-  /** Unused by easy-draw. @deprecated */
+  /** Unused by easydraw. @deprecated */
   public makeAllDevicePanningIcon(): IconElemType {
     const fill = 'none';
     const strokeColor = 'var(--icon-color)';

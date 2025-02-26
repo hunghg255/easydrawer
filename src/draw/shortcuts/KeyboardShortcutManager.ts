@@ -68,7 +68,7 @@ export default class KeyboardShortcutManager {
 	 *
 	 * @example
 	 * ```ts
-	 * const shortcutId = 'io.github.personalizedrefrigerator.easy-draw.select-all';
+	 * const shortcutId = 'io.github.personalizedrefrigerator.easydraw.select-all';
 	 *
 	 * // Associate two shortcuts with the same ID
 	 * const shortcut1 = KeyBinding.fromString('ctrlOrMeta+a');

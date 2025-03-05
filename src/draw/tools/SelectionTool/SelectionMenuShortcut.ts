@@ -1,4 +1,4 @@
-import { type Point2, Rect2, Vec2 } from '~/math';
+import { type IVec2, Rect2, Vec2 } from '~/math';
 
 import type Selection from './Selection';
 import { cssPrefix } from './SelectionTool';
@@ -10,11 +10,11 @@ import { type ToolLocalization } from '../localization';
 const verticalOffset = 40;
 
 // `startPoint` is in screen coordinates
-export type DragStartCallback = (startPoint: Point2) => void;
-export type DragUpdateCallback = (canvasPoint: Point2) => void;
+export type DragStartCallback = (startPoint: IVec2) => void;
+export type DragUpdateCallback = (canvasPoint: IVec2) => void;
 export type DragEndCallback = () => Promise<void> | void;
 
-type OnShowContextMenu = (anchor: Point2) => void;
+type OnShowContextMenu = (anchor: IVec2) => void;
 
 export default class SelectionMenuShortcut implements SelectionBoxChild {
   private element: HTMLElement;
@@ -115,7 +115,7 @@ export default class SelectionMenuShortcut implements SelectionBoxChild {
     this.element.style.marginTop = `${bbox.topLeft.y}px`;
   }
 
-  public containsPoint(canvasPoint: Point2) {
+  public containsPoint(canvasPoint: IVec2) {
     return this.getBBoxCanvasCoords().containsPoint(canvasPoint);
   }
 

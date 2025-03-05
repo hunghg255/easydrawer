@@ -38,7 +38,7 @@ type TextElement = TextComponent | string;
 const defaultTextStyle: TextRenderingStyle = {
   fontFamily: 'sans',
   size: 12,
-  renderingStyle: { fill: Color4.purple },
+  renderingStyle: { fill: Color4.black },
 };
 
 /**
@@ -49,7 +49,7 @@ const defaultTextStyle: TextRenderingStyle = {
  * **Example**:
  *
  * ```ts,runnable
- * import { Editor, TextComponent, Mat33, Vec2, Color4, TextRenderingStyle } from 'easy-draw';
+ * import { Editor, TextComponent, Mat33, Vec2, Color4, TextRenderingStyle } from 'easydrawer';
  * const editor = new Editor(document.body);
  * editor.dispatch(editor.setBackgroundStyle({ color: Color4.black, autoresize: true ));
  * ---visible---

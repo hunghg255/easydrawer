@@ -1,4 +1,4 @@
-import { type Point2, Vec2, Rect2, Color4, type PathCommand, PathCommandType } from '~/math';
+import { type IVec2, Vec2, Rect2, Color4, type PathCommand, PathCommandType } from '~/math';
 
 import makeShapeFitAutocorrect from './autocorrect/makeShapeFitAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
@@ -128,7 +128,7 @@ export default class FreehandLineBuilder implements ComponentBuilder {
     return minFit;
   }
 
-  private roundPoint(point: Point2): Point2 {
+  private roundPoint(point: IVec2): IVec2 {
     const minFit = this.getMinFit();
     return Viewport.roundPoint(point, minFit);
   }

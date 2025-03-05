@@ -1,4 +1,4 @@
-import { type Vec2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import getUniquePointerId from './getUniquePointerId';
 import type Editor from '../Editor';
@@ -43,7 +43,7 @@ import Pointer, { PointerDevice } from '../Pointer';
  */
 function sendTouchEvent (editor: Editor,
   eventType: PointerEvtType,
-  screenPos: Vec2,
+  screenPos: IVec2,
   allOtherPointers?: Pointer[]) {
   const canvasPos = editor.viewport.screenToCanvas(screenPos);
 

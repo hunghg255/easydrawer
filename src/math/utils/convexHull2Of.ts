@@ -1,4 +1,4 @@
-import { type Point2, Vec2 } from '../Vec2';
+import { type IVec2, Vec2 } from '../Vector';
 
 /**
  * Implements Gift Wrapping, in $O(nh)$. This algorithm is not the most efficient in the worst case.
@@ -6,7 +6,7 @@ import { type Point2, Vec2 } from '../Vec2';
  * See https://en.wikipedia.org/wiki/Gift_wrapping_algorithm
  * and https://www.cs.jhu.edu/~misha/Spring16/06.pdf
  */
-function convexHull2Of (points: Point2[]) {
+function convexHull2Of (points: IVec2[]) {
   if (points.length === 0) {
     return [];
   }

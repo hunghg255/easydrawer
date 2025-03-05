@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-namespace */
 /**
  * A vector with three components, $\begin{pmatrix} x \\ y \\ z \end{pmatrix}$.
  * Can also be used to represent a two-component vector.
@@ -17,7 +18,7 @@
  * console.log('As an array:', Vec3.unitZ.asArray());
  * ```
  */
-export interface Vec3 {
+export interface IVec3 {
   readonly x: number;
   readonly y: number;
   readonly z: number;
@@ -43,7 +44,7 @@ export interface Vec3 {
 	 *
 	 * Equivalent to `.minus(p).magnitudeSquared()`.
 	 */
-  squareDistanceTo(other: Vec3): number;
+  squareDistanceTo(other: IVec3): number;
 
   /**
 	 * Interpreting this vector as a point in ℝ³, returns the distance to the point
@@ -51,7 +52,7 @@ export interface Vec3 {
 	 *
 	 * Equivalent to `.minus(p).magnitude()`.
 	 */
-  distanceTo(p: Vec3): number;
+  distanceTo(p: IVec3): number;
 
   /**
 	 * Returns the entry of this with the greatest magnitude.
@@ -89,29 +90,29 @@ export interface Vec3 {
 	 *
 	 * If `this` has zero length, the resultant vector has `NaN` components.
 	 */
-  normalized(): Vec3;
+  normalized(): IVec3;
 
   /**
 	 * Like {@link normalized}, except returns zero if this has zero magnitude.
 	 */
-  normalizedOrZero(): Vec3;
+  normalizedOrZero(): IVec3;
 
   /** @returns A copy of `this` multiplied by a scalar. */
-  times(c: number): Vec3;
+  times(c: number): IVec3;
 
   /** Performs vector addition. */
-  plus(v: Vec3): Vec3;
-  minus(v: Vec3): Vec3;
+  plus(v: IVec3): IVec3;
+  minus(v: IVec3): IVec3;
 
   /**
 	 * Computes the scalar product between this and `v`.
 	 *
 	 * In particular, `a.dot(b)` is equivalent to `a.x * b.x + a.y * b.y + a.z * b.z`.
 	 */
-  dot(v: Vec3): number;
+  dot(v: IVec3): number;
 
   /** Computes the cross product between this and `v` */
-  cross(v: Vec3): Vec3;
+  cross(v: IVec3): IVec3;
 
   /**
 	 * If `other` is a `Vec3`, multiplies `this` component-wise by `other`. Otherwise,
@@ -122,19 +123,19 @@ export interface Vec3 {
 	 * Vec3.of(1, 2, 3).scale(Vec3.of(2, 4, 6)); // → Vec3(2, 8, 18)
 	 * ```
 	 */
-  scale(other: Vec3 | number): Vec3;
+  scale(other: IVec3 | number): IVec3;
 
   /**
 	 * Returns a vector orthogonal to this. If this is a Vec2, returns `this` rotated
 	 * 90 degrees counter-clockwise.
 	 */
-  orthog(): Vec3;
+  orthog(): IVec3;
 
   /** Returns this plus a vector of length `distance` in `direction`. */
-  extend(distance: number, direction: Vec3): Vec3;
+  extend(distance: number, direction: IVec3): IVec3;
 
   /** Returns a vector `fractionTo` of the way to target from this. */
-  lerp(target: Vec3, fractionTo: number): Vec3;
+  lerp(target: IVec3, fractionTo: number): IVec3;
 
   /**
 	 * `zip` Maps a component of this and a corresponding component of
@@ -152,7 +153,7 @@ export interface Vec3 {
 	 * console.log(zipped.toString()); // → Vec(0.5, 2, 2.9)
 	 * ```
 	 */
-  zip(other: Vec3, zip: (componentInThis: number, componentInOther: number) => number): Vec3;
+  zip(other: IVec3, zip: (componentInThis: number, componentInOther: number) => number): IVec3;
 
   /**
 	 * Returns a vector with each component acted on by `fn`.
@@ -163,7 +164,7 @@ export interface Vec3 {
 	 * console.log(Vec3.of(1, 2, 3).map(val => val + 1)); // → Vec(2, 3, 4)
 	 * ```
 	 */
-  map(fn: (component: number, index: number) => number): Vec3;
+  map(fn: (component: number, index: number) => number): IVec3;
 
   asArray(): [number, number, number];
 
@@ -180,14 +181,18 @@ export interface Vec3 {
 	 * Vec3.of(1, 2, 3).eq(Vec3.of(4, 5, 6), 2.99); // → false
 	 * ```
 	 */
-  eq(other: Vec3, tolerance?: number): boolean;
+  eq(other: IVec3, tolerance?: number): boolean;
 
   toString(): string;
 }
 
+export interface IVec2 extends IVec3 {
+  readonly z: number;
+}
+
 const defaultEqlTolerance = 1e-10;
 
-class Vec3Impl implements Vec3 {
+class Vec3Impl implements IVec3 {
   public constructor(
     public readonly x: number,
     public readonly y: number,
@@ -223,14 +228,14 @@ class Vec3Impl implements Vec3 {
     return this.x * this.x + this.y * this.y + this.z * this.z;
   }
 
-  public squareDistanceTo(p: Vec3) {
+  public squareDistanceTo(p: IVec3) {
     const dx = this.x - p.x;
     const dy = this.y - p.y;
     const dz = this.z - p.z;
     return dx * dx + dy * dy + dz * dz;
   }
 
-  public distanceTo(p: Vec3) {
+  public distanceTo(p: IVec3) {
     return Math.sqrt(this.squareDistanceTo(p));
   }
 
@@ -242,12 +247,12 @@ class Vec3Impl implements Vec3 {
     return Math.atan2(this.y, this.x);
   }
 
-  public normalized(): Vec3 {
+  public normalized(): IVec3 {
     const norm = this.magnitude();
     return Vec3.of(this.x / norm, this.y / norm, this.z / norm);
   }
 
-  public normalizedOrZero(): Vec3 {
+  public normalizedOrZero(): IVec3 {
     if (this.eq(Vec3.zero)) {
       return Vec3.zero;
     }
@@ -255,23 +260,23 @@ class Vec3Impl implements Vec3 {
     return this.normalized();
   }
 
-  public times(c: number): Vec3 {
+  public times(c: number): IVec3 {
     return Vec3.of(this.x * c, this.y * c, this.z * c);
   }
 
-  public plus(v: Vec3): Vec3 {
+  public plus(v: IVec3): IVec3 {
     return Vec3.of(this.x + v.x, this.y + v.y, this.z + v.z);
   }
 
-  public minus(v: Vec3): Vec3 {
+  public minus(v: IVec3): IVec3 {
     return Vec3.of(this.x - v.x, this.y - v.y, this.z - v.z);
   }
 
-  public dot(other: Vec3): number {
+  public dot(other: IVec3): number {
     return this.x * other.x + this.y * other.y + this.z * other.z;
   }
 
-  public cross(other: Vec3): Vec3 {
+  public cross(other: IVec3): IVec3 {
     // | i  j  k |
     // | x1 y1 z1| = (i)(y1z2 - y2z1) - (j)(x1z2 - x2z1) + (k)(x1y2 - x2y1)
     // | x2 y2 z2|
@@ -282,7 +287,7 @@ class Vec3Impl implements Vec3 {
     );
   }
 
-  public scale(other: Vec3 | number): Vec3 {
+  public scale(other: IVec3 | number): IVec3 {
     if (typeof other === 'number') {
       return this.times(other);
     }
@@ -290,7 +295,7 @@ class Vec3Impl implements Vec3 {
     return Vec3.of(this.x * other.x, this.y * other.y, this.z * other.z);
   }
 
-  public orthog(): Vec3 {
+  public orthog(): IVec3 {
     // If parallel to the z-axis
     if (this.dot(Vec3.unitX) === 0 && this.dot(Vec3.unitY) === 0) {
       return this.dot(Vec3.unitX) === 0 ? Vec3.unitX : this.cross(Vec3.unitX).normalized();
@@ -299,22 +304,22 @@ class Vec3Impl implements Vec3 {
     return this.cross(Vec3.unitZ.times(-1)).normalized();
   }
 
-  public extend(distance: number, direction: Vec3): Vec3 {
+  public extend(distance: number, direction: IVec3): IVec3 {
     return this.plus(direction.normalized().times(distance));
   }
 
-  public lerp(target: Vec3, fractionTo: number): Vec3 {
+  public lerp(target: IVec3, fractionTo: number): IVec3 {
     return this.times(1 - fractionTo).plus(target.times(fractionTo));
   }
 
   public zip(
-    other: Vec3,
+    other: IVec3,
     zip: (componentInThis: number, componentInOther: number) => number,
-  ): Vec3 {
+  ): IVec3 {
     return Vec3.of(zip(other.x, this.x), zip(other.y, this.y), zip(other.z, this.z));
   }
 
-  public map(fn: (component: number, index: number) => number): Vec3 {
+  public map(fn: (component: number, index: number) => number): IVec3 {
     return Vec3.of(fn(this.x, 0), fn(this.y, 1), fn(this.z, 2));
   }
 
@@ -322,7 +327,7 @@ class Vec3Impl implements Vec3 {
     return [this.x, this.y, this.z];
   }
 
-  public eq(other: Vec3, fuzz: number = defaultEqlTolerance): boolean {
+  public eq(other: IVec3, fuzz: number = defaultEqlTolerance): boolean {
     return (
       Math.abs(other.x - this.x) <= fuzz &&
 			Math.abs(other.y - this.y) <= fuzz &&
@@ -335,12 +340,13 @@ class Vec3Impl implements Vec3 {
   }
 }
 
-class Vec2Impl implements Vec3 {
+class Vec2Impl implements IVec3 {
   public constructor(
     public readonly x: number,
     public readonly y: number,
   ) {}
 
+  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
   public get z() {
     return 0;
   }
@@ -373,13 +379,13 @@ class Vec2Impl implements Vec3 {
     return this.x * this.x + this.y * this.y;
   }
 
-  public squareDistanceTo(p: Vec3) {
+  public squareDistanceTo(p: IVec3) {
     const dx = this.x - p.x;
     const dy = this.y - p.y;
     return dx * dx + dy * dy + p.z * p.z;
   }
 
-  public distanceTo(p: Vec3) {
+  public distanceTo(p: IVec3) {
     return Math.sqrt(this.squareDistanceTo(p));
   }
 
@@ -391,12 +397,12 @@ class Vec2Impl implements Vec3 {
     return Math.atan2(this.y, this.x);
   }
 
-  public normalized(): Vec3 {
+  public normalized(): IVec3 {
     const norm = this.magnitude();
     return Vec2.of(this.x / norm, this.y / norm);
   }
 
-  public normalizedOrZero(): Vec3 {
+  public normalizedOrZero(): IVec3 {
     if (this.eq(Vec3.zero)) {
       return Vec3.zero;
     }
@@ -404,30 +410,30 @@ class Vec2Impl implements Vec3 {
     return this.normalized();
   }
 
-  public times(c: number): Vec3 {
+  public times(c: number): IVec3 {
     return Vec2.of(this.x * c, this.y * c);
   }
 
-  public plus(v: Vec3): Vec3 {
+  public plus(v: IVec3): IVec3 {
     return Vec3.of(this.x + v.x, this.y + v.y, v.z);
   }
 
-  public minus(v: Vec3): Vec3 {
+  public minus(v: IVec3): IVec3 {
     return Vec3.of(this.x - v.x, this.y - v.y, -v.z);
   }
 
-  public dot(other: Vec3): number {
+  public dot(other: IVec3): number {
     return this.x * other.x + this.y * other.y;
   }
 
-  public cross(other: Vec3): Vec3 {
+  public cross(other: IVec3): IVec3 {
     // | i  j  k |
     // | x1 y1 z1| = (i)(y1z2 - y2z1) - (j)(x1z2 - x2z1) + (k)(x1y2 - x2y1)
     // | x2 y2 z2|
     return Vec3.of(this.y * other.z, -this.x * other.z, this.x * other.y - other.x * this.y);
   }
 
-  public scale(other: Vec3 | number): Vec3 {
+  public scale(other: IVec3 | number): IVec3 {
     if (typeof other === 'number') {
       return this.times(other);
     }
@@ -435,7 +441,7 @@ class Vec2Impl implements Vec3 {
     return Vec2.of(this.x * other.x, this.y * other.y);
   }
 
-  public orthog(): Vec3 {
+  public orthog(): IVec3 {
     // If parallel to the z-axis
     if (this.dot(Vec3.unitX) === 0 && this.dot(Vec3.unitY) === 0) {
       return this.dot(Vec3.unitX) === 0 ? Vec3.unitX : this.cross(Vec3.unitX).normalized();
@@ -444,22 +450,22 @@ class Vec2Impl implements Vec3 {
     return this.cross(Vec3.unitZ.times(-1)).normalized();
   }
 
-  public extend(distance: number, direction: Vec3): Vec3 {
+  public extend(distance: number, direction: IVec3): IVec3 {
     return this.plus(direction.normalized().times(distance));
   }
 
-  public lerp(target: Vec3, fractionTo: number): Vec3 {
+  public lerp(target: IVec3, fractionTo: number): IVec3 {
     return this.times(1 - fractionTo).plus(target.times(fractionTo));
   }
 
   public zip(
-    other: Vec3,
+    other: IVec3,
     zip: (componentInThis: number, componentInOther: number) => number,
-  ): Vec3 {
+  ): IVec3 {
     return Vec3.of(zip(other.x, this.x), zip(other.y, this.y), zip(other.z, 0));
   }
 
-  public map(fn: (component: number, index: number) => number): Vec3 {
+  public map(fn: (component: number, index: number) => number): IVec3 {
     return Vec3.of(fn(this.x, 0), fn(this.y, 1), fn(0, 2));
   }
 
@@ -467,7 +473,7 @@ class Vec2Impl implements Vec3 {
     return [this.x, this.y, 0];
   }
 
-  public eq(other: Vec3, fuzz: number = defaultEqlTolerance): boolean {
+  public eq(other: IVec3, fuzz: number = defaultEqlTolerance): boolean {
     return (
       Math.abs(other.x - this.x) <= fuzz &&
 			Math.abs(other.y - this.y) <= fuzz &&
@@ -531,7 +537,6 @@ export namespace Vec2 {
   export const zero = Vec2.of(0, 0);
 }
 
-/** Contains static methods for constructing a {@link Vec3}. */
 export namespace Vec3 {
   /**
 	 * Construct a vector from three components.
@@ -543,7 +548,7 @@ export namespace Vec3 {
 	 * console.log(v1.plus(Vec3.of(0, 100, 0)));
 	 * ```
 	 */
-  export function of (x: number, y: number, z: number): Vec3 {
+  export function of (x: number, y: number, z: number): IVec3 {
     if (z === 0) {
       return Vec2.of(x, y);
     } else {
@@ -561,5 +566,3 @@ export namespace Vec3 {
   /** A vector of length 1 in the z direction. */
   export const unitZ = Vec3.of(0, 0, 1);
 }
-
-export default Vec3;

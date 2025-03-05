@@ -1,20 +1,21 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { type IVec2, type IVec3, Vec2 } from '~/math/Vector';
+
 import type LineSegment2 from './LineSegment2';
 import Parameterized2DShape from './Parameterized2DShape';
 import Rect2 from './Rect2';
-import { type Point2, Vec2 } from '../Vec2';
-import type Vec3 from '../Vec3';
 
 /**
- * Like a {@link Point2}, but with additional functionality (e.g. SDF).
+ * Like a {@link Vec2}, but with additional functionality (e.g. SDF).
  *
- * Access the internal `Point2` using the `p` property.
+ * Access the internal `Vec2` using the `p` property.
  */
 class PointShape2D extends Parameterized2DShape {
-  public constructor(public readonly p: Point2) {
+  public constructor(public readonly p: IVec2) {
     super();
   }
 
-  public override signedDistance(point: Vec3): number {
+  public override signedDistance(point: IVec2): number {
     return this.p.distanceTo(point);
   }
 
@@ -41,7 +42,7 @@ class PointShape2D extends Parameterized2DShape {
     return Vec2.unitY;
   }
 
-  public override tangentAt(_t: number): Vec3 {
+  public override tangentAt(_t: number): IVec3 {
     return Vec2.unitX;
   }
 
@@ -49,7 +50,7 @@ class PointShape2D extends Parameterized2DShape {
     return [this];
   }
 
-  public override nearestPointTo(_point: Point2) {
+  public override nearestPointTo(_point: IVec2) {
     return {
       point: this.p,
       parameterValue: 0,

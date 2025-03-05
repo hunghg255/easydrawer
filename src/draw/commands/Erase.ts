@@ -10,7 +10,7 @@ import { type EditorLocalization } from '../localization';
  *
  * **Example**:
  * ```ts,runnable
- * import { Editor, Erase, uniteCommands, Color4, Path, Stroke, Rect2, pathToRenderable } from 'easy-draw';
+ * import { Editor, Erase, uniteCommands, Color4, Path, Stroke, Rect2, pathToRenderable } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  * editor.addToolbar();

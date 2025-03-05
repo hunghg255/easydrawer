@@ -1,4 +1,4 @@
-import { type Mat33, type Rect2, type Point2, Vec2, type Vec3, Color4 } from '~/math';
+import { type Mat33, type Rect2, Vec2, Color4, type IVec3, type IVec2 } from '~/math';
 
 import AbstractRenderer, { type RenderableImage } from './AbstractRenderer';
 import TextComponent from '../../components/TextComponent';
@@ -87,7 +87,7 @@ export default class CanvasRenderer extends AbstractRenderer {
     }
   }
 
-  public displaySize(): Vec2 {
+  public displaySize(): IVec2 {
     return Vec2.of(this.ctx.canvas.clientWidth, this.ctx.canvas.clientHeight);
   }
 
@@ -98,7 +98,7 @@ export default class CanvasRenderer extends AbstractRenderer {
     this.ctx.restore();
   }
 
-  protected beginPath(startPoint: Point2) {
+  protected beginPath(startPoint: IVec2) {
     startPoint = this.canvasToScreen(startPoint);
 
     this.ctx.beginPath();
@@ -130,17 +130,17 @@ export default class CanvasRenderer extends AbstractRenderer {
     //this.ctx.restore();
   }
 
-  protected lineTo(point: Point2) {
+  protected lineTo(point: IVec2) {
     point = this.canvasToScreen(point);
     this.ctx.lineTo(point.x, point.y);
   }
 
-  protected moveTo(point: Point2) {
+  protected moveTo(point: IVec2) {
     point = this.canvasToScreen(point);
     this.ctx.moveTo(point.x, point.y);
   }
 
-  protected traceCubicBezierCurve(p1: Point2, p2: Point2, p3: Point2) {
+  protected traceCubicBezierCurve(p1: IVec2, p2: IVec2, p3: IVec2) {
     p1 = this.canvasToScreen(p1);
     p2 = this.canvasToScreen(p2);
     p3 = this.canvasToScreen(p3);
@@ -158,7 +158,7 @@ export default class CanvasRenderer extends AbstractRenderer {
     }
   }
 
-  protected traceQuadraticBezierCurve(controlPoint: Vec3, endPoint: Vec3) {
+  protected traceQuadraticBezierCurve(controlPoint: IVec3, endPoint: IVec3) {
     controlPoint = this.canvasToScreen(controlPoint);
     endPoint = this.canvasToScreen(endPoint);
 
@@ -287,7 +287,7 @@ export default class CanvasRenderer extends AbstractRenderer {
   }
 
   // @internal
-  public drawPoints(...points: Point2[]) {
+  public drawPoints(...points: IVec2[]) {
     const pointRadius = 10;
 
     for (const [i, point_] of points.entries()) {
@@ -331,7 +331,7 @@ export default class CanvasRenderer extends AbstractRenderer {
   // @internal
   public static fromViewport(
     exportViewport: Viewport,
-    options: { canvasSize?: Vec2; maxCanvasDimen?: number } = {},
+    options: { canvasSize?: IVec2; maxCanvasDimen?: number } = {},
   ) {
     const canvas = document.createElement('canvas');
 

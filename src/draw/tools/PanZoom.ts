@@ -1,4 +1,4 @@
-import { Mat33, Vec3, type Point2, Vec2 } from '~/math';
+import { Mat33, Vec3, type IVec2, Vec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import {
@@ -20,8 +20,8 @@ import untilNextAnimationFrame from '../util/untilNextAnimationFrame';
 import { Viewport, type ViewportTransform } from '../Viewport';
 
 interface PinchData {
-  canvasCenter: Point2;
-  screenCenter: Point2;
+  canvasCenter: IVec2;
+  screenCenter: IVec2;
   angle: number;
   dist: number;
 }
@@ -41,14 +41,14 @@ export enum PanZoomMode {
   RotationLocked = 0x1 << 5,
 }
 
-type ScrollByCallback = (delta: Vec2) => void;
+type ScrollByCallback = (delta: IVec2) => void;
 
 class InertialScroller {
   private running = false;
-  private currentVelocity: Vec2;
+  private currentVelocity: IVec2;
 
   public constructor(
-    private initialVelocity: Vec2,
+    private initialVelocity: IVec2,
     private scrollBy: ScrollByCallback,
     private onComplete: () => void,
   ) {
@@ -86,7 +86,7 @@ class InertialScroller {
     }
   }
 
-  public getCurrentVelocity(): Vec2 | null {
+  public getCurrentVelocity(): IVec2 | null {
     if (!this.running) {
       return null;
     }
@@ -129,7 +129,7 @@ export default class PanZoom extends BaseTool {
   private lastTouchDist: number;
 
   // Center of the two touch points at the last time inpput was received
-  private lastScreenCenter: Point2;
+  private lastScreenCenter: IVec2;
 
   // Timestamp (as from performance.now()) at which the last input was received
   private lastTimestamp: number;
@@ -147,7 +147,7 @@ export default class PanZoom extends BaseTool {
   private isRotating = false;
 
   private inertialScroller: InertialScroller | null = null;
-  private velocity: Vec2 | null = null;
+  private velocity: IVec2 | null = null;
 
   public constructor(
     private editor: Editor,
@@ -235,7 +235,7 @@ export default class PanZoom extends BaseTool {
     return handlingGesture;
   }
 
-  private updateVelocity(currentCenter: Point2) {
+  private updateVelocity(currentCenter: IVec2) {
     const deltaPos = currentCenter.minus(this.lastScreenCenter);
     let deltaTime = (performance.now() - this.lastTimestamp) / 1000;
 
@@ -263,7 +263,7 @@ export default class PanZoom extends BaseTool {
 
   // Returns the change in position of the center of the given group of pointers.
   // Assumes this.lastScreenCenter has been set appropriately.
-  private getCenterDelta(screenCenter: Point2): Vec2 {
+  private getCenterDelta(screenCenter: IVec2): IVec2 {
     // Use transformVec3 to avoid translating the delta
     const delta = this.editor.viewport.screenToCanvasTransform.transformVec3(
       screenCenter.minus(this.lastScreenCenter),
@@ -444,7 +444,7 @@ export default class PanZoom extends BaseTool {
 
       this.inertialScroller = new InertialScroller(
         this.velocity,
-        (scrollDelta: Vec2) => {
+        (scrollDelta: IVec2) => {
           if (!this.transform) {
             return;
           }
@@ -613,7 +613,7 @@ export default class PanZoom extends BaseTool {
 	 *
 	 * @example
 	 * ```ts,runnable
-	 * import { Editor, PanZoomTool, PanZoomMode } from 'easy-draw';
+	 * import { Editor, PanZoomTool, PanZoomMode } from 'easydrawer';
 	 *
 	 * const editor = new Editor(document.body);
 	 *

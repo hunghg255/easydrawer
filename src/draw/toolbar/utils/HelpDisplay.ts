@@ -1,4 +1,4 @@
-import { Rect2, type Vec2 } from '~/math';
+import { type IVec2, Rect2 } from '~/math';
 
 import makeDraggable from './makeDraggable';
 import addLongPressOrHoverCssClasses from '../../util/addLongPressOrHoverCssClasses';
@@ -88,9 +88,8 @@ function createHelpPage (helpItems: HelpRecord[],
           container.classList.add('-active');
           container.classList.remove('-clickable', '-background');
           container.addEventListener('click', () => {});
-        }
-        // Otherwise, if not containing the current element
-        else {
+        } else {
+          // Otherwise, if not containing the current element
           if (!containerBBox.containsRect(currentItemBBox)) {
             container.classList.add('-clickable');
             container.classList.remove('-active', '-background');
@@ -159,7 +158,7 @@ function createHelpPage (helpItems: HelpRecord[],
           targetBBox = targetBBox.translatedBy(delta);
         }
 
-        const clonedElement = cloneElementWithStyles(targetElement);
+        const clonedElement = cloneElementWithStyles(targetElement) as any;
 
         // Interacting with the clone won't trigger event listeners, so disable
         // all inputs.
@@ -431,7 +430,7 @@ export default class HelpDisplay {
     // Listeners
     const dragListener = makeDraggable(overlay, {
       draggableChildElements: [navigation.content],
-      onDrag: (_deltaX: number, _deltaY: number, totalDisplacement: Vec2) => {
+      onDrag: (_deltaX: number, _deltaY: number, totalDisplacement: IVec2) => {
         overlay.classList.add('-dragging');
         setDragOffset(totalDisplacement.x);
       },

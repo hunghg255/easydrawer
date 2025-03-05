@@ -1,11 +1,11 @@
-import { Mat33, Rect2, Path } from '~/math';
+import { type Rect2, Path, PathCommandType, Vec3 } from '~/math';
 
 import makeSnapToGridAutocorrect from './autocorrect/makeSnapToGridAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import { pathToRenderable } from '../../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
-import Viewport from '../../Viewport';
+import  Viewport from '../../Viewport';
 import type AbstractComponent from '../AbstractComponent';
 import Stroke from '../Stroke';
 
@@ -15,9 +15,9 @@ import Stroke from '../Stroke';
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeFilledHexagonalBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, true, viewport);
+    return new HexagonalBuilder(initialPoint, true, viewport);
   },
 );
 
@@ -27,13 +27,13 @@ export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGri
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeOutlinedRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeOutlinedHexagonalBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, false, viewport);
+    return new HexagonalBuilder(initialPoint, false, viewport);
   },
 );
 
-export default class RectangleBuilder implements ComponentBuilder {
+export default class HexagonalBuilder implements ComponentBuilder {
   private endPoint: StrokeDataPoint;
 
   public constructor(
@@ -51,37 +51,51 @@ export default class RectangleBuilder implements ComponentBuilder {
   }
 
   private buildPreview(): Stroke {
-    const canvasAngle = this.viewport.getRotationAngle();
-    const rotationMat = Mat33.zRotation(-canvasAngle);
-    // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
+    const startPoint = this.startPoint.pos;
+    const endPoint = this.endPoint.pos;
     const strokeWidth = Viewport.roundPoint(
       this.endPoint.width,
       5 / this.viewport.getScaleFactor(),
     );
 
-    // Adjust startPoint and endPoint such that applying [rotationMat] to them
-    // brings them to this.startPoint and this.endPoint.
-    const startPoint = rotationMat.inverse().transformVec2(this.startPoint.pos);
-    const endPoint = rotationMat.inverse().transformVec2(this.endPoint.pos);
+    // Calculate the center point of the hexagon
+    const center = startPoint.plus(endPoint.minus(startPoint).times(0.5));
 
-    const rect = Rect2.fromCorners(startPoint, endPoint);
-    const path = Path.fromRect(rect, this.filled ? null : this.endPoint.width)
-      .transformedBy(
-        // Rotate the canvas rectangle so that its rotation matches the screen
-        rotationMat,
-      )
-      .mapPoints((point) => this.viewport.roundPoint(point));
+    // Calculate the radius of the hexagon (distance from center to any vertex)
+    const width = Math.abs(endPoint.x - startPoint.x) / 2;
+    const height = Math.abs(endPoint.y - startPoint.y) / 2;
+    const radius = Math.min(width, height);
+
+    // Calculate the six points of the hexagon
+    const hexPoints = [] as any;
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i; // 60 degrees in radians
+      const x = center.x + radius * Math.cos(angle);
+      const y = center.y + radius * Math.sin(angle);
+      hexPoints.push(Vec3.of(x, y, 0));
+    }
+
+    // Create the hexagon path
+    const path = new Path(hexPoints[0], [
+      ...hexPoints.slice(1).map((point: any) => ({
+        kind: PathCommandType.LineTo,
+        point,
+      })),
+      {
+        kind: PathCommandType.LineTo,
+        point: hexPoints[0],
+      }
+    ]).mapPoints((point) => this.viewport.roundPoint(point));
 
     const preview = new Stroke([
       pathToRenderable(path, {
-        fill: this.endPoint.color,
+        fill: this.endPoint.color ,
         stroke: {
           width: strokeWidth,
           color: this.endPoint.borderColor || this.endPoint.color,
         },
       }),
     ]);
-
     return preview;
   }
 

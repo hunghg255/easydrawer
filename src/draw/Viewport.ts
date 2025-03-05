@@ -1,4 +1,4 @@
-import { Mat33, Rect2, type Point2, Vec2, Vec3 } from '~/math';
+import { Mat33, Rect2, type IVec2, Vec2, Vec3 } from '~/math';
 
 import Command from './commands/Command';
 import { type CommandLocalization } from './commands/localization';
@@ -7,8 +7,8 @@ import { type StrokeDataPoint } from './types';
 import describeTransformation from './util/describeTransformation';
 
 // Returns the base type of some type of point/number
-type PointDataType<T extends Point2 | StrokeDataPoint | number> = T extends Point2
-  ? Point2
+type PointDataType<T extends IVec2 | StrokeDataPoint | number> = T extends IVec2
+  ? IVec2
   : number;
 
 export abstract class ViewportTransform extends Command {
@@ -75,7 +75,7 @@ export class Viewport {
   }
 
   /** Resizes the screen rect to the given size. @internal */
-  public updateScreenSize(screenSize: Vec2) {
+  public updateScreenSize(screenSize: IVec2) {
     this.screenRect = this.screenRect.resizedTo(screenSize);
   }
 
@@ -85,12 +85,12 @@ export class Viewport {
   }
 
   /** @returns the given point, but in canvas coordinates */
-  public screenToCanvas(screenPoint: Point2): Point2 {
+  public screenToCanvas(screenPoint: IVec2): IVec2 {
     return this.inverseTransform.transformVec2(screenPoint);
   }
 
   /** @returns the given point transformed into screen coordinates. */
-  public canvasToScreen(canvasPoint: Point2): Point2 {
+  public canvasToScreen(canvasPoint: IVec2): IVec2 {
     return this.transform.transformVec2(canvasPoint);
   }
 
@@ -100,7 +100,7 @@ export class Viewport {
 	 * For example, `Viewport.transformBy(moveRight).apply(editor)` would move the canvas to the right
 	 * (and thus the viewport to the left):
 	 * ```ts,runnable
-	 * import { Editor, Viewport, Mat33, Vec2 } from 'easy-draw';
+	 * import { Editor, Viewport, Mat33, Vec2 } from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 * const moveRight = Mat33.translation(Vec2.unitX.times(500));
 	 * // Move the **canvas** right by 500 units:
@@ -131,7 +131,7 @@ export class Viewport {
   }
 
   /** @returns the size of the visible region in pixels (screen units). */
-  public getScreenRectSize(): Vec2 {
+  public getScreenRectSize(): IVec2 {
     return this.screenRect.size;
   }
 
@@ -170,7 +170,7 @@ export class Viewport {
 	 *
 	 * @see {@link getGridSize}.
 	 */
-  public snapToGrid(canvasPos: Point2) {
+  public snapToGrid(canvasPos: IVec2) {
     const scaleFactor = this.getScaleFactorToNearestPowerOf(2);
 
     const snapCoordinate = (coordinate: number) => {
@@ -203,14 +203,14 @@ export class Viewport {
 	 * Rounds the given `point` to a multiple of 10 such that it is within `tolerance` of
 	 * its original location. This is useful for preparing data for base-10 conversion.
 	 */
-  public static roundPoint<T extends Point2 | number>(
+  public static roundPoint<T extends IVec2 | number>(
     point: T,
     tolerance: number,
   ): PointDataType<T>;
 
   // The separate function type definition seems necessary here.
   // See https://stackoverflow.com/a/58163623/17055750.
-  public static roundPoint(point: Point2 | number, tolerance: number): Point2 | number {
+  public static roundPoint(point: IVec2 | number, tolerance: number): IVec2 | number {
     const scaleFactor = 10 ** Math.floor(Math.log10(tolerance));
     const roundComponent = (component: number): number => {
       return Math.round(component / scaleFactor) * scaleFactor;
@@ -224,7 +224,7 @@ export class Viewport {
   }
 
   /** Round a point with a tolerance of ±1 screen unit. */
-  public roundPoint(point: Point2): Point2 {
+  public roundPoint(point: IVec2): IVec2 {
     return Viewport.roundPoint(point, 1 / this.getScaleFactor());
   }
 

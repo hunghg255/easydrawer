@@ -1,4 +1,4 @@
-import { Rect2, type Point2, LineSegment2 } from '~/math';
+import { Rect2, LineSegment2, type IVec2 } from '~/math';
 
 import type AbstractRenderer from '../../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../../types';
@@ -15,17 +15,17 @@ function makeShapeFitAutocorrect (sourceFactory: ComponentBuilderFactory): Compo
 export default makeShapeFitAutocorrect;
 
 interface ShapeTemplate {
-  points: Point2[];
+  points: IVec2[];
   toleranceMultiplier?: number;
 }
 
-function makeLineTemplate (startPoint: Point2, points: Point2[], _bbox: Rect2): ShapeTemplate {
+function makeLineTemplate (startPoint: IVec2, points: IVec2[], _bbox: Rect2): ShapeTemplate {
   const templatePoints = [startPoint, points[points.length - 1]];
   return { points: templatePoints };
 }
 
-function makeRectangleTemplate (_startPoint: Point2,
-  _points: Point2[],
+function makeRectangleTemplate (_startPoint: IVec2,
+  _points: IVec2[],
   bbox: Rect2): ShapeTemplate {
   return { points: [...bbox.corners, bbox.corners[0]] };
 }
@@ -115,7 +115,7 @@ class ShapeFitBuilder implements ComponentBuilder {
           return templatePoints[index];
         };
 
-        let closestToFirst: Point2 | null = null;
+        let closestToFirst: IVec2 | null = null;
         let closestToFirstSqrDist = Infinity;
         let templateStartIndex = 0;
 

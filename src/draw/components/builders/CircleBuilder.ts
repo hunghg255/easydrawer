@@ -1,4 +1,4 @@
-import { Vec2, Path, type PathCommand, PathCommandType, type Rect2, Color4 } from '~/math';
+import { Vec2, Path, type PathCommand, PathCommandType, type Rect2 } from '~/math';
 
 import makeSnapToGridAutocorrect from './autocorrect/makeSnapToGridAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
@@ -15,7 +15,7 @@ import Stroke from '../Stroke';
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeOutlinedCircleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeCircleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
     return new CircleBuilder(initialPoint, viewport);
   },
@@ -82,10 +82,10 @@ class CircleBuilder implements ComponentBuilder {
 
     const preview = new Stroke([
       pathToRenderable(path, {
-        fill: Color4.transparent,
+        fill: this.endPoint.color,
         stroke: {
           width: strokeWidth,
-          color: this.endPoint.color,
+          color: this.endPoint.borderColor || this.endPoint.color,
         },
       }),
     ]);

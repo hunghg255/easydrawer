@@ -1,3 +1,4 @@
+/* eslint-disable no-unexpected-multiline */
 import { MutableReactiveValue, ReactiveValue } from '../../../util/ReactiveValue';
 import stopPropagationOfScrollingWheelEvents from '../../../util/stopPropagationOfScrollingWheelEvents';
 

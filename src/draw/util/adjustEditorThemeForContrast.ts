@@ -14,7 +14,7 @@ import type Editor from '../Editor';
  *
  * @example
  * ```ts,runnable
- * import { Editor, adjustEditorThemeForContrast } from 'easy-draw';
+ * import { Editor, adjustEditorThemeForContrast } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  * editor.addToolbar();

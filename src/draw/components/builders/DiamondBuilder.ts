@@ -1,4 +1,4 @@
-import { Mat33, Rect2, Path } from '~/math';
+import { type Rect2, Path, PathCommandType, Vec3 } from '~/math';
 
 import makeSnapToGridAutocorrect from './autocorrect/makeSnapToGridAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
@@ -15,9 +15,9 @@ import Stroke from '../Stroke';
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeFilledDiamondBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, true, viewport);
+    return new DiamondBuilder(initialPoint, true, viewport);
   },
 );
 
@@ -27,13 +27,13 @@ export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGri
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeOutlinedRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeOutlinedDiamondBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, false, viewport);
+    return new DiamondBuilder(initialPoint, false, viewport);
   },
 );
 
-export default class RectangleBuilder implements ComponentBuilder {
+export default class DiamondBuilder implements ComponentBuilder {
   private endPoint: StrokeDataPoint;
 
   public constructor(
@@ -51,26 +51,45 @@ export default class RectangleBuilder implements ComponentBuilder {
   }
 
   private buildPreview(): Stroke {
-    const canvasAngle = this.viewport.getRotationAngle();
-    const rotationMat = Mat33.zRotation(-canvasAngle);
-    // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
+    const startPoint = this.startPoint.pos;
+    const endPoint = this.endPoint.pos;
     const strokeWidth = Viewport.roundPoint(
       this.endPoint.width,
       5 / this.viewport.getScaleFactor(),
     );
 
-    // Adjust startPoint and endPoint such that applying [rotationMat] to them
-    // brings them to this.startPoint and this.endPoint.
-    const startPoint = rotationMat.inverse().transformVec2(this.startPoint.pos);
-    const endPoint = rotationMat.inverse().transformVec2(this.endPoint.pos);
+    // Calculate the center point of the diamond
+    const center = startPoint.plus(endPoint.minus(startPoint).times(0.5));
 
-    const rect = Rect2.fromCorners(startPoint, endPoint);
-    const path = Path.fromRect(rect, this.filled ? null : this.endPoint.width)
-      .transformedBy(
-        // Rotate the canvas rectangle so that its rotation matches the screen
-        rotationMat,
-      )
-      .mapPoints((point) => this.viewport.roundPoint(point));
+    // Calculate width and height vectors for the diamond
+    const widthVector = { x: (endPoint.x - startPoint.x) * 0.5, y: 0 };
+    const heightVector = { x: 0, y: (endPoint.y - startPoint.y) * 0.5 };
+
+    // Calculate the four points of the diamond
+    const leftPoint = center.plus( Vec3.of(-widthVector.x, 0, 0));
+    const rightPoint = center.plus(Vec3.of(widthVector.x, 0, 0));
+    const topPoint = center.plus(Vec3.of(0, -heightVector.y, 0));
+    const bottomPoint = center.plus(Vec3.of(0, heightVector.y, 0));
+
+    // Create the diamond path
+    const path = new Path(leftPoint, [
+      {
+        kind: PathCommandType.LineTo,
+        point: topPoint,
+      },
+      {
+        kind: PathCommandType.LineTo,
+        point: rightPoint,
+      },
+      {
+        kind: PathCommandType.LineTo,
+        point: bottomPoint,
+      },
+      {
+        kind: PathCommandType.LineTo,
+        point: leftPoint,
+      },
+    ]).mapPoints((point) => this.viewport.roundPoint(point));
 
     const preview = new Stroke([
       pathToRenderable(path, {
@@ -81,7 +100,6 @@ export default class RectangleBuilder implements ComponentBuilder {
         },
       }),
     ]);
-
     return preview;
   }
 

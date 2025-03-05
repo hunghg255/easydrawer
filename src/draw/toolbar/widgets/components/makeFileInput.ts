@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import ReactiveValue, { type MutableReactiveValue } from '../../../util/ReactiveValue';
 import { type ToolbarContext } from '../../types';
 
@@ -39,7 +40,7 @@ function makeFileInput (labelText: string,
   input.multiple = allowMultiSelect;
 
   // Associate the label with the input
-  const inputId = `easy-draw-file-input-${idCounter++}`;
+  const inputId = `easydrawer-file-input-${idCounter++}`;
   input.setAttribute('id', inputId);
   label.htmlFor = inputId;
 
@@ -167,7 +168,7 @@ function makeFileInput (labelText: string,
         const data = await customPickerAction({
           setOnCancelCallback: (onCancel) => {
             if (!loading) {
-              throw new Error("Task already completed. Can't register cancel handler.");
+              throw new Error('Task already completed. Can\'t register cancel handler.');
             }
 
             cancelLoading = () => {

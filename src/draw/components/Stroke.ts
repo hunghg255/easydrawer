@@ -4,7 +4,7 @@ import {
   Rect2,
   type LineSegment2,
   PathCommandType,
-  type Point2,
+  type IVec2,
   type PathIntersectionResult,
   comparePathIndices,
   stepPathIndexBy,
@@ -128,7 +128,7 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
 	 *
 	 * Example:
 	 * ```ts,runnable
-	 * import { Editor, Stroke, Color4 } from 'easy-draw';
+	 * import { Editor, Stroke, Color4 } from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 * ---visible---
 	 * const stroke = Stroke.fromStroked('m0,0 l10,10', { width: 10, color: Color4.red });
@@ -217,7 +217,7 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
   public override withRegionErased(eraserPath: Path, viewport: Viewport) {
     const polyline = eraserPath.polylineApproximation();
 
-    const isPointInsideEraser = (point: Point2) => {
+    const isPointInsideEraser = (point: IVec2) => {
       return eraserPath.closedContainsPoint(point);
     };
 
@@ -349,7 +349,7 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
           }
         }
       } else if (intersectionPoints.length >= 2 && intersectionPoints.length % 2 === 0) {
-        // TODO: Support subtractive erasing on small scales -- see https://github.com/personalizedrefrigerator/easy-draw/pull/63/commits/568686e2384219ad0bb07617ea4efff1540aed00
+        // TODO: Support subtractive erasing on small scales -- see https://github.com/personalizedrefrigerator/easydrawer/pull/63/commits/568686e2384219ad0bb07617ea4efff1540aed00
         //       for a broken implementation.
         //
         // We currently assume that a 4-point intersection means that the intersection

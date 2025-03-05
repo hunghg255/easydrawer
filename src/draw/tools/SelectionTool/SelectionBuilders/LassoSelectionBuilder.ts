@@ -1,4 +1,4 @@
-import { Path, type Point2 } from '~/math';
+import { Path, type IVec2 } from '~/math';
 import { PathCommandType } from '~/math';
 import { type PathCommand } from '~/math';
 
@@ -11,11 +11,11 @@ import type Viewport from '../../../Viewport';
  * Creates lasso selections.
  */
 export default class LassoSelectionBuilder extends SelectionBuilder {
-  private boundaryPoints: Point2[] = [];
-  private lastPoint: Point2;
+  private boundaryPoints: IVec2[] = [];
+  private lastPoint: IVec2;
 
   public constructor(
-    startPoint: Point2,
+    startPoint: IVec2,
     private viewport: Viewport,
   ) {
     super();
@@ -23,7 +23,7 @@ export default class LassoSelectionBuilder extends SelectionBuilder {
     this.lastPoint = startPoint;
   }
 
-  public onPointerMove(canvasPoint: Point2) {
+  public onPointerMove(canvasPoint: IVec2) {
     const lastBoundaryPoint = this.boundaryPoints[this.boundaryPoints.length - 1];
 
     const minBoundaryDist = this.viewport.getSizeOfPixelOnCanvas() * 8;

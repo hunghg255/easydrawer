@@ -9,6 +9,7 @@
     "strictNullChecks": true,
     "esModuleInterop": true,
     "skipDefaultLibCheck": true,
+    "strictPropertyInitialization": false,
     "skipLibCheck": true,
     "rootDir": ".",
     "baseUrl": ".",

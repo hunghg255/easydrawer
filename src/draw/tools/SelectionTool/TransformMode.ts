@@ -1,4 +1,4 @@
-import { type Vec3, Mat33, Vec2, type Point2 } from '~/math';
+import { type IVec3, Mat33, Vec2, type IVec2 } from '~/math';
 
 import type Selection from './Selection';
 import { ResizeMode } from './types';
@@ -6,17 +6,17 @@ import type Editor from '../../Editor';
 import Viewport from '../../Viewport';
 
 export class DragTransformer {
-  private dragStartPoint: Point2;
+  private dragStartPoint: IVec2;
   public constructor(
     private readonly editor: Editor,
     private selection: Selection,
   ) {}
 
-  public onDragStart(startPoint: Vec3) {
+  public onDragStart(startPoint: IVec3) {
     this.selection.setTransform(Mat33.identity);
     this.dragStartPoint = startPoint;
   }
-  public onDragUpdate(canvasPos: Vec3) {
+  public onDragUpdate(canvasPos: IVec3) {
     const delta = this.editor.viewport.roundPoint(canvasPos.minus(this.dragStartPoint));
     this.selection.setTransform(Mat33.translation(delta));
   }
@@ -27,17 +27,17 @@ export class DragTransformer {
 
 export class ResizeTransformer {
   private mode: ResizeMode = ResizeMode.Both;
-  private dragStartPoint: Point2;
+  private dragStartPoint: IVec2;
 
-  private transformOrigin: Point2;
-  private scaleRate: Vec2;
+  private transformOrigin: IVec2;
+  private scaleRate: IVec2;
 
   public constructor(
     private readonly editor: Editor,
     private selection: Selection,
   ) {}
 
-  public onDragStart(startPoint: Vec3, mode: ResizeMode) {
+  public onDragStart(startPoint: IVec3, mode: ResizeMode) {
     this.selection.setTransform(Mat33.identity);
     this.mode = mode;
     this.dragStartPoint = startPoint;
@@ -75,7 +75,7 @@ export class ResizeTransformer {
     this.scaleRate = Vec2.of(widthScaleRate, heightScaleRate);
   }
 
-  public onDragUpdate(canvasPos: Vec3) {
+  public onDragUpdate(canvasPos: IVec3) {
     const canvasDelta = canvasPos.minus(this.dragStartPoint);
 
     const origWidth = this.selection.preTransformRegion.width;
@@ -117,7 +117,7 @@ export class RotateTransformer {
   private startAngle = 0;
   private targetRotation = 0;
   private maximumDistFromStart = 0;
-  private startPoint: Point2;
+  private startPoint: IVec2;
   private startTime: number;
 
   public constructor(
@@ -125,7 +125,7 @@ export class RotateTransformer {
     private selection: Selection,
   ) {}
 
-  private getAngle(canvasPoint: Point2) {
+  private getAngle(canvasPoint: IVec2) {
     const selectionCenter = this.selection.preTransformRegion.center;
     const offset = canvasPoint.minus(selectionCenter);
     return offset.angle();
@@ -137,7 +137,7 @@ export class RotateTransformer {
     return Math.round(angle * roundingFactor) / roundingFactor;
   }
 
-  public onDragStart(startPoint: Vec3) {
+  public onDragStart(startPoint: IVec3) {
     this.startPoint = startPoint;
     this.selection.setTransform(Mat33.identity);
     this.startAngle = this.getAngle(startPoint);
@@ -165,7 +165,7 @@ export class RotateTransformer {
     this.selection.setTransform(fullRoundedTransform);
   }
 
-  public onDragUpdate(canvasPos: Vec3) {
+  public onDragUpdate(canvasPos: IVec3) {
     this.targetRotation = this.roundAngle(this.getAngle(canvasPos) - this.startAngle);
 
     this.setRotationTo(this.targetRotation);

@@ -1,12 +1,16 @@
-import { defineConfig } from "tsup";
+import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ["src/index.ts"],
-  format: "esm",
+  entry: ['src/index.ts'],
+  format: ['esm', 'cjs'],
   treeshake: true,
   clean: true,
-  dts: false,
-  platform: "browser",
+  platform: 'browser',
+  dts: {
+    entry: 'src/index.ts',
+  },
   splitting: true,
   minify: true,
+  sourcemap: false,
+  ignoreWatch: ['**/node_modules', '**/dist'],
 });

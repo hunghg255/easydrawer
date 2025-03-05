@@ -1,9 +1,9 @@
-import { type Point2, Rect2, Vec2 } from '~/math';
+import { type IVec2, Rect2, Vec2 } from '~/math';
 
 import untilNextAnimationFrame from '../../util/untilNextAnimationFrame';
 import type Viewport from '../../Viewport';
 
-type ScrollByCallback = (delta: Vec2) => void;
+type ScrollByCallback = (delta: IVec2) => void;
 
 /**
  * Automatically scrolls the viewport such that the user's pointer is visible.
@@ -12,7 +12,7 @@ export default class ToPointerAutoscroller {
   private started = false;
   private updateLoopId = 0;
   private updateLoopRunning = false;
-  private targetPoint: Point2 | null = null;
+  private targetPoint: IVec2 | null = null;
   private scrollRate = 1000; // px/s
 
   public constructor(
@@ -20,7 +20,7 @@ export default class ToPointerAutoscroller {
     private scrollByCanvasDelta: ScrollByCallback,
   ) {}
 
-  private getScrollForPoint(screenPoint: Point2) {
+  private getScrollForPoint(screenPoint: IVec2) {
     const screenSize = this.viewport.getScreenRectSize();
     const screenRect = new Rect2(0, 0, screenSize.x, screenSize.y);
 
@@ -48,7 +48,7 @@ export default class ToPointerAutoscroller {
     this.started = true;
   }
 
-  public onPointerMove(pointerScreenPosition: Point2) {
+  public onPointerMove(pointerScreenPosition: IVec2) {
     if (!this.started) {
       return;
     }

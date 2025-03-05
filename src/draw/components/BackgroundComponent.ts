@@ -32,18 +32,18 @@ export enum BackgroundType {
   None,
 }
 
-export const imageBackgroundCSSClassName = 'easy-draw-image-background';
+export const imageBackgroundCSSClassName = 'easydrawer-image-background';
 
 // Class name prefix indicating the size of the background's grid cells (if present).
-export const imageBackgroundGridSizeCSSPrefix = 'easy-draw-image-background-grid-';
+export const imageBackgroundGridSizeCSSPrefix = 'easydrawer-image-background-grid-';
 
 // Flag included in rendered SVGs (etc) that indicates that the secondary color of the
 // background has been manually set.
 export const imageBackgroundNonAutomaticSecondaryColorCSSClassName =
-	'easy-draw-image-background-non-automatic-secondary-color';
+	'easydrawer-image-background-non-automatic-secondary-color';
 
 export const backgroundTypeToClassNameMap = {
-  [BackgroundType.Grid]: 'easy-draw-image-background-grid',
+  [BackgroundType.Grid]: 'easydrawer-image-background-grid',
   [BackgroundType.SolidColor]: imageBackgroundCSSClassName,
   [BackgroundType.None]: '',
 };

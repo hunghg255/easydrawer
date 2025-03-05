@@ -1,4 +1,4 @@
-import { type Point2, Rect2, Vec2 } from '~/math';
+import { type IVec2, Rect2, Vec2 } from '~/math';
 
 import type Selection from './Selection';
 import { cssPrefix } from './SelectionTool';
@@ -22,7 +22,7 @@ export enum HandleAction {
 export interface HandlePresentation {
   // (1,1) corresponds to the bottom right of the parent,
   // (1, 0) corresponds to the top left.
-  side: Vec2;
+  side: IVec2;
 
   // An icon to optionally display within the handle
   icon?: Element;
@@ -35,15 +35,15 @@ export interface HandlePresentation {
 export const handleSize = 30;
 
 // `startPoint` is in screen coordinates
-export type DragStartCallback = (startPoint: Point2) => void;
-export type DragUpdateCallback = (canvasPoint: Point2) => void;
+export type DragStartCallback = (startPoint: IVec2) => void;
+export type DragUpdateCallback = (canvasPoint: IVec2) => void;
 export type DragEndCallback = () => Promise<void> | void;
 
 export default class SelectionHandle implements SelectionBoxChild {
   private element: HTMLElement;
   private snapToGrid: boolean;
   private shape: HandleShape;
-  private parentSide: Vec2;
+  private parentSide: IVec2;
 
   public constructor(
     readonly presentation: HandlePresentation,
@@ -147,7 +147,7 @@ export default class SelectionHandle implements SelectionBoxChild {
   }
 
   /** @returns true iff `point` (in editor **canvas** coordinates) is in this. */
-  public containsPoint(point: Point2) {
+  public containsPoint(point: IVec2) {
     const bbox = this.getBBoxCanvasCoords();
     const delta = point.minus(bbox.center);
 
@@ -164,7 +164,7 @@ export default class SelectionHandle implements SelectionBoxChild {
     return result;
   }
 
-  private dragLastPos: Vec2 | null = null;
+  private dragLastPos: IVec2 | null = null;
   public handleDragStart(pointer: Pointer) {
     this.onDragStart(pointer.canvasPos);
     this.dragLastPos = pointer.canvasPos;

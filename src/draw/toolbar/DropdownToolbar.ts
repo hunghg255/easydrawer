@@ -9,7 +9,7 @@ import type Editor from '../Editor';
  * @example
  *
  * ```ts,runnable
- * import { makeDropdownToolbar, Editor } from 'easy-draw';
+ * import { makeDropdownToolbar, Editor } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  * const toolbar = makeDropdownToolbar(editor);
@@ -235,5 +235,15 @@ export default class DropdownToolbar extends AbstractToolbar {
   protected override onRemove() {
     this.container.remove();
     this.resizeObserver.disconnect();
+  }
+
+  public getWidgetById(id: string): BaseWidget | null {
+    for (const widget of this.getAllWidgets()) {
+      if (widget.getId() === id) {
+        return widget;
+      }
+    }
+
+    return null;
   }
 }

@@ -1,4 +1,4 @@
-import { Vec2 } from '~/math';
+import { type IVec2, Vec2 } from '~/math';
 
 import type Pointer from '../../Pointer';
 
@@ -29,7 +29,7 @@ export default class StationaryPenDetector {
   // significantly, the first pointer event, away from which the pen hasn't moved.
   private stationaryStartPointer: Pointer | null;
   private lastPointer: Pointer;
-  private averageVelocity: Vec2;
+  private averageVelocity: IVec2;
   private hasMovedOutOfRadius: boolean;
 
   private timeout: ReturnType<typeof setTimeout> | null = null;

@@ -1,15 +1,15 @@
-import { type Point2, Vec2, Rect2, LineSegment2, QuadraticBezier } from '~/math';
+import { type IVec2, Vec2, Rect2, LineSegment2, QuadraticBezier } from '~/math';
 
 import { type StrokeDataPoint } from '../../types';
 
 export interface Curve {
-  startPoint: Vec2;
+  startPoint: IVec2;
   startWidth: number;
 
-  controlPoint: Vec2;
+  controlPoint: IVec2;
 
   endWidth: number;
-  endPoint: Vec2;
+  endPoint: IVec2;
 }
 
 type OnCurveAddedCallback = (curve: Curve | null) => void;
@@ -18,15 +18,15 @@ type OnCurveAddedCallback = (curve: Curve | null) => void;
 export class StrokeSmoother {
   private isFirstSegment = true;
 
-  private buffer: Point2[];
+  private buffer: IVec2[];
   private lastPoint: StrokeDataPoint;
-  private lastExitingVec: Vec2 | null = null;
+  private lastExitingVec: IVec2 | null = null;
   private currentCurve: QuadraticBezier | null = null;
   private curveStartWidth: number;
   private curveEndWidth: number;
 
   // Stroke smoothing and tangent approximation
-  private momentum: Vec2;
+  private momentum: IVec2;
   private bbox: Rect2;
 
   public constructor(
@@ -122,7 +122,7 @@ export class StrokeSmoother {
   }
 
   // Compute the direction of the velocity at the end of this.buffer
-  private computeExitingVec(): Vec2 {
+  private computeExitingVec(): IVec2 {
     return this.momentum.normalized().times(this.lastPoint.width / 2);
   }
 
@@ -241,7 +241,7 @@ export class StrokeSmoother {
     const intersection = lineFromEnd.intersection(lineFromStart);
 
     // Position the control point at this intersection
-    let controlPoint: Point2 | null = null;
+    let controlPoint: IVec2 | null = null;
     if (intersection) {
       controlPoint = intersection.point;
     }

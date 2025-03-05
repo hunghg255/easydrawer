@@ -1,4 +1,4 @@
-import { type Point2, Vec2, LineSegment2, Color4, Rect2, Path } from '~/math';
+import { type IVec2, Vec2, LineSegment2, Color4, Rect2, Path } from '~/math';
 
 import BaseTool from './BaseTool';
 import { decreaseSizeKeyboardShortcutId, increaseSizeKeyboardShortcutId } from './keybindings';
@@ -93,7 +93,7 @@ class EraserSwitcher extends BaseTool {
  * A tool that allows a user to erase parts of an image.
  */
 export default class Eraser extends BaseTool {
-  private lastPoint: Point2 | null = null;
+  private lastPoint: IVec2 | null = null;
   private isFirstEraseEvt = true;
   private thickness: number;
   private thicknessValue: MutableReactiveValue<number>;
@@ -149,7 +149,7 @@ export default class Eraser extends BaseTool {
     return this.thickness / this.editor.viewport.getScaleFactor();
   }
 
-  private drawPreviewAt(point: Point2) {
+  private drawPreviewAt(point: IVec2) {
     this.clearPreview();
 
     const size = this.getSizeOnCanvas();
@@ -171,14 +171,14 @@ export default class Eraser extends BaseTool {
 	 *
 	 * For now, all erasers are rectangles or points.
 	 */
-  private getEraserRect(centerPoint: Point2) {
+  private getEraserRect(centerPoint: IVec2) {
     const size = this.getSizeOnCanvas();
     const halfSize = Vec2.of(size / 2, size / 2);
     return Rect2.fromCorners(centerPoint.minus(halfSize), centerPoint.plus(halfSize));
   }
 
   /** Erases in a line from the last point to the current. */
-  private eraseTo(currentPoint: Point2) {
+  private eraseTo(currentPoint: IVec2) {
     if (!this.isFirstEraseEvt && currentPoint.distanceTo(this.lastPoint!) === 0) {
       return;
     }

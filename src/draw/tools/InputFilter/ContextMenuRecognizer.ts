@@ -1,4 +1,4 @@
-import { type Point2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import InputMapper from './InputMapper';
 import { type InputEvt, InputEvtType, isPointerEvt, type PointerEvt } from '../../inputEvents';
@@ -11,7 +11,7 @@ import StationaryPenDetector, {
 export default class ContextMenuRecognizer extends InputMapper {
   private canShowContextMenu = false;
   private contextMenuTriggerPointer: Pointer;
-  private contextMenuStartPoint: Point2;
+  private contextMenuStartPoint: IVec2;
   private stationaryDetector: StationaryPenDetector | null = null;
   private clickTolerance = 12;
 

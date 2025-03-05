@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import AbstractToolbar, { type SpacerOptions } from './AbstractToolbar';
 import { toolbarCSSPrefix } from './constants';
 import { type ToolbarLocalization } from './localization';
@@ -17,7 +18,7 @@ import stopPropagationOfScrollingWheelEvents from '../util/stopPropagationOfScro
  * @example
  *
  * ```ts,runnable
- * import { makeEdgeToolbar, Editor } from 'easy-draw';
+ * import { makeEdgeToolbar, Editor } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  * const toolbar = makeEdgeToolbar(editor);
@@ -248,6 +249,7 @@ export default class EdgeToolbar extends AbstractToolbar {
       let currentWidth = 0;
       let extraPadding = 0;
       let numVisibleButtons = 0;
+      //@ts-expect-error
       for (const child of this.toolbarToolRow.children) {
         // Use the first child -- padding is applied around that child. Assumes
         // that the button's width is its height plus some padding.

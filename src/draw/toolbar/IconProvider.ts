@@ -77,7 +77,7 @@ function makeRedoIcon (mirror: boolean) {
  *
  * @example
  * ```ts,runnable
- * import * as jsdraw from 'easy-draw';
+ * import * as easydraw from 'easydrawer';
  *
  * class CustomIconProvider extends easydraw.IconProvider {
  *     // Use '☺' instead of the default dropdown symbol.
@@ -643,10 +643,8 @@ export default class IconProvider {
 
             if (copy.hasAttribute('stroke')) {
               copy.setAttribute('stroke', checkerboardPattern.patternRef);
-            }
-            // Note: Assumes that the component wouldn't normally be both stroked
-            // and filled.
-            else if (copy.hasAttribute('fill')) {
+            } else if (copy.hasAttribute('fill')) {
+              // Note: Assumes that the component wouldn't normally be both stroked  and filled.
               copy.setAttribute('fill', checkerboardPattern.patternRef);
             }
 

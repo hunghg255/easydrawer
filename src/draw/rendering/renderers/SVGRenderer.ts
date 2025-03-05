@@ -1,4 +1,4 @@
-import { Mat33, type Rect2, type Point2, Vec2, toRoundedString } from '~/math';
+import { Mat33, type Rect2, type IVec2, Vec2, toRoundedString } from '~/math';
 
 import AbstractRenderer, { type RenderableImage } from './AbstractRenderer';
 import { type LoadSaveDataTable } from '../../components/AbstractComponent';
@@ -17,7 +17,7 @@ import type RenderingStyle from '../RenderingStyle';
 import { stylesEqual } from '../RenderingStyle';
 import type TextRenderingStyle from '../TextRenderingStyle';
 
-export const renderedStylesheetId = 'easy-draw-style-sheet';
+export const renderedStylesheetId = 'easydrawer-style-sheet';
 
 const svgNameSpace = 'http://www.w3.org/2000/svg';
 
@@ -115,7 +115,7 @@ export default class SVGRenderer extends AbstractRenderer {
     }
   }
 
-  public displaySize(): Vec2 {
+  public displaySize(): IVec2 {
     return Vec2.of(this.elem.clientWidth, this.elem.clientHeight);
   }
 
@@ -406,30 +406,30 @@ export default class SVGRenderer extends AbstractRenderer {
   private unimplementedMessage() {
     throw new Error('Not implemenented!');
   }
-  protected beginPath(_startPoint: Point2) {
+  protected beginPath(_startPoint: IVec2) {
     this.unimplementedMessage();
   }
   protected endPath(_style: RenderingStyle) {
     this.unimplementedMessage();
   }
-  protected lineTo(_point: Point2) {
+  protected lineTo(_point: IVec2) {
     this.unimplementedMessage();
   }
-  protected moveTo(_point: Point2) {
+  protected moveTo(_point: IVec2) {
     this.unimplementedMessage();
   }
   protected traceCubicBezierCurve(
-    _controlPoint1: Point2,
-    _controlPoint2: Point2,
-    _endPoint: Point2,
+    _controlPoint1: IVec2,
+    _controlPoint2: IVec2,
+    _endPoint: IVec2,
   ) {
     this.unimplementedMessage();
   }
-  protected traceQuadraticBezierCurve(_controlPoint: Point2, _endPoint: Point2) {
+  protected traceQuadraticBezierCurve(_controlPoint: IVec2, _endPoint: IVec2) {
     this.unimplementedMessage();
   }
 
-  public drawPoints(...points: Point2[]) {
+  public drawPoints(...points: IVec2[]) {
     points.map((point) => {
       const elem = document.createElementNS(svgNameSpace, 'circle');
       elem.setAttribute('cx', `${point.x}`);

@@ -1,4 +1,4 @@
-import { type Point2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import makeClipboardErrorHandlers from './makeClipboardErrorHandlers';
 import type Editor from '../../../Editor';
@@ -8,7 +8,7 @@ import type Selection from '../Selection';
 
 async function showSelectionContextMenu (selectionBox: Selection | null,
   editor: Editor,
-  canvasAnchor: Point2,
+  canvasAnchor: IVec2,
   preferSelectionMenu: boolean,
   clearSelection: () => void) {
   const localization = editor.localization;

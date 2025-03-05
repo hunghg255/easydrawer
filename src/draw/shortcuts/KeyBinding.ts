@@ -154,10 +154,8 @@ export default class KeyBinding implements KeyCombination {
         shiftKey = true;
       } else if (isLowercaseLetter(key)) {
         shiftKey = false;
-      }
-      // If not just a single character (e.g. a key code like KeyA), shift must
-      // be specified manually.
-      else if (key.length > 1) {
+      } else if (key.length > 1) {
+        // If not just a single character (e.g. a key code like KeyA), shift must be specified manually.
         shiftKey = false;
       }
 

@@ -43,6 +43,12 @@
   }
 }
 
+.toolbar-root {
+  display: none;
+  pointer-events: none;
+  visibility: hidden;
+}
+
 
 button {
   @apply hover:bg-none;
@@ -190,11 +196,11 @@ svg {
   --align-items-to-x: 120px
 }
 
-.toolbar-document-properties-widget .easy-draw-size-input-row.easy-draw-size-input-row {
+.toolbar-document-properties-widget .easydrawer-size-input-row.easydrawer-size-input-row {
   display: flex
 }
 
-.toolbar-document-properties-widget .easy-draw-size-input-row.easy-draw-size-input-row.size-input-row--automatic-size {
+.toolbar-document-properties-widget .easydrawer-size-input-row.easydrawer-size-input-row.size-input-row--automatic-size {
   display: none
 }
 
@@ -1975,7 +1981,7 @@ svg {
   position: absolute
 }
 
-.easy-draw-sound-ui-toggle {
+.easydrawer-sound-ui-toggle {
   width: 0px;
   height: 0px;
   overflow: hidden;
@@ -1983,17 +1989,17 @@ svg {
   -webkit-user-select: none
 }
 
-.easy-draw-sound-ui-toggle button {
+.easydrawer-sound-ui-toggle button {
   margin-top: 1px
 }
 
-.easy-draw-sound-ui-toggle:focus-within,
-.easy-draw-sound-ui-toggle.sound-ui-tool-enabled {
+.easydrawer-sound-ui-toggle:focus-within,
+.easydrawer-sound-ui-toggle.sound-ui-tool-enabled {
   overflow: visible;
   z-index: 5
 }
 
-.easy-draw-sound-ui-toggle:not(:focus-within):not(:hover).sound-ui-tool-enabled {
+.easydrawer-sound-ui-toggle:not(:focus-within):not(:hover).sound-ui-tool-enabled {
   opacity: .5
 }
 

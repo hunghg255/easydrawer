@@ -32,7 +32,7 @@ type ImageListItem = SnappedListItem<ImageWrapper | null>;
  *
  * @example
  * ```ts,runnable
- * import { Editor, makeEdgeToolbar, InsertImageWidget } from 'easy-draw';
+ * import { Editor, makeEdgeToolbar, InsertImageWidget } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  * const toolbar = makeEdgeToolbar(editor);
@@ -165,7 +165,7 @@ export default class InsertImageWidget extends BaseWidget {
             } catch (error) {
               console.error('Image load error', error);
 
-              const errorMessage = this.localizationTable.imageLoadError(error);
+              const errorMessage = this.localizationTable.imageLoadError('Image load error');
               this.statusView.innerText = errorMessage;
               return [];
             }
@@ -326,7 +326,7 @@ export default class InsertImageWidget extends BaseWidget {
           component = await ImageComponent.fromImage(image, transform);
         } catch (error) {
           console.error('Error loading image', error);
-          this.statusView.innerText = this.localizationTable.imageLoadError(error);
+          this.statusView.innerText = this.localizationTable.imageLoadError('Image load error');
           return;
         }
 

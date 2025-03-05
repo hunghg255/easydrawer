@@ -1,7 +1,7 @@
 import BezierJSWrapper from './BezierJSWrapper';
 import Rect2 from './Rect2';
 import solveQuadratic from '../polynomial/solveQuadratic';
-import { type Point2, Vec2 } from '../Vec2';
+import { type IVec2, Vec2 } from '../Vector';
 
 /**
  * Represents a 2D [Bézier curve](https://en.wikipedia.org/wiki/B%C3%A9zier_curve).
@@ -28,11 +28,11 @@ import { type Point2, Vec2 } from '../Vec2';
 export class QuadraticBezier extends BezierJSWrapper {
   public constructor(
     // Start point
-    public readonly p0: Point2,
+    public readonly p0: IVec2,
     // Control point
-    public readonly p1: Point2,
+    public readonly p1: IVec2,
     // End point
-    public readonly p2: Point2,
+    public readonly p2: IVec2,
   ) {
     super();
   }
@@ -58,7 +58,7 @@ export class QuadraticBezier extends BezierJSWrapper {
 	 *
 	 * `t` should be a number in `[0, 1]`.
 	 */
-  public override at(t: number): Point2 {
+  public override at(t: number): IVec2 {
     if (t === 0) return this.p0;
     if (t === 1) return this.p2;
 
@@ -71,7 +71,7 @@ export class QuadraticBezier extends BezierJSWrapper {
     );
   }
 
-  public override derivativeAt(t: number): Point2 {
+  public override derivativeAt(t: number): IVec2 {
     const p0 = this.p0;
     const p1 = this.p1;
     const p2 = this.p2;
@@ -81,7 +81,7 @@ export class QuadraticBezier extends BezierJSWrapper {
     );
   }
 
-  public override secondDerivativeAt(t: number): Point2 {
+  public override secondDerivativeAt(t: number): IVec2 {
     const p0 = this.p0;
     const p1 = this.p1;
     const p2 = this.p2;
@@ -91,7 +91,7 @@ export class QuadraticBezier extends BezierJSWrapper {
     );
   }
 
-  public override normal(t: number): Vec2 {
+  public override normal(t: number): IVec2 {
     const tangent = this.derivativeAt(t);
     return tangent.orthog().normalized();
   }
@@ -104,7 +104,7 @@ export class QuadraticBezier extends BezierJSWrapper {
   /**
 	 * @returns the *approximate* distance from `point` to this curve.
 	 */
-  public approximateDistance(point: Point2): number {
+  public approximateDistance(point: IVec2): number {
     // We want to minimize f(t) = |B(t) - p|².
     // Expanding,
     //   f(t)  = (Bₓ(t) - pₓ)² + (Bᵧ(t) - pᵧ)²

@@ -1,28 +1,23 @@
+import { makePressureSensitiveFreehandLineBuilder, SelectionTool, TextTool } from '~/draw/lib';
+import ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
 
 import type BaseTool from './BaseTool';
 import Eraser from './Eraser';
-import ToolSwitcherShortcut from './ToolSwitcherShortcut';
-import PasteHandler from './PasteHandler';
-import ToolbarShortcutHandler from './ToolbarShortcutHandler';
-import { makePressureSensitiveFreehandLineBuilder } from '../components/builders/PressureSensitiveFreehandLineBuilder';
 import FindTool from './FindTool';
-import SelectAllShortcutHandler from './SelectionTool/SelectAllShortcutHandler';
-import SoundUITool from './SoundUITool';
-import InputMapper, { InputEventListener } from './InputFilter/InputMapper';
-import { InputEvt, InputEvtType } from '../inputEvents';
+import { type InputEventListener } from './InputFilter/InputMapper';
+import type InputMapper from './InputFilter/InputMapper';
 import InputPipeline from './InputFilter/InputPipeline';
-import InputStabilizer from './InputFilter/InputStabilizer';
-import { ToolLocalization } from './localization';
-import PanZoom, { PanZoomMode } from './PanZoom';
+import { type ToolLocalization } from './localization';
+import PasteHandler from './PasteHandler';
 import Pen from './Pen';
-import PipetteTool from './PipetteTool';
-import ScrollbarTool from './ScrollbarTool';
-import SelectionTool from './SelectionTool/SelectionTool';
-import TextTool from './TextTool';
+import SelectAllShortcutHandler from './SelectionTool/SelectAllShortcutHandler';
+import ToolbarShortcutHandler from './ToolbarShortcutHandler';
 import ToolEnabledGroup from './ToolEnabledGroup';
+import ToolSwitcherShortcut from './ToolSwitcherShortcut';
 import UndoRedoShortcut from './UndoRedoShortcut';
 import type Editor from '../Editor';
+import { type InputEvt, InputEvtType } from '../inputEvents';
 import { EditorEventType } from '../types';
 import type ReactiveValue from '../util/ReactiveValue';
 
@@ -45,59 +40,67 @@ export default class ToolController implements InputEventListener {
     const primaryToolGroup = new ToolEnabledGroup();
     this.primaryToolGroup = primaryToolGroup;
 
-    const panZoomTool = new PanZoom(
-      editor,
-      PanZoomMode.TwoFingerTouchGestures | PanZoomMode.RightClickDrags,
-      localization.touchPanTool,
-    );
-    const keyboardPanZoomTool = new PanZoom(
-      editor,
-      PanZoomMode.Keyboard,
-      localization.keyboardPanZoom,
-    );
+    // const panZoomTool = new PanZoom(
+    //   editor,
+    //   PanZoomMode.TwoFingerTouchGestures | PanZoomMode.RightClickDrags,
+    //   localization.touchPanTool,
+    // );
+    // const keyboardPanZoomTool = new PanZoom(
+    //   editor,
+    //   PanZoomMode.Keyboard,
+    //   localization.keyboardPanZoom,
+    // );
     const primaryPenTool = new Pen(editor, localization.penTool(1), {
-      color: Color4.purple,
-      thickness: 8,
-    });
-    const secondaryPenTool = new Pen(editor, localization.penTool(2), {
-      color: Color4.clay,
-      thickness: 4,
+      color: Color4.black,
+      thickness: 1.5,
     });
 
+    const shapeTool = new ShapeTool(editor, localization.penTool(3), {
+      color: Color4.black,
+      thickness: 1.5,
+    });
+
+    // const secondaryPenTool = new Pen(editor, localization.penTool(2), {
+    //   color: Color4.clay,
+    //   thickness: 4,
+    // });
+
     // Stabilize the secondary pen tool.
-    secondaryPenTool.setInputMapper(new InputStabilizer(editor.viewport));
+    // secondaryPenTool.setInputMapper(new InputStabilizer(editor.viewport));
 
     const eraser = new Eraser(editor, localization.eraserTool);
 
     const primaryTools = [
-      // Three pens
+      new SelectionTool(editor, localization.selectionTool),
+
+      new TextTool(editor, localization.textTool, localization),
+
       primaryPenTool,
-      secondaryPenTool,
 
       // Highlighter-like pen with width=40
-      new Pen(editor, localization.penTool(3), {
-        color: Color4.ofRGBA(1, 1, 0, 0.5),
+      new Pen(editor, localization.penTool(2), {
+        color: Color4.blackHighlight,
         thickness: 40,
         factory: makePressureSensitiveFreehandLineBuilder,
       }),
 
       eraser,
-      new SelectionTool(editor, localization.selectionTool),
-      new TextTool(editor, localization.textTool, localization),
-      new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
+      // new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
+      shapeTool
     ];
 
     // Accessibility tools
-    const soundExplorer = new SoundUITool(editor, localization.soundExplorer);
-    soundExplorer.setEnabled(false);
+    // const soundExplorer = new SoundUITool(editor, localization.soundExplorer);
+    // soundExplorer.setEnabled(false);
+    shapeTool.setEnabled(false);
 
     this.tools = [
-      new ScrollbarTool(editor),
-      new PipetteTool(editor, localization.pipetteTool),
-      soundExplorer,
-      panZoomTool,
+      // new ScrollbarTool(editor),
+      // new PipetteTool(editor, localization.pipetteTool),
+      // soundExplorer,
+      // panZoomTool,
       ...primaryTools,
-      keyboardPanZoomTool,
+      // keyboardPanZoomTool,
       new UndoRedoShortcut(editor),
       new ToolbarShortcutHandler(editor),
       new ToolSwitcherShortcut(editor),
@@ -107,7 +110,7 @@ export default class ToolController implements InputEventListener {
       new SelectAllShortcutHandler(editor),
     ];
     primaryTools.forEach((tool) => tool.setToolGroup(primaryToolGroup));
-    panZoomTool.setEnabled(true);
+    // panZoomTool.setEnabled(true);
     primaryPenTool.setEnabled(true);
 
     editor.notifier.on(EditorEventType.ToolEnabled, (event) => {
@@ -161,6 +164,10 @@ export default class ToolController implements InputEventListener {
     return this.tools.filter((tool) => {
       return tool.getToolGroup() === this.primaryToolGroup;
     });
+  }
+
+  public setToolEnabled(tool: BaseTool) {
+    this.primaryToolGroup.setEnabled(tool);
   }
 
   /**

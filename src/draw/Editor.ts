@@ -1,50 +1,50 @@
-import { type Point2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
+import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
 import type Command from './commands/Command';
-import { EditorLocalization } from './localization';
-import getLocalizationTable from './localizations/getLocalizationTable';
-import IconProvider from './toolbar/IconProvider';
-import CanvasRenderer from './rendering/renderers/CanvasRenderer';
-import untilNextAnimationFrame from './util/untilNextAnimationFrame';
-import uniteCommands from './commands/uniteCommands';
-import SelectionTool from './tools/SelectionTool/SelectionTool';
-import AbstractComponent from './components/AbstractComponent';
 import Erase from './commands/Erase';
+import uniteCommands from './commands/uniteCommands';
+import type AbstractComponent from './components/AbstractComponent';
 import BackgroundComponent, { BackgroundType } from './components/BackgroundComponent';
-import sendPenEvent from './testing/sendPenEvent';
-import KeyboardShortcutManager from './shortcuts/KeyboardShortcutManager';
-import KeyBinding from './shortcuts/KeyBinding';
-import AbstractToolbar from './toolbar/AbstractToolbar';
-import EdgeToolbar from './toolbar/EdgeToolbar';
-import StrokeKeyboardControl from './tools/InputFilter/StrokeKeyboardControl';
-import guessKeyCodeFromKey from './util/guessKeyCodeFromKey';
-import RenderablePathSpec from './rendering/RenderablePathSpec';
-import makeAboutDialog, { AboutDialogEntry } from './dialogs/makeAboutDialog';
+import makeAboutDialog, { type AboutDialogEntry } from './dialogs/makeAboutDialog';
 import EventDispatcher from './EventDispatcher';
 import EditorImage from './image/EditorImage';
 import { editorImageToSVGSync, editorImageToSVGAsync } from './image/export/editorImageToSVG';
 import {
-	HTMLPointerEventName,
-	HTMLPointerEventFilter,
-	InputEvtType,
-	PointerEvt,
-	keyUpEventFromHTMLEvent,
-	keyPressEventFromHTMLEvent,
-	PointerEvtType,
+  type HTMLPointerEventName,
+  type HTMLPointerEventFilter,
+  InputEvtType,
+  type PointerEvt,
+  keyUpEventFromHTMLEvent,
+  keyPressEventFromHTMLEvent,
+  type PointerEvtType,
 } from './inputEvents';
+import { type EditorLocalization } from './localization';
+import getLocalizationTable from './localizations/getLocalizationTable';
 import Pointer from './Pointer';
 import Display, { RenderingMode } from './rendering/Display';
+import type RenderablePathSpec from './rendering/RenderablePathSpec';
+import CanvasRenderer from './rendering/renderers/CanvasRenderer';
+import type KeyBinding from './shortcuts/KeyBinding';
+import KeyboardShortcutManager from './shortcuts/KeyboardShortcutManager';
 import SVGLoader, { type SVGLoaderPlugin } from './SVGLoader/SVGLoader';
-import { ShowCustomFilePickerCallback } from './toolbar/widgets/components/makeFileInput';
-import { PenTypeRecord } from './toolbar/widgets/PenToolWidget';
+import sendPenEvent from './testing/sendPenEvent';
+import type AbstractToolbar from './toolbar/AbstractToolbar';
+import EdgeToolbar from './toolbar/EdgeToolbar';
+import IconProvider from './toolbar/IconProvider';
+import { type ShowCustomFilePickerCallback } from './toolbar/widgets/components/makeFileInput';
+import { type PenTypeRecord } from './toolbar/widgets/PenToolWidget';
 import ContextMenuRecognizer from './tools/InputFilter/ContextMenuRecognizer';
+import StrokeKeyboardControl from './tools/InputFilter/StrokeKeyboardControl';
+import SelectionTool from './tools/SelectionTool/SelectionTool';
 import ToolController from './tools/ToolController';
 import { type EditorNotifier, EditorEventType, type ImageLoader } from './types';
 import UndoRedoHistory from './UndoRedoHistory';
 import ClipboardHandler from './util/ClipboardHandler';
+import guessKeyCodeFromKey from './util/guessKeyCodeFromKey';
 import listenForKeyboardEventsFrom from './util/listenForKeyboardEventsFrom';
 import mitLicenseAttribution from './util/mitLicenseAttribution';
 import ReactiveValue, { MutableReactiveValue } from './util/ReactiveValue';
+import untilNextAnimationFrame from './util/untilNextAnimationFrame';
 import version from './version';
 import Viewport from './Viewport';
 
@@ -94,7 +94,7 @@ export interface EditorSettings {
   /**
 	 * Provides a set of icons for the editor.
 	 *
-	 * See, for example, the `@easy-draw/material-icons` package.
+	 * See, for example, the `@easydrawer/material-icons` package.
 	 */
   iconProvider: IconProvider;
 
@@ -104,7 +104,7 @@ export interface EditorSettings {
   notices: AboutDialogEntry[];
 
   /**
-	 * Information about the app/website easy-draw is running within. This is shown
+	 * Information about the app/website easydrawer is running within. This is shown
 	 * at the beginning of the about dialog.
 	 */
   appInfo: {
@@ -134,7 +134,7 @@ export interface EditorSettings {
 		 *
 		 * @example
 		 * ```ts,runnable
-		 * import {Editor} from 'easy-draw';
+		 * import {Editor} from 'easydrawer';
 		 * const editor = new Editor(document.body, {
 		 *   // Only allow selecting the polyline pen from the toolbar.
 		 *   pens: { filterPenTypes: p => p.id === 'polyline-pen' },
@@ -165,7 +165,7 @@ export interface EditorSettings {
   } | null;
 
   /**
-	 * Allows changing how easy-draw interacts with the clipboard.
+	 * Allows changing how easydrawer interacts with the clipboard.
 	 *
 	 * **Note**: Even when a custom `clipboardApi` is specified, if a `ClipboardEvent` is available
 	 * (e.g. from when a user pastes with ctrl+v), the `ClipboardEvent` will be preferred.
@@ -189,7 +189,7 @@ export interface EditorSettings {
  * ## Example
  * To create an editor with a toolbar,
  * ```ts,runnable
- * import { Editor } from 'easy-draw';
+ * import { Editor } from 'easydrawer';
  *
  * const editor = new Editor(document.body);
  *
@@ -201,7 +201,7 @@ export interface EditorSettings {
  * ```
  *
  * See also
- * * [`examples.md`](https://github.com/personalizedrefrigerator/easy-draw/blob/main/docs/examples.md).
+ * * [`examples.md`](https://github.com/personalizedrefrigerator/easydrawer/blob/main/docs/examples.md).
  */
 export class Editor {
   // Wrapper around the viewport and toolbar
@@ -232,7 +232,7 @@ export class Editor {
 	 *
 	 * @example
 	 * ```ts,runnable
-	 * import { Editor, Stroke, Path, Color4, pathToRenderable } from 'easy-draw';
+	 * import { Editor, Stroke, Path, Color4, pathToRenderable } from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 *
 	 * // Create a path.
@@ -268,7 +268,7 @@ export class Editor {
 
   /**
 	 * Controls the list of tools. See
-	 * [the custom tool example](https://github.com/personalizedrefrigerator/easy-draw/tree/main/docs/examples/example-custom-tools)
+	 * [the custom tool example](https://github.com/personalizedrefrigerator/easydrawer/tree/main/docs/examples/example-custom-tools)
 	 * for more.
 	 */
   public readonly toolController: ToolController;
@@ -279,7 +279,7 @@ export class Editor {
 	 * @example
 	 *
 	 * ```ts,runnable
-	 * import { Editor, EditorEventType, SerializableCommand } from 'easy-draw';
+	 * import { Editor, EditorEventType, SerializableCommand } from 'easydrawer';
 	 *
 	 * // Create a minimal editor
 	 * const editor = new Editor(document.body);
@@ -321,7 +321,7 @@ export class Editor {
   /**
 	 * @example
 	 * ```ts,runnable
-	 * import { Editor } from 'easy-draw';
+	 * import { Editor } from 'easydrawer';
 	 *
 	 * const container = document.body;
 	 *
@@ -395,7 +395,7 @@ export class Editor {
     this.container = document.createElement('div');
     this.renderingRegion = document.createElement('div');
     this.container.appendChild(this.renderingRegion);
-    this.container.classList.add('imageEditorContainer', 'easy-draw');
+    this.container.classList.add('imageEditorContainer', 'easydrawer');
 
     this.loadingWarning = document.createElement('div');
     this.loadingWarning.classList.add('loadingMessage');
@@ -937,7 +937,7 @@ export class Editor {
 		  // suggest that the user is attempting to draw, rather than click to close the color picker.
 		  eventBuffer: [HTMLPointerEventName, PointerEvent][];
 		  hasMovedSignificantly: boolean;
-		  startPoint: Point2;
+		  startPoint: IVec2;
 		};
 
 		// Maps pointer IDs to gesture start points
@@ -994,15 +994,13 @@ export class Editor {
 		        gestureData[pointerId].hasMovedSignificantly = true;
 		        sendToEditor = true;
 		      }
-		    }
-		    // Pointers that aren't down -- send to the editor.
-		    else if (eventName === 'pointermove') {
+		    } else if (eventName === 'pointermove') {
+		      // Pointers that aren't down -- send to the editor.
 		      sendToEditor = true;
-		    }
+		    } else if (
 		    // Otherwise, if we received a pointerup/pointercancel without flushing all pointerevents from the
 		    // buffer, the gesture wasn't recognised as a stroke. Thus, the editor isn't expecting a pointerup/
 		    // pointercancel event.
-		    else if (
 		      (eventName === 'pointerup' || eventName === 'pointercancel') &&
 					gestureData[pointerId] &&
 					gestureData[pointerId].eventBuffer.length > 0
@@ -1336,7 +1334,7 @@ export class Editor {
 	 */
   public createHTMLOverlay(overlay: HTMLElement) {
     // TODO(v2): Fix conflict with toolbars that have been added to the editor.
-    overlay.classList.add('overlay', 'easy-draw-editor-overlay');
+    overlay.classList.add('overlay', 'easydrawer-editor-overlay');
     this.container.appendChild(overlay);
 
     return {
@@ -1400,7 +1398,7 @@ export class Editor {
 
     contentWrapper.appendChild(element);
     overlay.appendChild(contentWrapper);
-    overlay.classList.add('overlay', 'easy-draw-editor-overlay');
+    overlay.classList.add('overlay', 'easydrawer-editor-overlay');
     this.renderingRegion.insertAdjacentElement('afterend', overlay);
 
     return {
@@ -1464,7 +1462,7 @@ export class Editor {
 	 */
   public sendPenEvent(
     eventType: PointerEvtType,
-    point: Point2,
+    point: IVec2,
 
     // @deprecated
     allPointers?: Pointer[],
@@ -1553,7 +1551,7 @@ export class Editor {
 	 */
   public toDataURL(
     format: 'image/png' | 'image/jpeg' | 'image/webp' = 'image/png',
-    outputSize?: Vec2,
+    outputSize?: IVec2,
   ): string {
     const { element: canvas, renderer } = CanvasRenderer.fromViewport(
       this.image.getImportExportViewport(),
@@ -1702,7 +1700,7 @@ export class Editor {
 	 *
 	 * **Example**:
 	 * ```ts,runnable
-	 * import { Editor, Color4, BackgroundComponentBackgroundType } from 'easy-draw';
+	 * import { Editor, Color4, BackgroundComponentBackgroundType } from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 * editor.dispatch(editor.setBackgroundStyle({
 	 *     color: Color4.orange,
@@ -1807,7 +1805,7 @@ export class Editor {
 	 *
 	 * @example
 	 * ```ts,runnable
-	 * import {Editor} from 'easy-draw';
+	 * import {Editor} from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 *
 	 * ---visible---
@@ -1850,7 +1848,7 @@ export class Editor {
       if (this.settings.appInfo.description) {
         descriptionLines.push(this.settings.appInfo.description + '\n');
       } else {
-        descriptionLines.push(`easy-draw v${version.number}`);
+        descriptionLines.push(`easydrawer v${version.number}`);
       }
 
       notices.push({
@@ -1859,7 +1857,7 @@ export class Editor {
       });
     } else {
       notices.push({
-        heading: 'easy-draw',
+        heading: 'easydrawer',
         text: `v${version.number}`,
       });
     }
@@ -1888,9 +1886,9 @@ export class Editor {
     notices.push({
       heading: this.localization.softwareLibraries,
       text: [
-        `This image editor is powered by easy-draw v${version.number}.`,
+        `This image editor is powered by easydrawer v${version.number}.`,
         '',
-        'At runtime, easy-draw uses',
+        'At runtime, easydrawer uses',
         ' - The Coloris color picker: https://github.com/mdbassit/Coloris',
         ' - The bezier.js Bézier curve library: https://github.com/Pomax/bezierjs',
         '',
@@ -1905,7 +1903,7 @@ export class Editor {
         mitLicenseAttribution('2023 Mike "Pomax" Kamermans'),
         '',
         '',
-        '== easy-draw ==',
+        '== easydrawer ==',
         mitLicenseAttribution('2023-2025 Henry Heino'),
         '',
       ].join('\n'),

@@ -11,4 +11,16 @@ export default class ToolEnabledGroup {
       this.activeTool = tool;
     }
   }
+
+  public setEnabled(tool: BaseTool) {
+    if (tool !== this.activeTool || !this.activeTool) {
+      this.activeTool?.setEnabled(false);
+      tool.setEnabled(true);
+      this.activeTool = tool;
+    } else {
+      this.activeTool?.setEnabled(false);
+      tool.setEnabled(false);
+      this.activeTool = null;
+    }
+  }
 }

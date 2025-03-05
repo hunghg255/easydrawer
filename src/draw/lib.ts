@@ -1,10 +1,10 @@
 /**
  * The main entrypoint for the NPM package. Everything exported by this file
- * is available through the [`easy-draw` package](https://www.npmjs.com/package/easy-draw).
+ * is available through the [`easydrawer` package](https://www.npmjs.com/package/easydrawer).
  *
  * ## Example
  *
- * [[include:doc-pages/inline-examples/main-easy-draw-example.md]]
+ * [[include:doc-pages/inline-examples/main-easydrawer-example.md]]
  *
  * @see
  * - {@link Editor}
@@ -44,13 +44,13 @@ export { default as UndoRedoHistory } from './UndoRedoHistory';
 export * from './util/lib';
 
 // @internal
-export { default as __js_draw__version } from './version';
+export { default as __easy_draw__version } from './version';
 
 export { Editor, EditorSettings, AbstractToolbar };
 
 /**
  * Using the HTMLToolbar alias is deprecated. Use
- * `AbstractToolbar` instead.
+ * `AbstractToolbar` instead
  * @deprecated
  */
 export { AbstractToolbar as HTMLToolbar };

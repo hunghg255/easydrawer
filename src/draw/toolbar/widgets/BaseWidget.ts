@@ -26,9 +26,9 @@ export enum ToolbarWidgetTag {
 }
 
 /**
- * The `abstract` base class for items that can be shown in a `easy-draw` toolbar. See also {@link AbstractToolbar.addWidget}.
+ * The `abstract` base class for items that can be shown in a `easydrawer` toolbar. See also {@link AbstractToolbar.addWidget}.
  *
- * See [the custom tool example](https://github.com/personalizedrefrigerator/easy-draw/blob/main/docs/examples/example-custom-tools/example.ts)
+ * See [the custom tool example](https://github.com/personalizedrefrigerator/easydrawer/blob/main/docs/examples/example-custom-tools/example.ts)
  * for how to create a custom toolbar widget for a tool.
  *
  * For custom action buttons, {@link AbstractToolbar.addActionButton} may be sufficient for most use cases.
@@ -99,6 +99,7 @@ export default abstract class BaseWidget {
     addLongPressOrHoverCssClasses(this.button);
   }
 
+  // eslint-disable-next-line no-unused-private-class-members
   #addEditorListeners() {
     this.#removeEditorListeners?.();
 
@@ -372,52 +373,52 @@ export default abstract class BaseWidget {
 
     // Clear the dropdownContainer in case this element is being moved to another
     // parent.
-    this.dropdownContent.replaceChildren();
-    this.#hasDropdown = this.fillDropdown(this.dropdownContent, helpDisplay);
+    // this.dropdownContent.replaceChildren();
+    // this.#hasDropdown = this.fillDropdown(this.dropdownContent, helpDisplay);
 
-    if (this.#hasDropdown) {
-      this.button.classList.add('has-dropdown');
+    // if (this.#hasDropdown) {
+    //   this.button.classList.add('has-dropdown');
 
-      // We're re-creating the dropdown.
-      this.dropdown?.destroy();
+    //   // We're re-creating the dropdown.
+    //   this.dropdown?.destroy();
 
-      this.dropdownIcon = this.createDropdownIcon();
-      this.button.appendChild(this.dropdownIcon);
+    //   this.dropdownIcon = this.createDropdownIcon();
+    //   this.button.appendChild(this.dropdownIcon);
 
-      this.dropdown = this.layoutManager.createToolMenu({
-        target: this.button,
-        getTitle: () => this.getTitle(),
-        isToplevel: () => this.toplevel,
-      });
+    //   this.dropdown = this.layoutManager.createToolMenu({
+    //     target: this.button,
+    //     getTitle: () => this.getTitle(),
+    //     isToplevel: () => this.toplevel,
+    //   });
 
-      this.dropdown.visible.onUpdate((visible) => {
-        if (visible) {
-          this.container.classList.add('dropdownVisible');
-        } else {
-          this.container.classList.remove('dropdownVisible');
-        }
+    //   this.dropdown.visible.onUpdate((visible) => {
+    //     if (visible) {
+    //       this.container.classList.add('dropdownVisible');
+    //     } else {
+    //       this.container.classList.remove('dropdownVisible');
+    //     }
 
-        // Auto-focus this component's button when the dropdown hides --
-        // this ensures that keyboard focus goes to a reasonable location when
-        // the user closes a menu.
-        if (!visible) {
-          this.focus();
-        }
-      });
+    //     // Auto-focus this component's button when the dropdown hides --
+    //     // this ensures that keyboard focus goes to a reasonable location when
+    //     // the user closes a menu.
+    //     if (!visible) {
+    //       this.focus();
+    //     }
+    //   });
 
-      if (helpDisplay.hasHelpText()) {
-        this.dropdown.appendChild(helpDisplay.createToggleButton());
-      }
-      this.dropdown.appendChild(this.dropdownContent);
-    }
+    //   if (helpDisplay.hasHelpText()) {
+    //     this.dropdown.appendChild(helpDisplay.createToggleButton());
+    //   }
+    //   this.dropdown.appendChild(this.dropdownContent);
+    // }
 
-    this.setDropdownVisible(false);
+    // this.setDropdownVisible(false);
 
-    if (this.container.parentElement) {
-      this.container.remove();
-    }
+    // if (this.container.parentElement) {
+    //   this.container.remove();
+    // }
 
-    this.#addEditorListeners();
+    // this.#addEditorListeners();
 
     parent.appendChild(this.container);
     return this.container;

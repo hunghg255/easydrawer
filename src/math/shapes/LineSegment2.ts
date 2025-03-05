@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { type IVec3, type IVec2, Vec2 } from '~/math/Vector';
+
 import Parameterized2DShape from './Parameterized2DShape';
 import Rect2 from './Rect2';
 import type Mat33 from '../Mat33';
-import { Vec2, type Point2 } from '../Vec2';
-import type Vec3 from '../Vec3';
 
 interface IntersectionResult {
-  point: Point2;
+  point: IVec2;
   t: number;
 }
 
@@ -31,7 +32,7 @@ export class LineSegment2 extends Parameterized2DShape {
 	 * In other words, `direction` is `point2.minus(point1).normalized()`
 	 * (perhaps except when `point1` is equal to `point2`).
 	 */
-  public readonly direction: Vec2;
+  public readonly direction: IVec2;
 
   /** The distance between `point1` and `point2`. */
   public readonly length: number;
@@ -41,8 +42,8 @@ export class LineSegment2 extends Parameterized2DShape {
 
   /** Creates a new `LineSegment2` from its endpoints. */
   public constructor(
-    private readonly point1: Point2,
-    private readonly point2: Point2,
+    private readonly point1: IVec2,
+    private readonly point2: IVec2,
   ) {
     super();
 
@@ -67,7 +68,7 @@ export class LineSegment2 extends Parameterized2DShape {
 	 * console.log(LineSegment2.ofSmallestContainingPoints([Vec2.of(1, 0), Vec2.of(0, 1)]));
 	 * ```
 	 */
-  public static ofSmallestContainingPoints(points: readonly Point2[]) {
+  public static ofSmallestContainingPoints(points: readonly IVec2[]) {
     if (points.length <= 1) return null;
 
     const sorted = [...points].sort((a, b) => (a.x !== b.x ? a.x - b.x : a.y - b.y));
@@ -86,16 +87,16 @@ export class LineSegment2 extends Parameterized2DShape {
   // interface
 
   /** Alias for `point1`. */
-  public get p1(): Point2 {
+  public get p1(): IVec2 {
     return this.point1;
   }
 
   /** Alias for `point2`. */
-  public get p2(): Point2 {
+  public get p2(): IVec2 {
     return this.point2;
   }
 
-  public get center(): Point2 {
+  public get center(): IVec2 {
     return this.point1.lerp(this.point2, 0.5);
   }
 
@@ -104,7 +105,7 @@ export class LineSegment2 extends Parameterized2DShape {
 	 *
 	 * @deprecated
 	 */
-  public get(t: number): Point2 {
+  public get(t: number): IVec2 {
     return this.point1.plus(this.direction.times(t));
   }
 
@@ -115,15 +116,15 @@ export class LineSegment2 extends Parameterized2DShape {
 	 *
 	 * `t` should be in `[0, 1]`.
 	 */
-  public override at(t: number): Point2 {
+  public override at(t: number): IVec2 {
     return this.get(t * this.length);
   }
 
-  public override normalAt(_t: number): Vec2 {
+  public override normalAt(_t: number): IVec2 {
     return this.direction.orthog();
   }
 
-  public override tangentAt(_t: number): Vec3 {
+  public override tangentAt(_t: number): IVec3 {
     return this.direction;
   }
 
@@ -265,11 +266,11 @@ export class LineSegment2 extends Parameterized2DShape {
   }
 
   // Returns the closest point on this to [target]
-  public closestPointTo(target: Point2) {
+  public closestPointTo(target: IVec2) {
     return this.nearestPointTo(target).point;
   }
 
-  public override nearestPointTo(target: Vec3): { point: Vec3; parameterValue: number } {
+  public override nearestPointTo(target: IVec3): { point: IVec3; parameterValue: number } {
     // Distance from P1 along this' direction.
     const projectedDistFromP1 = target.minus(this.p1).dot(this.direction);
     const projectedDistFromP2 = this.length - projectedDistFromP1;
@@ -293,7 +294,7 @@ export class LineSegment2 extends Parameterized2DShape {
 	 * Because a line segment has no interior, this signed distance is equivalent to
 	 * the full distance between `target` and this line segment.
 	 */
-  public signedDistance(target: Point2) {
+  public signedDistance(target: IVec2) {
     return this.closestPointTo(target).minus(target).magnitude();
   }
 

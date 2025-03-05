@@ -1,5 +1,5 @@
 import {
-  type Point2,
+  type IVec2,
   Rect2,
   Color4,
   type PathCommand,
@@ -40,7 +40,7 @@ export default class PolylineBuilder implements ComponentBuilder {
   private averageWidth: number;
   private widthAverageNumSamples = 1;
 
-  private lastPoint: Point2;
+  private lastPoint: IVec2;
   private startPoint: StrokeDataPoint;
   private lastLineSegment: LineSegment2 | null = null;
 
@@ -129,7 +129,7 @@ export default class PolylineBuilder implements ComponentBuilder {
     return minFit;
   }
 
-  private roundPoint(point: Point2): Point2 {
+  private roundPoint(point: IVec2): IVec2 {
     const minFit = this.getMinFit();
     return Viewport.roundPoint(point, minFit);
   }

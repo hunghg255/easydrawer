@@ -1,4 +1,4 @@
-import { Rect2, Vec2, Mat33, type Mat33Array, Color4 } from '~/math';
+import { Rect2, Vec2, Mat33, type Mat33Array, Color4, type IVec2 } from '~/math';
 
 import Command from '../commands/Command';
 import SerializableCommand from '../commands/SerializableCommand';
@@ -60,7 +60,7 @@ let debugMode = false;
 /**
  * Handles lookup/storage of elements in the image.
  *
- * `easy-draw` images are made up of a collection of {@link AbstractComponent}s (which
+ * `easydrawer` images are made up of a collection of {@link AbstractComponent}s (which
  * includes {@link Stroke}s, {@link TextComponent}s, etc.). An `EditorImage`
  * is the data structure that stores these components.
  *
@@ -449,7 +449,7 @@ export default class EditorImage {
 	 * @example
 	 *
 	 * ```ts,runnable
-	 * import { Editor } from 'easy-draw';
+	 * import { Editor } from 'easydrawer';
 	 *
 	 * const editor = new Editor(document.body);
 	 * const toolbar = editor.addToolbar();
@@ -562,7 +562,7 @@ export default class EditorImage {
     private static commandId = 'set-import-export-rect';
 
     private constructor(
-      private originalSize: Vec2,
+      private originalSize: IVec2,
       private originalTransform: Mat33,
       private originalAutoresize: boolean,
       private newExportRect: Rect2,

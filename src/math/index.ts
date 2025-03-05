@@ -1,5 +1,5 @@
 /**
- * This package contains general math utilities used by `easy-draw`.
+ * This package contains general math utilities used by `easydrawer`.
  * These include 2D and 3D vectors, 2D paths, and 3x3 matrices.
  *
  * ```ts,runnable,console
@@ -35,13 +35,14 @@ export {
   CubicBezierPathCommand,
 } from './shapes/Path';
 export { Rect2 } from './shapes/Rect2';
+export { Triangle } from './shapes/Triangle';
 export { Parameterized2DShape } from './shapes/Parameterized2DShape';
 export { QuadraticBezier } from './shapes/QuadraticBezier';
 export { Abstract2DShape } from './shapes/Abstract2DShape';
 
 export { Mat33, Mat33Array } from './Mat33';
-export { Point2, Vec2 } from './Vec2';
-export { Vec3 } from './Vec3';
+export {  Vec2, Vec3 } from './Vector';
+export type { IVec3, IVec2 } from './Vector';
 export { Color4 } from './Color4';
 export * from './rounding/lib';
 

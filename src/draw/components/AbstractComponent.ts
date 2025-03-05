@@ -1,5 +1,5 @@
-import { type LineSegment2, Mat33, type Mat33Array, type Path, type Rect2, Vec2 } from '~/math';
-import { type Point2 } from '~/math';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { type IVec2, type LineSegment2, Mat33, type Mat33Array, type Path, type Rect2, Vec2 } from '~/math';
 
 import { type ImageComponentLocalization } from './localization';
 import SerializableCommand from '../commands/SerializableCommand';
@@ -223,7 +223,7 @@ export default abstract class AbstractComponent {
 	 * Subclasses should override this method if the center of the bounding box is
 	 * not contained within the object.
 	 */
-  public keyPoints(): Point2[] {
+  public keyPoints(): IVec2[] {
     return [this.getBBox().center];
   }
 

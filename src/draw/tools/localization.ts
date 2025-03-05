@@ -51,7 +51,7 @@ export interface ToolLocalization {
 }
 
 export const defaultToolLocalization: ToolLocalization = {
-  penTool: (penId) => `Pen ${penId}`,
+  penTool: (penId) => `pen-${penId}`,
   selectionTool: 'Selection',
   selectAllTool: 'Select all shortcut',
   eraserTool: 'Eraser',

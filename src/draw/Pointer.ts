@@ -1,4 +1,4 @@
-import { type Point2, Vec2 } from '~/math';
+import { type IVec2, Vec2 } from '~/math';
 
 import type Viewport from './Viewport';
 
@@ -17,11 +17,11 @@ export default class Pointer {
   private constructor(
     // The (x, y) position of the pointer relative to the top-left corner
     // of the visible canvas.
-    public readonly screenPos: Point2,
+    public readonly screenPos: IVec2,
 
     // Position of the pointer relative to the top left corner of the drawing
     // surface.
-    public readonly canvasPos: Point2,
+    public readonly canvasPos: IVec2,
 
     public readonly pressure: number | null,
     public readonly isPrimary: boolean,
@@ -49,7 +49,7 @@ export default class Pointer {
   // Snap this pointer to the X or Y axis (whichever is closer), where (0,0)
   // is considered to be at `originPointScreen`.
   // @internal
-  public lockedToXYAxesScreen(originPointScreen: Vec2, viewport: Viewport) {
+  public lockedToXYAxesScreen(originPointScreen: IVec2, viewport: Viewport) {
     const current = this.screenPos;
     const currentFromStart = current.minus(originPointScreen);
 
@@ -71,7 +71,7 @@ export default class Pointer {
   }
 
   /** @see {@link withCanvasPosition} */
-  public withScreenPosition(screenPos: Point2, viewport: Viewport) {
+  public withScreenPosition(screenPos: IVec2, viewport: Viewport) {
     const canvasPos = viewport.screenToCanvas(screenPos);
     return this.withCanvasPosition(canvasPos, viewport);
   }
@@ -94,7 +94,7 @@ export default class Pointer {
 	 * Returns a copy of this pointer with a new position. The screen position is determined
 	 * by the given `canvasPos`.
 	 */
-  public withCanvasPosition(canvasPos: Point2, viewport: Viewport) {
+  public withCanvasPosition(canvasPos: IVec2, viewport: Viewport) {
     const screenPos = viewport.canvasToScreen(canvasPos);
 
     return new Pointer(
@@ -163,7 +163,7 @@ export default class Pointer {
   // Create a new Pointer from a point on the canvas.
   // Intended for unit tests.
   public static ofCanvasPoint(
-    canvasPos: Point2,
+    canvasPos: IVec2,
     isDown: boolean,
     viewport: Viewport,
     id = 0,
@@ -181,7 +181,7 @@ export default class Pointer {
   // Create a new Pointer from a point on the screen.
   // Intended for unit tests.
   public static ofScreenPoint(
-    screenPos: Point2,
+    screenPos: IVec2,
     isDown: boolean,
     viewport: Viewport,
     id = 0,

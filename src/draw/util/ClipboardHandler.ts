@@ -13,7 +13,7 @@ interface Callbacks {
 
 /**
  * Handles conversion between the browser clipboard APIs and internal
- * easy-draw clipboard events.
+ * easydrawer clipboard events.
  */
 export default class ClipboardHandler {
   #preferClipboardEvents = false;

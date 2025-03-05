@@ -1,4 +1,4 @@
-import { type Color4, type Mat33, type Point2, Vec2, type Rect2, Path, PathCommandType } from '~/math';
+import { type Color4, type Mat33, type IVec2, Vec2, type Rect2, Path, PathCommandType } from '~/math';
 
 import { type LoadSaveDataTable } from '../../components/AbstractComponent';
 import type Viewport from '../../Viewport';
@@ -49,15 +49,15 @@ export default abstract class AbstractRenderer {
 
   // Returns the size of the rendered region of this on
   // the display (in pixels).
-  public abstract displaySize(): Vec2;
+  public abstract displaySize(): IVec2;
 
   public abstract clear(): void;
-  protected abstract beginPath(startPoint: Point2): void;
+  protected abstract beginPath(startPoint: IVec2): void;
   protected abstract endPath(style: RenderingStyle): void;
-  protected abstract lineTo(point: Point2): void;
-  protected abstract moveTo(point: Point2): void;
-  protected abstract traceCubicBezierCurve(p1: Point2, p2: Point2, p3: Point2): void;
-  protected abstract traceQuadraticBezierCurve(controlPoint: Point2, endPoint: Point2): void;
+  protected abstract lineTo(point: IVec2): void;
+  protected abstract moveTo(point: IVec2): void;
+  protected abstract traceCubicBezierCurve(p1: IVec2, p2: IVec2, p3: IVec2): void;
+  protected abstract traceQuadraticBezierCurve(controlPoint: IVec2, endPoint: IVec2): void;
   public abstract drawText(text: string, transform: Mat33, style: TextRenderingStyle): void;
   public abstract drawImage(image: RenderableImage): void;
 
@@ -164,7 +164,7 @@ export default abstract class AbstractRenderer {
 	 * Notes the end of an object.
 	 * @param _loaderData - a map from strings to JSON-ifyable objects
 	 * and contains properties attached to the object by whatever loader loaded the image. This
-	 * is used to preserve attributes not supported by easy-draw when loading/saving an image.
+	 * is used to preserve attributes not supported by easydrawer when loading/saving an image.
 	 * Renderers may ignore this.
 	 *
 	 * @param _objectTags - a list of labels (e.g. `className`s) to be attached to the object.
@@ -188,7 +188,7 @@ export default abstract class AbstractRenderer {
   }
 
   // Draw a representation of [points]. Intended for debugging.
-  public abstract drawPoints(...points: Point2[]): void;
+  public abstract drawPoints(...points: IVec2[]): void;
 
   // Returns true iff other can be rendered onto this without data loss.
   public canRenderFromWithoutDataLoss(_other: AbstractRenderer): boolean {
@@ -234,7 +234,7 @@ export default abstract class AbstractRenderer {
     return this.viewport.canvasToScreenTransform;
   }
 
-  public canvasToScreen(vec: Vec2): Vec2 {
+  public canvasToScreen(vec: IVec2): IVec2 {
     return this.getCanvasToScreenTransform().transformVec2(vec);
   }
 

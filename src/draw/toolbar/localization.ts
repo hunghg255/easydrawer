@@ -1,5 +1,11 @@
 import { type ToolbarUtilsLocalization, defaultToolbarUtilsLocalization } from './utils/localization';
-
+// square= 0,
+// rectangle= 1,
+// circle=2,
+// triangle=3,
+// hexagonal=4,
+// diamond=5,
+// arrow=6,
 export interface ToolbarLocalization extends ToolbarUtilsLocalization {
   fontLabel: string;
   textSize: string;
@@ -7,7 +13,13 @@ export interface ToolbarLocalization extends ToolbarUtilsLocalization {
   lockRotation: string;
   outlinedRectanglePen: string;
   outlinedCirclePen: string;
-  filledRectanglePen: string;
+  filledSquare: string;
+  filledRectangle: string;
+  filledCircle: string;
+  filledTriangle: string;
+  filledHexagonal: string;
+  filledDiamond: string;
+  filledArrow: string;
   linePen: string;
   arrowPen: string;
   image: string;
@@ -171,7 +183,13 @@ export const defaultToolbarLocalization: ToolbarLocalization = {
   arrowPen: 'Arrow',
   linePen: 'Line',
   outlinedRectanglePen: 'Outlined rectangle',
-  filledRectanglePen: 'Filled rectangle',
+  filledSquare: 'Filled square',
+  filledRectangle: 'Filled rectangle',
+  filledCircle: 'Filled circle',
+  filledTriangle: 'Filled triangle',
+  filledHexagonal: 'Filled hexagonal',
+  filledDiamond: 'Filled diamond',
+  filledArrow: 'Filled arrow',
   outlinedCirclePen: 'Outlined circle',
   lockRotation: 'Lock rotation',
 
@@ -185,7 +203,7 @@ export const defaultToolbarLocalization: ToolbarLocalization = {
 
   // Help text
   penDropdown__baseHelpText: 'This tool draws shapes or freehand lines.',
-  penDropdown__colorHelpText: "Changes the pen's color",
+  penDropdown__colorHelpText: 'Changes the pen\'s color',
   penDropdown__thicknessHelpText: 'Changes the thickness of strokes drawn by the pen.',
   penDropdown__penTypeHelpText:
 		'Changes the pen style.\n\nEither a “pen” style or “shape” can be chosen. Choosing a “pen” style draws freehand lines. Choosing a “shape” draws shapes.',
@@ -210,11 +228,11 @@ export const defaultToolbarLocalization: ToolbarLocalization = {
 		'When in full-stroke mode, entire shapes are erased.\n\nWhen not in full-stroke mode, shapes can be partially erased.',
   selectionDropdown__baseHelpText: 'Selects content and manipulates the selection',
   selectionDropdown__resizeToHelpText:
-		"Crops the drawing to the size of what's currently selected.\n\nIf auto-resize is enabled, it will be disabled.",
+		'Crops the drawing to the size of what\'s currently selected.\n\nIf auto-resize is enabled, it will be disabled.',
   selectionDropdown__deleteHelpText: 'Erases selected items.',
   selectionDropdown__duplicateHelpText: 'Makes a copy of selected items.',
   selectionDropdown__changeColorHelpText: 'Changes the color of selected items.',
-  pageDropdown__baseHelpText: "Controls the drawing canvas' background color, pattern, and size.",
+  pageDropdown__baseHelpText: 'Controls the drawing canvas\' background color, pattern, and size.',
   pageDropdown__backgroundColorHelpText: 'Changes the background color of the drawing canvas.',
   pageDropdown__gridCheckboxHelpText: 'Enables/disables a background grid pattern.',
   pageDropdown__autoresizeCheckboxHelpText:

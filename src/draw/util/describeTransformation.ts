@@ -1,4 +1,4 @@
-import { type Mat33, Vec2 } from '~/math';
+import { type IVec2, type Mat33, Vec2 } from '~/math';
 
 interface Descriptions {
   zoomedIn: string;
@@ -10,7 +10,7 @@ interface Descriptions {
   rotatedBy: (deg: number) => string;
 }
 
-function describeTransformation (origin: Vec2,
+function describeTransformation (origin: IVec2,
   // The transformation
   transform: Mat33,
   // If true, moving the object right, for example, reads as "moved left"

@@ -243,7 +243,7 @@ export default class DocumentPropertiesWidget extends BaseWidget {
         onChange(Number.parseFloat(input.value));
       });
 
-      row.classList.add('easy-draw-size-input-row');
+      row.classList.add('easydrawer-size-input-row');
       row.replaceChildren(label, input);
 
       return {
@@ -255,7 +255,7 @@ export default class DocumentPropertiesWidget extends BaseWidget {
           // .setValue is called immediately). We work around this by trying to select
           // the added/changed digits.
           //
-          // See https://github.com/personalizedrefrigerator/easy-draw/issues/58.
+          // See https://github.com/personalizedrefrigerator/easydrawer/issues/58.
           if (document.activeElement === input && /^0*$/.test(input.value)) {
             // We need to switch to type="text" and back to type="number" because
             // number inputs don't support selection.

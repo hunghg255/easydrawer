@@ -1,4 +1,4 @@
-import Vec3 from './Vec3';
+import { type IVec3, Vec3 } from './Vector';
 
 /**
  * Represents a color.
@@ -309,7 +309,7 @@ export class Color4 {
 	 *
 	 * The resultant hue is represented in radians and is thus in $[0, 2\pi]$.
 	 */
-  public asHSV(): Vec3 {
+  public asHSV(): IVec3 {
     // Ref: https://en.wikipedia.org/wiki/HSL_and_HSV#General_approach
     //
     // HUE:
@@ -429,7 +429,7 @@ export class Color4 {
 	 *
 	 * All components should be in the range `[0, 1]` (0 to 1 inclusive).
 	 */
-  public static fromRGBVector(rgb: Vec3, alpha?: number) {
+  public static fromRGBVector(rgb: IVec3, alpha?: number) {
     return Color4.ofRGBA(rgb.x, rgb.y, rgb.z, alpha ?? 1);
   }
 
@@ -473,16 +473,24 @@ export class Color4 {
   }
 
   public static transparent = Color4.ofRGBA(0, 0, 0, 0);
-  public static red = Color4.ofRGB(1.0, 0.0, 0.0);
-  public static orange = Color4.ofRGB(1.0, 0.65, 0.0);
-  public static green = Color4.ofRGB(0.0, 1.0, 0.0);
-  public static blue = Color4.ofRGB(0.0, 0.0, 1.0);
+  public static red = Color4.fromHex('#D7273D');
+  public static orange = Color4.fromHex('#F99F07');
+  public static green = Color4.fromHex('#00875A');
+  public static blue = Color4.fromHex('#2576B9');
   public static purple = Color4.ofRGB(0.5, 0.2, 0.5);
-  public static yellow = Color4.ofRGB(1, 1, 0.1);
+  public static yellow = Color4.fromHex('#FFD95C');
   public static clay = Color4.ofRGB(0.8, 0.4, 0.2);
   public static black = Color4.ofRGB(0, 0, 0);
-  public static gray = Color4.ofRGB(0.5, 0.5, 0.5);
+  public static gray = Color4.fromHex('#EDEEF1');
   public static white = Color4.ofRGB(1, 1, 1);
+
+  public static blackHighlight = Color4.ofRGBA(0, 0, 0,  0.3);
+  public static redHighlight = Color4.ofRGBA(215/255, 39/255, 61/255, 0.3);
+  public static blueHighlight = Color4.ofRGBA(37/255, 118/255, 185/255, 0.3);
+
+  public static pink  = Color4.fromHex('#EB9CC4');
+  public static blueLight  = Color4.fromHex('#D5EDFF');
+  public static greenLight  = Color4.fromHex('#E3FCEF');
 }
 
 export default Color4;

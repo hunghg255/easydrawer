@@ -1,5 +1,5 @@
 // Code shared with Joplin (from when it was MIT licensed)
-// (easy-draw was originally intended to be part of Joplin).
+// (easydrawer was originally intended to be part of Joplin).
 
 // @see EventDispatcher
 type Listener<Value> = (data: Value) => void;

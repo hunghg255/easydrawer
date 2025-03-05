@@ -26,7 +26,7 @@ export default class CacheRecord {
   public startRender(): AbstractRenderer {
     this.lastUsedCycle = this.cacheState.currentRenderingCycle;
     if (!this.allocd) {
-      throw new Error("Only alloc'd canvases can be rendered to");
+      throw new Error('Only alloc\'d canvases can be rendered to');
     }
     return this.renderer;
   }

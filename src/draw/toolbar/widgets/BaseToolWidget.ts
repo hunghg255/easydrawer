@@ -1,3 +1,5 @@
+/* eslint-disable unicorn/explicit-length-check */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import BaseWidget from './BaseWidget';
 import type Editor from '../../Editor';
 import { type KeyPressEvent } from '../../inputEvents';
@@ -6,6 +8,7 @@ import { toolbarCSSPrefix } from '../constants';
 import { type ToolbarLocalization } from '../localization';
 
 function isToolWidgetFocused () {
+  //@ts-expect-error
   const currentFocus = [...document.querySelectorAll('*:focus')];
   return (
     currentFocus.length &&
@@ -45,16 +48,18 @@ export default abstract class BaseToolWidget extends BaseWidget {
   }
 
   protected handleClick() {
-    if (this.hasDropdown) {
-      if (!this.targetTool.isEnabled()) {
-        this.targetTool.setEnabled(true);
-        this.activateDropdown();
-      } else {
-        this.setDropdownVisible(!this.isDropdownVisible());
-      }
-    } else {
-      this.targetTool.setEnabled(!this.targetTool.isEnabled());
-    }
+    // if (this.hasDropdown) {
+    //   if (!this.targetTool.isEnabled()) {
+    //     this.targetTool.setEnabled(true);
+    //     this.activateDropdown();
+    //   } else {
+    //     this.setDropdownVisible(!this.isDropdownVisible());
+    //   }
+    // } else {
+    //   this.targetTool.setEnabled(!this.targetTool.isEnabled());
+    // }
+
+    this.targetTool.setEnabled(!this.targetTool.isEnabled());
   }
 
   protected override onKeyPress(event: KeyPressEvent): boolean {

@@ -1,4 +1,5 @@
-import { Vec2, type Vec3, type Rect2, type Mat33 } from '~/math';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Vec2, type IVec3, type Rect2, type Mat33 } from '~/math';
 
 import AbstractRenderer, { type RenderableImage } from './AbstractRenderer';
 import type Viewport from '../../Viewport';
@@ -20,7 +21,7 @@ export default class TextOnlyRenderer extends AbstractRenderer {
     super(viewport);
   }
 
-  public displaySize(): Vec3 {
+  public displaySize(): IVec3 {
     // We don't have a graphical display, export a reasonable size.
     return Vec2.of(500, 500);
   }
@@ -43,14 +44,14 @@ export default class TextOnlyRenderer extends AbstractRenderer {
     ].join('\n');
   }
 
-  protected beginPath(_startPoint: Vec3): void {}
+  protected beginPath(_startPoint: IVec3): void {}
   protected endPath(_style: RenderingStyle): void {
     this.pathCount++;
   }
-  protected lineTo(_point: Vec3): void {}
-  protected moveTo(_point: Vec3): void {}
-  protected traceCubicBezierCurve(_p1: Vec3, _p2: Vec3, _p3: Vec3): void {}
-  protected traceQuadraticBezierCurve(_controlPoint: Vec3, _endPoint: Vec3): void {}
+  protected lineTo(_point: IVec3): void {}
+  protected moveTo(_point: IVec3): void {}
+  protected traceCubicBezierCurve(_p1: IVec3, _p2: IVec3, _p3: IVec3): void {}
+  protected traceQuadraticBezierCurve(_controlPoint: IVec3, _endPoint: IVec3): void {}
   public drawText(text: string, _transform: Mat33, _style: TextRenderingStyle): void {
     this.descriptionBuilder.push(this.localizationTable.textNode(text));
     this.textNodeCount++;
@@ -66,5 +67,5 @@ export default class TextOnlyRenderer extends AbstractRenderer {
   public isTooSmallToRender(rect: Rect2): boolean {
     return rect.maxDimension < 15 / this.getSizeOfCanvasPixelOnScreen();
   }
-  public drawPoints(..._points: Vec3[]): void {}
+  public drawPoints(..._points: IVec3[]): void {}
 }

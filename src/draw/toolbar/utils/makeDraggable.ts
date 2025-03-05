@@ -1,4 +1,4 @@
-import { Vec2 } from '~/math';
+import { type IVec2, Vec2 } from '~/math';
 
 interface DragStatistics {
   // Whether the drag was small enough that it was roughly
@@ -10,7 +10,7 @@ interface DragStatistics {
   endTimestamp: number;
 
   // Change in x and y position from the start of the gesture
-  displacement: Vec2;
+  displacement: IVec2;
 }
 
 interface DraggableOptions {
@@ -18,7 +18,7 @@ interface DraggableOptions {
   // regardless of tag name
   draggableChildElements: HTMLElement[];
 
-  onDrag(deltaX: number, deltaY: number, totalDisplacement: Vec2): void;
+  onDrag(deltaX: number, deltaY: number, totalDisplacement: IVec2): void;
   onDragEnd(dragStatistics: DragStatistics): void;
 }
 

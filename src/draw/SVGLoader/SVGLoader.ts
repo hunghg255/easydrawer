@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/prefer-for-of */
 import { Color4, Mat33, Path, Rect2, Vec2 } from '~/math';
 
 import determineFontSize from './utils/determineFontSize';
@@ -43,7 +44,7 @@ export const svgLoaderAttributeContainerID = 'svgContainerID';
 
 // If present in the exported SVG's class list, the image will be
 // autoresized when components are added/removed.
-export const svgLoaderAutoresizeClassName = 'easy-draw--autoresize';
+export const svgLoaderAutoresizeClassName = 'easydrawer--autoresize';
 
 // [key, value]
 export type SVGLoaderUnknownAttribute = [string, string];
@@ -267,7 +268,7 @@ export default class SVGLoader implements ImageLoader {
     await this.addComponent(elem);
   }
 
-  private async addBackground(node: SVGElement) {
+  private async addBackground(node: SVGElement | any) {
     // If a grid background,
     if (node.classList.contains(backgroundTypeToClassNameMap[BackgroundType.Grid])) {
       let foregroundStr: string | null;
@@ -333,9 +334,8 @@ export default class SVGLoader implements ImageLoader {
         gridStrokeWidth,
       );
       await this.addComponent(elem);
-    }
-    // Otherwise, if just a <path/>, it's a solid color background.
-    else if (node.tagName.toLowerCase() === 'path') {
+    } else if (node.tagName.toLowerCase() === 'path') {
+      // Otherwise, if just a <path/>, it's a solid color background.
       const fill = Color4.fromString(node.getAttribute('fill') ?? node.style.fill ?? 'black');
       const elem = new BackgroundComponent(BackgroundType.SolidColor, fill);
       await this.addComponent(elem);
@@ -361,7 +361,7 @@ export default class SVGLoader implements ImageLoader {
     supportedAttrs?: string[],
     computedStyles?: CSSStyleDeclaration,
   ): Mat33 {
-    // If possible, load the easy-draw specific transform attribute
+    // If possible, load the easydrawer specific transform attribute
     const highpTransformAttribute = 'data-highp-transform';
     const rawTransformData = elem.getAttribute(highpTransformAttribute);
     let transform;
@@ -412,6 +412,8 @@ export default class SVGLoader implements ImageLoader {
 
   private makeText(elem: SVGTextElement | SVGTSpanElement): TextComponent {
     const contentList: Array<TextComponent | string> = [];
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    //@ts-expect-error
     for (const child of elem.childNodes) {
       if (child.nodeType === Node.TEXT_NODE) {
         contentList.push(child.nodeValue ?? '');
@@ -602,7 +604,7 @@ export default class SVGLoader implements ImageLoader {
     }
   }
 
-  private async visit(node: Element) {
+  private async visit(node: Element | any) {
     this.totalToProcess += node.childElementCount;
     let visitChildren = true;
 
@@ -762,7 +764,7 @@ export default class SVGLoader implements ImageLoader {
           // allow-same-origin is necessary for how we interact with the sandbox. As such,
           // DO NOT ENABLE ALLOW-SCRIPTS.
           sandbox.setAttribute('sandbox', 'allow-same-origin');
-          sandbox.setAttribute('csp', "default-src 'about:blank'");
+          sandbox.setAttribute('csp', 'default-src \'about:blank\'');
           sandbox.style.display = 'none';
 
           // Required to access the frame's DOM. See https://stackoverflow.com/a/17777943/17055750
@@ -798,7 +800,6 @@ export default class SVGLoader implements ImageLoader {
           sandboxDoc.close();
 
           const svgElem = sandboxDoc.createElementNS('http://www.w3.org/2000/svg', 'svg');
-          // eslint-disable-next-line no-unsanitized/property -- setting innerHTML in a sandboxed document.
           svgElem.innerHTML = text;
           sandboxDoc.body.appendChild(svgElem);
 

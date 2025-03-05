@@ -144,7 +144,7 @@ export interface UniteCommandsOptions {
  * @example
  *
  * ```ts,runnable
- * import { Editor, pathToRenderable, Stroke, uniteCommands } from 'easy-draw';
+ * import { Editor, pathToRenderable, Stroke, uniteCommands } from 'easydrawer';
  * import { Path, Color4 } from '~/math/lib';
  *
  * const editor = new Editor(document.body);

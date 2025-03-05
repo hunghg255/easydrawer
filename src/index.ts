@@ -7,4 +7,3 @@ import Editor from './draw/Editor';
 export * from './draw/lib';
 
 export default Editor;
-console.log('Hello Editor 111 2222');

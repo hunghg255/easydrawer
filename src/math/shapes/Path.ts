@@ -9,7 +9,7 @@ import type Mat33 from '../Mat33';
 import toRoundedString from '../rounding/toRoundedString';
 import toStringOfSamePrecision from '../rounding/toStringOfSamePrecision';
 import convexHull2Of from '../utils/convexHull2Of';
-import { type Point2, Vec2 } from '../Vec2';
+import { type IVec2, Vec2 } from '../Vector';
 
 /** Identifiers for different path commands. These commands can make up a {@link Path}. */
 export enum PathCommandType {
@@ -21,25 +21,25 @@ export enum PathCommandType {
 
 export interface CubicBezierPathCommand {
   kind: PathCommandType.CubicBezierTo;
-  controlPoint1: Point2;
-  controlPoint2: Point2;
-  endPoint: Point2;
+  controlPoint1: IVec2;
+  controlPoint2: IVec2;
+  endPoint: IVec2;
 }
 
 export interface QuadraticBezierPathCommand {
   kind: PathCommandType.QuadraticBezierTo;
-  controlPoint: Point2;
-  endPoint: Point2;
+  controlPoint: IVec2;
+  endPoint: IVec2;
 }
 
 export interface LinePathCommand {
   kind: PathCommandType.LineTo;
-  point: Point2;
+  point: IVec2;
 }
 
 export interface MoveToPathCommand {
   kind: PathCommandType.MoveTo;
-  point: Point2;
+  point: IVec2;
 }
 
 export type PathCommand =
@@ -58,7 +58,7 @@ export interface IntersectionResult {
   parameterValue: number;
 
   /** Point at which the intersection occured. */
-  point: Point2;
+  point: IVec2;
 }
 
 /** Options for {@link Path.splitNear} and {@link Path.splitAt} */
@@ -67,7 +67,7 @@ export interface PathSplitOptions {
 	 * Allows mapping points on newly added segments. This is useful, for example,
 	 * to round points to prevent long decimals when later saving.
 	 */
-  mapNewPoint?: (point: Point2) => Point2;
+  mapNewPoint?: (point: IVec2) => IVec2;
 }
 
 /**
@@ -157,7 +157,7 @@ export class Path {
 	 * See also {@link fromString}
 	 */
   public constructor(
-    public readonly startPoint: Point2,
+    public readonly startPoint: IVec2,
     parts: Readonly<PathCommand>[],
   ) {
     this.parts = parts;
@@ -270,7 +270,7 @@ export class Path {
       return this.cachedPolylineApproximation;
     }
 
-    const points: Point2[] = [];
+    const points: IVec2[] = [];
 
     for (const part of this.parts) {
       switch (part.kind) {
@@ -297,7 +297,7 @@ export class Path {
     return result;
   }
 
-  public static computeBBoxForSegment(startPoint: Point2, part: PathCommand): Rect2 {
+  public static computeBBoxForSegment(startPoint: IVec2, part: PathCommand): Rect2 {
     const points = [startPoint];
     let exhaustivenessCheck: never;
     switch (part.kind) {
@@ -333,7 +333,7 @@ export class Path {
 	 *
 	 * **Note**: `strokeRadius = strokeWidth / 2`
 	 */
-  public signedDistance(point: Point2, strokeRadius: number) {
+  public signedDistance(point: IVec2, strokeRadius: number) {
     let minDist = Infinity;
 
     for (const part of this.geometry) {
@@ -355,7 +355,7 @@ export class Path {
   private raymarchIntersectionWith(
     line: LineSegment2,
     strokeRadius: number,
-    additionalRaymarchStartPoints: Point2[] = [],
+    additionalRaymarchStartPoints: IVec2[] = [],
   ): IntersectionResult[] {
     // No intersection between bounding boxes: No possible intersection
     // of the interior.
@@ -365,7 +365,7 @@ export class Path {
 
     const lineLength = line.length;
 
-		type DistanceFunction = (point: Point2) => number;
+		type DistanceFunction = (point: IVec2) => number;
 		type DistanceFunctionRecord = {
 		  part: Parameterized2DShape;
 		  bbox: Rect2;
@@ -385,7 +385,7 @@ export class Path {
 
 		  // Part signed distance function (negative result implies `point` is
 		  // inside the shape).
-		  const partSdf = (point: Point2) => partDist(point) - strokeRadius;
+		  const partSdf = (point: IVec2) => partDist(point) - strokeRadius;
 
 		  // If the line can't possibly intersect the part,
 		  if (partSdf(line.p1) > lineLength && partSdf(line.p2) > lineLength) {
@@ -406,7 +406,7 @@ export class Path {
 
 		// Returns the minimum distance to a part in this stroke, where only parts that the given
 		// line could intersect are considered.
-		const sdf = (point: Point2): [Parameterized2DShape | null, number] => {
+		const sdf = (point: IVec2): [Parameterized2DShape | null, number] => {
 		  let minDist = Infinity;
 		  let minDistPart: Parameterized2DShape | null = null;
 
@@ -458,7 +458,7 @@ export class Path {
 		const startPoints = [line.p1, ...additionalRaymarchStartPoints, line.p2];
 
 		// Converts a point ON THE LINE to a parameter
-		const pointToParameter = (point: Point2) => {
+		const pointToParameter = (point: IVec2) => {
 		  // Because line.direction is a unit vector, this computes the length
 		  // of the projection of the vector(line.p1->point) onto line.direction.
 		  //
@@ -484,7 +484,7 @@ export class Path {
 
 		// Returns the maximum parameter value explored
 		const raymarchFrom = (
-		  startPoint: Point2,
+		  startPoint: IVec2,
 
 		  // Direction to march in (multiplies line.direction)
 		  directionMultiplier: -1 | 1,
@@ -626,12 +626,12 @@ export class Path {
   /**
 	 * @returns the nearest point on this path to the given `point`.
 	 */
-  public nearestPointTo(point: Point2): IntersectionResult {
+  public nearestPointTo(point: IVec2): IntersectionResult {
     // Find the closest point on this
     let closestSquareDist = Infinity;
     let closestPartIndex = 0;
     let closestParameterValue = 0;
-    let closestPoint: Point2 = this.startPoint;
+    let closestPoint: IVec2 = this.startPoint;
 
     for (let i = 0; i < this.geometry.length; i++) {
       const current = this.geometry[i];
@@ -665,7 +665,7 @@ export class Path {
   }
 
   /** Splits this path in two near the given `point`. */
-  public splitNear(point: Point2, options?: PathSplitOptions) {
+  public splitNear(point: IVec2, options?: PathSplitOptions) {
     const nearest = this.nearestPointTo(point);
     return this.splitAt(nearest, options);
   }
@@ -758,7 +758,7 @@ export class Path {
     }
 
     const expectedSplitCount = splitAt.length + 1;
-    const mapNewPoint = options?.mapNewPoint ?? ((p: Point2) => p);
+    const mapNewPoint = options?.mapNewPoint ?? ((p: IVec2) => p);
 
     const result: Path[] = [];
     let currentStartPoint = this.startPoint;
@@ -777,7 +777,7 @@ export class Path {
         let part = this.parts[i];
         let geom = this.geometry[i];
         while (i === curveIndex) {
-          let newPathStart: Point2;
+          let newPathStart: IVec2;
           const newPath: PathCommand[] = [];
 
           switch (part.kind) {
@@ -917,7 +917,7 @@ export class Path {
 
   private static mapPathCommand(
     part: PathCommand,
-    mapping: (point: Point2) => Point2,
+    mapping: (point: IVec2) => IVec2,
   ): PathCommand {
     switch (part.kind) {
       case PathCommandType.MoveTo:
@@ -948,7 +948,7 @@ export class Path {
     return exhaustivenessCheck;
   }
 
-  public mapPoints(mapping: (point: Point2) => Point2): Path {
+  public mapPoints(mapping: (point: IVec2) => IVec2): Path {
     const startPoint = mapping(this.startPoint);
     const newParts: PathCommand[] = [];
 
@@ -970,7 +970,7 @@ export class Path {
   /**
 	 * @internal -- TODO: This method may have incorrect output in some cases.
 	 */
-  public closedContainsPoint(point: Point2) {
+  public closedContainsPoint(point: IVec2) {
     const bbox = this.getExactBBox();
     if (!bbox.containsPoint(point)) {
       return false;
@@ -1057,7 +1057,7 @@ export class Path {
   public reversed() {
     const newStart = this.getEndPoint();
     const newParts: Readonly<PathCommand>[] = [];
-    let lastPoint: Point2 = this.startPoint;
+    let lastPoint: IVec2 = this.startPoint;
     for (const part of this.parts) {
       switch (part.kind) {
         case PathCommandType.LineTo:
@@ -1336,14 +1336,14 @@ export class Path {
   // @param onlyAbsCommands - True if we should avoid converting absolute coordinates to relative offsets -- such
   //   conversions can lead to smaller output strings, but also take time.
   public static toString(
-    startPoint: Point2,
+    startPoint: IVec2,
     parts: PathCommand[],
     onlyAbsCommands?: boolean,
   ): string {
     const result: string[] = [];
 
-    let prevPoint: Point2 | undefined;
-    const addCommand = (command: string, ...points: Point2[]) => {
+    let prevPoint: IVec2 | undefined;
+    const addCommand = (command: string, ...points: IVec2[]) => {
       const absoluteCommandParts: string[] = [];
       const relativeCommandParts: string[] = [];
       const makeAbsCommand = !prevPoint || onlyAbsCommands;
@@ -1434,7 +1434,7 @@ export class Path {
 	 * Create a `Path` from a subset of the SVG path specification.
 	 *
 	 * Currently, this does not support elliptical arcs or `s` and `t` command
-	 * shorthands. See https://github.com/personalizedrefrigerator/easy-draw/pull/19.
+	 * shorthands. See https://github.com/personalizedrefrigerator/easydrawer/pull/19.
 	 *
 	 * @example
 	 * ```ts,runnable,console
@@ -1455,13 +1455,13 @@ export class Path {
     // Remove linebreaks
     pathString = pathString.split('\n').join(' ');
 
-    let lastPos: Point2 = Vec2.zero;
-    let firstPos: Point2 | null = null;
-    let startPos: Point2 | null = null;
+    let lastPos: IVec2 = Vec2.zero;
+    let firstPos: IVec2 | null = null;
+    let startPos: IVec2 | null = null;
     let isFirstCommand = true;
     const commands: PathCommand[] = [];
 
-    const moveTo = (point: Point2) => {
+    const moveTo = (point: IVec2) => {
       // The first moveTo/lineTo is already handled by the [startPoint] parameter of the Path constructor.
       if (isFirstCommand) {
         isFirstCommand = false;
@@ -1473,7 +1473,7 @@ export class Path {
         point,
       });
     };
-    const lineTo = (point: Point2) => {
+    const lineTo = (point: IVec2) => {
       if (isFirstCommand) {
         isFirstCommand = false;
         return;
@@ -1484,7 +1484,7 @@ export class Path {
         point,
       });
     };
-    const cubicBezierTo = (cp1: Point2, cp2: Point2, end: Point2) => {
+    const cubicBezierTo = (cp1: IVec2, cp2: IVec2, end: IVec2) => {
       commands.push({
         kind: PathCommandType.CubicBezierTo,
         controlPoint1: cp1,
@@ -1492,7 +1492,7 @@ export class Path {
         endPoint: end,
       });
     };
-    const quadraticBeierTo = (controlPoint: Point2, endPoint: Point2) => {
+    const quadraticBeierTo = (controlPoint: IVec2, endPoint: IVec2) => {
       commands.push({
         kind: PathCommandType.QuadraticBezierTo,
         controlPoint,
@@ -1561,7 +1561,7 @@ export class Path {
 
       const commandArgCount: number = commandArgCounts[commandChar] ?? 0;
       const allArgs = numericArgs
-        .reduce((accumulator: Point2[], current, index, parts): Point2[] => {
+        .reduce((accumulator: IVec2[], current, index, parts): IVec2[] => {
           if (index % 2 !== 0) {
             const currentAsFloat = current;
             const prevAsFloat = parts[index - 1];
@@ -1570,7 +1570,7 @@ export class Path {
             return accumulator;
           }
         }, [])
-        .map((coordinate, index): Point2 => {
+        .map((coordinate, index): IVec2 => {
           // Lowercase commands are relative, uppercase commands use absolute
           // positioning
           let newPos;
@@ -1636,7 +1636,7 @@ export class Path {
     return result;
   }
 
-  public static fromConvexHullOf(points: Point2[]) {
+  public static fromConvexHullOf(points: IVec2[]) {
     if (points.length === 0) {
       return Path.empty;
     }

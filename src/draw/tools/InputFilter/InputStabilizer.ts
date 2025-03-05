@@ -1,4 +1,4 @@
-import { type Point2, Vec2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import InputMapper from './InputMapper';
 import type Editor from '../../Editor';
@@ -59,17 +59,17 @@ class StylusInputStabilizer {
   private runLoop = true;
   private lastUpdateTime = 0;
   private targetInterval: number;
-  private velocity: Vec2 = Vec2.zero;
+  private velocity: IVec2;
 
-  private strokePoint: Point2;
-  private targetPoint: Point2;
+  private strokePoint: IVec2;
+  private targetPoint: IVec2;
 
   public constructor(
     // The initial starting point of the pointer.
-    start: Point2,
+    start: IVec2,
 
     // Emits a pointer motion event, returns true if the event was handled.
-    private updatePointer: (screenPoint: Point2, timeStamp: number) => boolean,
+    private updatePointer: (screenPoint: IVec2, timeStamp: number) => boolean,
 
     private readonly options: InputStabilizerOptions,
   ) {
@@ -87,7 +87,7 @@ class StylusInputStabilizer {
     }
   }
 
-  public setTarget(point: Point2) {
+  public setTarget(point: IVec2) {
     this.targetPoint = point;
   }
 
@@ -122,8 +122,8 @@ class StylusInputStabilizer {
 
     if (deltaTime > this.targetInterval || force) {
       if (!reachedTarget) {
-        let velocity: Vec2;
-        let deltaX: Vec2;
+        let velocity: IVec2;
+        let deltaX: IVec2;
         let parts = 1;
 
         do {
@@ -213,7 +213,7 @@ export default class InputStabilizer extends InputMapper {
   }
 
   // Assumes that there is exactly one pointer that is currently down.
-  private emitPointerMove(screenPoint: Point2, timeStamp: number) {
+  private emitPointerMove(screenPoint: IVec2, timeStamp: number) {
     if (!this.lastPointerEvent) {
       return false;
     }

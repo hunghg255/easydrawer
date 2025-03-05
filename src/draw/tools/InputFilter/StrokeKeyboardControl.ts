@@ -1,4 +1,4 @@
-import { type Point2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import InputMapper from './InputMapper';
 import type Editor from '../../Editor';
@@ -18,7 +18,7 @@ export default class StrokeKeyboardControl extends InputMapper {
 
   // The point at which the last pointerDown event happened (or null if
   // no such event has occurred).
-  private startPointCanvas: Point2 | null = null;
+  private startPointCanvas: IVec2 | null = null;
 
   public constructor(
     private shortcuts: KeyboardShortcutManager,

@@ -1,4 +1,4 @@
-.easy-draw-sound-ui-toggle {
+.easydrawer-sound-ui-toggle {
 	width: 0px;
 	height: 0px;
 	overflow: hidden;
@@ -7,16 +7,16 @@
 	-webkit-user-select: none;
 }
 
-.easy-draw-sound-ui-toggle button {
+.easydrawer-sound-ui-toggle button {
 	margin-top: 1px;
 }
 
-.easy-draw-sound-ui-toggle:focus-within,
-.easy-draw-sound-ui-toggle.sound-ui-tool-enabled {
+.easydrawer-sound-ui-toggle:focus-within,
+.easydrawer-sound-ui-toggle.sound-ui-tool-enabled {
 	overflow: visible;
 	z-index: 5;
 }
 
-.easy-draw-sound-ui-toggle:not(:focus-within):not(:hover).sound-ui-tool-enabled {
+.easydrawer-sound-ui-toggle:not(:focus-within):not(:hover).sound-ui-tool-enabled {
 	opacity: 0.5;
 }

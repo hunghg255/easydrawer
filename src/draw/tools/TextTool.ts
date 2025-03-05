@@ -1,4 +1,4 @@
-import { Rect2, Mat33, Vec2, Color4 } from '~/math';
+import { Rect2, Mat33, Vec2, Color4, type IVec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import { type ToolLocalization } from './localization';
@@ -44,7 +44,7 @@ export default class TextTool extends BaseTool {
       size: 32,
       fontFamily: editorFonts.length > 0 ? editorFonts[0] : 'sans-serif',
       renderingStyle: {
-        fill: Color4.purple,
+        fill: Color4.black,
       },
     });
     this.textStyleValue.onUpdateAndNow(() => {
@@ -63,18 +63,18 @@ export default class TextTool extends BaseTool {
     this.textEditOverlay.classList.add(overlayCSSClass);
     this.editor.addStyleSheet(`
 			.${overlayCSSClass} textarea {
-				background-color: rgba(0, 0, 0, 0);
+				background-color: rgba(0, 0, 0, 0.1);
 
 				white-space: pre;
 				overflow: hidden;
 
-				padding: 0;
+				padding: 8px;
 				margin: 0;
-				border: none;
-				padding: 0;
 
 				min-width: 100px;
 				min-height: 1.1em;
+        border: 1px solid black;
+        border-radius: 6px;
 			}
 		`);
     this.anchorControl = this.editor.anchorElementToCanvas(
@@ -189,7 +189,7 @@ export default class TextTool extends BaseTool {
     this.textInputElem.style.lineHeight = `${lineHeight}px`;
   }
 
-  private startTextInput(textCanvasPos: Vec2, initialText: string) {
+  private startTextInput(textCanvasPos: IVec2, initialText: string) {
     this.flushInput();
 
     this.textInputElem = document.createElement('textarea');

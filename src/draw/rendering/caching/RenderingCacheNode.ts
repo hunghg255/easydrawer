@@ -46,7 +46,7 @@ export default class RenderingCacheNode {
     const middleChildIdx = (parent.instantiatedChildren.length - 1) / 2;
     if (!parent.instantiatedChildren[middleChildIdx].region.eq(this.region, checkTolerance)) {
       console.error(parent.instantiatedChildren[middleChildIdx].region, '≠', this.region);
-      throw new Error("Logic error: [this] is not contained within its parent's center child");
+      throw new Error('Logic error: [this] is not contained within its parent\'s center child');
     }
 
     // Replace the middle child
@@ -441,7 +441,7 @@ export default class RenderingCacheNode {
     }
 
     if (this.cachedRenderer && !this.cachedRenderer.isAllocd()) {
-      throw new Error("this' cachedRenderer != null, but is dealloc'd");
+      throw new Error('this\' cachedRenderer != null, but is dealloc\'d');
     }
   }
 }

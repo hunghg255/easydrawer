@@ -10,7 +10,7 @@ export type DeserializationCallback = (
  * A command that can be serialized to or deserialized from JSON. To allow a command to be deserialized, {@link SerializableCommand.register}
  * must be called for each {@link SerializableCommand}.
  *
- * This is used to [allow collaborative editing](https://github.com/personalizedrefrigerator/easy-draw/tree/main/docs/examples/example-collaborative).
+ * This is used to [allow collaborative editing](https://github.com/personalizedrefrigerator/easydrawer/tree/main/docs/examples/example-collaborative).
  */
 export default abstract class SerializableCommand extends Command {
   readonly #commandTypeId: string;

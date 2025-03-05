@@ -1,4 +1,4 @@
-import { type Color4, type Path, type Point2 } from '~/math';
+import { type Color4, type Path, type IVec2 } from '~/math';
 
 import type AbstractComponent from '../../../components/AbstractComponent';
 import type EditorImage from '../../../image/EditorImage';
@@ -7,7 +7,7 @@ import type AbstractRenderer from '../../../rendering/renderers/AbstractRenderer
 import type Viewport from '../../../Viewport';
 
 export default abstract class SelectionBuilder {
-  public abstract onPointerMove(canvasPoint: Point2): void;
+  public abstract onPointerMove(canvasPoint: IVec2): void;
   public abstract previewPath(): Path;
 
   /** Returns the components currently in the selection bounds. Used by {@link resolve}. */

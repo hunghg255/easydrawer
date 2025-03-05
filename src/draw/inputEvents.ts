@@ -1,4 +1,4 @@
-import { type Point2, type Vec3 } from '~/math';
+import { type IVec3, type IVec2 } from '~/math';
 
 import type Pointer from './Pointer';
 
@@ -42,8 +42,8 @@ export enum InputEvtType {
 // [delta.z] is zoom scroll (ctrl+scroll or pinch zoom)
 export interface WheelEvt {
   readonly kind: InputEvtType.WheelEvt;
-  readonly delta: Vec3;
-  readonly screenPos: Point2;
+  readonly delta: IVec3;
+  readonly screenPos: IVec2;
 }
 
 interface BaseKeyEvent {
@@ -118,12 +118,12 @@ export interface PointerUpEvt extends PointerEvtBase {
 
 export interface ContextMenuEvt {
   readonly kind: InputEvtType.ContextMenu;
-  readonly screenPos: Point2;
-  readonly canvasPos: Point2;
+  readonly screenPos: IVec2;
+  readonly canvasPos: IVec2;
 }
 
 /**
- * An internal `easy-draw` pointer event type.
+ * An internal `easydrawer` pointer event type.
  *
  * This **is not** the same as a DOM pointer event.
  */
@@ -136,7 +136,7 @@ export type PointerEvtType =
 	| InputEvtType.PointerUpEvt;
 
 /**
- * An internal `easy-draw` input event type.
+ * An internal `easydrawer` input event type.
  *
  * These are not DOM events.
  */

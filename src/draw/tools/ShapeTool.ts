@@ -18,8 +18,9 @@ import { PointerDevice } from '../Pointer';
 import { EditorEventType, type StrokeDataPoint } from '../types';
 import { type MutableReactiveValue, ReactiveValue } from '../util/ReactiveValue';
 
-export interface PenStyle {
+export interface ShapeStyle {
   readonly color: Color4;
+  readonly borderColor: Color4;
   readonly thickness: number;
   readonly factory: ComponentBuilderFactory;
 }
@@ -30,14 +31,14 @@ export interface PenStyle {
  * To change the type of shape drawn by the pen (e.g. to switch to the rectangle
  * pen type), see {@link setStrokeFactory}.
  */
-export default class Pen extends BaseTool {
+export default class ShapeTool extends BaseTool {
   protected builder: ComponentBuilder | null = null;
   private lastPoint: StrokeDataPoint | null = null;
   private startPoint: StrokeDataPoint | null = null;
   private currentDeviceType: PointerDevice | null = null;
   private currentPointerId: number | null = null;
-  private styleValue: MutableReactiveValue<PenStyle>;
-  private style: PenStyle;
+  private styleValue: MutableReactiveValue<ShapeStyle>;
+  private style: ShapeStyle;
 
   private shapeAutocompletionEnabled = false;
   private autocorrectedShape: AbstractComponent | null = null;
@@ -48,14 +49,15 @@ export default class Pen extends BaseTool {
   public constructor(
     private editor: Editor,
     description: string,
-    style: Partial<PenStyle>,
+    style: Partial<ShapeStyle>,
   ) {
     super(editor.notifier, description);
 
-    this.styleValue = ReactiveValue.fromInitialValue<PenStyle>({
+    this.styleValue = ReactiveValue.fromInitialValue<ShapeStyle>({
       factory: makeFreehandLineBuilder,
-      color: Color4.blue,
-      thickness: 1.5,
+      color: Color4.black,
+      borderColor: Color4.black,
+      thickness: 4,
       ...style,
     });
 
@@ -89,6 +91,7 @@ export default class Pen extends BaseTool {
       pos,
       width: pressure * this.getPressureMultiplier(),
       color: this.style.color,
+      borderColor: this.style.borderColor,
       time: pointer.timeStamp,
     };
   }
@@ -308,6 +311,15 @@ export default class Pen extends BaseTool {
     }
   }
 
+  public setBorderColor(borderColor: Color4): void {
+    if (borderColor.toHexString() !== this.style.borderColor.toHexString()) {
+      this.styleValue.set({
+        ...this.style,
+        borderColor,
+      });
+    }
+  }
+
   public setThickness(thickness: number) {
     if (thickness !== this.style.thickness) {
       this.styleValue.set({
@@ -365,6 +377,9 @@ export default class Pen extends BaseTool {
   }
   public getColor() {
     return this.style.color;
+  }
+  public getBorderColor() {
+    return this.style.borderColor;
   }
   public getStrokeFactory() {
     return this.style.factory;

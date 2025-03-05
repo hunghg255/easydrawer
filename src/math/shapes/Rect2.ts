@@ -1,8 +1,8 @@
+import { type IVec3, Vec2, type IVec2 } from '~/math/Vector';
+
 import Abstract2DShape from './Abstract2DShape';
 import LineSegment2 from './LineSegment2';
 import Mat33 from '../Mat33';
-import { type Point2, Vec2 } from '../Vec2';
-import type Vec3 from '../Vec3';
 
 /** An object that can be converted to a {@link Rect2}. */
 export interface RectTemplate {
@@ -35,8 +35,8 @@ export class Rect2 extends Abstract2DShape {
   // Derived state:
 
   // topLeft assumes up is -y
-  public readonly topLeft: Point2;
-  public readonly size: Vec2;
+  public readonly topLeft: IVec2;
+  public readonly size: IVec2;
   public readonly area: number;
 
   public constructor(
@@ -67,16 +67,16 @@ export class Rect2 extends Abstract2DShape {
     this.area = this.w * this.h;
   }
 
-  public translatedBy(vec: Vec2): Rect2 {
+  public translatedBy(vec: IVec2): Rect2 {
     return new Rect2(vec.x + this.x, vec.y + this.y, this.w, this.h);
   }
 
   // Returns a copy of this with the given size (but same top-left).
-  public resizedTo(size: Vec2): Rect2 {
+  public resizedTo(size: IVec2): Rect2 {
     return new Rect2(this.x, this.y, size.x, size.y);
   }
 
-  public override containsPoint(other: Point2): boolean {
+  public override containsPoint(other: IVec2): boolean {
     return (
       this.x <= other.x &&
 			this.y <= other.y &&
@@ -173,7 +173,7 @@ export class Rect2 extends Abstract2DShape {
   // Returns a rectangle containing this and [point].
   // [margin] is the minimum distance between the new point and the edge
   // of the resultant rectangle.
-  public grownToPoint(point: Point2, margin = 0): Rect2 {
+  public grownToPoint(point: IVec2, margin = 0): Rect2 {
     const otherRect = new Rect2(point.x - margin, point.y - margin, margin * 2, margin * 2);
     return this.union(otherRect);
   }
@@ -206,7 +206,7 @@ export class Rect2 extends Abstract2DShape {
 	 *
 	 * If smaller than `minSize`, padding is applied on both sides.
 	 */
-  public grownToSize(minSize: Vec2) {
+  public grownToSize(minSize: IVec2) {
     if (this.width >= minSize.x && this.height >= minSize.y) {
       return this;
     }
@@ -222,12 +222,12 @@ export class Rect2 extends Abstract2DShape {
     );
   }
 
-  public getClosestPointOnBoundaryTo(target: Point2) {
+  public getClosestPointOnBoundaryTo(target: IVec2) {
     const closestEdgePoints = this.getEdges().map((edge) => {
       return edge.closestPointTo(target);
     });
 
-    let closest: Point2 | null = null;
+    let closest: IVec2 | null = null;
     let closestDist: number | null = null;
     for (const point of closestEdgePoints) {
       const dist = point.distanceTo(target);
@@ -247,7 +247,7 @@ export class Rect2 extends Abstract2DShape {
 	 * 	\forall {\bf a} \in R, \|\texttt{point} - {\bf a}\| < \texttt{radius}
 	 * $$
 	 */
-  public isWithinRadiusOf(radius: number, point: Point2) {
+  public isWithinRadiusOf(radius: number, point: IVec2) {
     if (this.maxDimension > radius) {
       return false;
     }
@@ -256,7 +256,7 @@ export class Rect2 extends Abstract2DShape {
     return this.corners.every((corner) => corner.minus(point).magnitudeSquared() < squareRadius);
   }
 
-  public get corners(): Point2[] {
+  public get corners(): IVec2[] {
     return [this.bottomRight, this.topRight, this.topLeft, this.bottomLeft];
   }
 
@@ -304,8 +304,8 @@ export class Rect2 extends Abstract2DShape {
     ];
   }
 
-  public override intersectsLineSegment(lineSegment: LineSegment2): Point2[] {
-    const result: Point2[] = [];
+  public override intersectsLineSegment(lineSegment: LineSegment2): IVec2[] {
+    const result: IVec2[] = [];
 
     for (const edge of this.getEdges()) {
       const intersection = edge.intersectsLineSegment(lineSegment);
@@ -315,7 +315,7 @@ export class Rect2 extends Abstract2DShape {
     return result;
   }
 
-  public override signedDistance(point: Vec3): number {
+  public override signedDistance(point: IVec3): number {
     const closestBoundaryPoint = this.getClosestPointOnBoundaryTo(point);
     const dist = point.minus(closestBoundaryPoint).magnitude();
 
@@ -349,7 +349,7 @@ export class Rect2 extends Abstract2DShape {
     return `Rect(point(${this.x}, ${this.y}), size(${this.w}, ${this.h}))`;
   }
 
-  public static fromCorners(corner1: Point2, corner2: Point2) {
+  public static fromCorners(corner1: IVec2, corner2: IVec2) {
     return new Rect2(
       Math.min(corner1.x, corner2.x),
       Math.min(corner1.y, corner2.y),
@@ -360,7 +360,7 @@ export class Rect2 extends Abstract2DShape {
 
   // Returns a box that contains all points in [points] with at least [margin]
   // between each point and the edge of the box.
-  public static bboxOf(points: Point2[], margin = 0) {
+  public static bboxOf(points: IVec2[], margin = 0) {
     let minX = 0;
     let minY = 0;
     let maxX = 0;

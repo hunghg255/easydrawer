@@ -1,4 +1,4 @@
-import { type Point2, Vec2, Color4 } from '~/math';
+import { type IVec2, Vec2, Color4 } from '~/math';
 
 import RenderingCache from './caching/RenderingCache';
 import type AbstractRenderer from './renderers/AbstractRenderer';
@@ -122,7 +122,7 @@ export default class Display {
 	 * @returns the color at the given point on the dry ink renderer, or `null` if `screenPos`
 	 * 	is not on the display.
 	 */
-  public getColorAt = (_screenPos: Point2): Color4 | null => {
+  public getColorAt = (_screenPos: IVec2): Color4 | null => {
     return null;
   };
 
@@ -193,7 +193,7 @@ export default class Display {
       dryInkCtx.restore();
     };
 
-    this.getColorAt = (screenPos: Point2) => {
+    this.getColorAt = (screenPos: IVec2) => {
       // getImageData isn't affected by a transformation matrix -- we need to
       // pre-transform screenPos to convert it from screen coordinates into pixel
       // coordinates.

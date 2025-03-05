@@ -1,25 +1,25 @@
-import { coloris, close as closeColoris, init as colorisInit } from '@melloware/coloris';
-
+import ShapeToolWidget from '~/draw/toolbar/widgets/ShapeToolWidget';
+import ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
 
 import { toolbarCSSPrefix } from './constants';
 import { type ToolbarLocalization } from './localization';
 import { type ActionButtonIcon } from './types';
-import EraserWidget from './widgets/EraserToolWidget';
-import PenToolWidget from './widgets/PenToolWidget';
-import SelectionToolWidget from './widgets/SelectionToolWidget';
-import TextToolWidget from './widgets/TextToolWidget';
-import HandToolWidget from './widgets/HandToolWidget';
+import ActionButtonWidget from './widgets/ActionButtonWidget';
 import type BaseWidget from './widgets/BaseWidget';
 import { ToolbarWidgetTag } from './widgets/BaseWidget';
-import ActionButtonWidget from './widgets/ActionButtonWidget';
-import InsertImageWidget from './widgets/InsertImageWidget/InsertImageWidget';
 import DocumentPropertiesWidget from './widgets/DocumentPropertiesWidget';
-import type Editor from '../Editor';
-import { DispatcherEventListener } from '../EventDispatcher';
-import SaveActionWidget from './widgets/SaveActionWidget';
-import { type BaseTool } from '../lib';
+import EraserWidget from './widgets/EraserToolWidget';
 import ExitActionWidget from './widgets/ExitActionWidget';
+import HandToolWidget from './widgets/HandToolWidget';
+import InsertImageWidget from './widgets/InsertImageWidget/InsertImageWidget';
+import PenToolWidget from './widgets/PenToolWidget';
+import SaveActionWidget from './widgets/SaveActionWidget';
+import SelectionToolWidget from './widgets/SelectionToolWidget';
+import TextToolWidget from './widgets/TextToolWidget';
+import type Editor from '../Editor';
+import { type DispatcherEventListener } from '../EventDispatcher';
+import { type BaseTool } from '../lib';
 import EraserTool from '../tools/Eraser';
 import PanZoomTool from '../tools/PanZoom';
 import PenTool from '../tools/Pen';
@@ -54,7 +54,7 @@ export type ToolbarActionButtonOptions = {
 };
 
 /**
- * Abstract base class for easy-draw editor toolbars.
+ * Abstract base class for easydrawer editor toolbars.
  *
  * See {@link Editor.addToolbar}, {@link makeDropdownToolbar}, and {@link makeEdgeToolbar}.
  */
@@ -62,7 +62,7 @@ export default abstract class AbstractToolbar {
   #listeners: DispatcherEventListener[] = [];
 
   #widgetsById: WidgetByIdMap = {};
-  #widgetList: Array<BaseWidget> = [];
+  widgetList: Array<BaseWidget> = [];
 
   private static colorisStarted = false;
   #updateColoris: UpdateColorisCallback | null = null;
@@ -76,7 +76,7 @@ export default abstract class AbstractToolbar {
     this.localizationTable = localizationTable ?? editor.localization;
 
     if (!AbstractToolbar.colorisStarted) {
-      colorisInit();
+      // colorisInit();
       AbstractToolbar.colorisStarted = true;
     }
     this.setupColorPickers();
@@ -94,7 +94,7 @@ export default abstract class AbstractToolbar {
     this.#listeners.push(
       this.editor.handlePointerEventsExceptClicksFrom(this.closeColorPickerOverlay, (eventName) => {
         if (eventName === 'pointerdown') {
-          closeColoris();
+          // closeColoris();
         }
 
         // Transfer focus to the editor to allow keyboard events to be handled.
@@ -136,15 +136,15 @@ export default abstract class AbstractToolbar {
     // (Re)init Coloris -- update the swatches list.
     const initColoris = () => {
       try {
-        coloris({
-          el: '.coloris_input',
-          format: 'hex',
-          selectInput: false,
-          focusInput: false,
-          themeMode: 'auto',
+        // coloris({
+        //   el: '.coloris_input',
+        //   format: 'hex',
+        //   selectInput: false,
+        //   focusInput: false,
+        //   themeMode: 'auto',
 
-          swatches,
-        });
+        //   swatches,
+        // });
       } catch (err) {
         console.warn('Failed to initialize Coloris. Error: ', err);
 
@@ -210,7 +210,7 @@ export default abstract class AbstractToolbar {
   }
 
   protected closeColorPickers() {
-    closeColoris?.();
+    // closeColoris?.();
   }
 
   protected getWidgetUniqueId(widget: BaseWidget) {
@@ -222,8 +222,8 @@ export default abstract class AbstractToolbar {
   }
 
   /** Do **not** modify the return value. */
-  protected getAllWidgets(): Array<BaseWidget> {
-    return this.#widgetList;
+  getAllWidgets(): Array<BaseWidget> {
+    return this.widgetList;
   }
 
   /**
@@ -266,10 +266,9 @@ export default abstract class AbstractToolbar {
     // Prevent name collisions
     const id = widget.getUniqueIdIn(this.#widgetsById);
 
-
     // Add the widget
     this.#widgetsById[id] = widget;
-    this.#widgetList.push(widget);
+    this.widgetList.push(widget);
 
     this.addWidgetInternal(widget);
     this.setupColorPickers();
@@ -284,7 +283,7 @@ export default abstract class AbstractToolbar {
     this.removeWidgetInternal(widget);
 
     delete this.#widgetsById[id];
-    this.#widgetList = this.#widgetList.filter((otherWidget) => otherWidget !== widget);
+    this.widgetList = this.widgetList.filter((otherWidget) => otherWidget !== widget);
   }
 
   /** Called by `removeWidget`. Implement this to remove a new widget from the toolbar. */
@@ -405,7 +404,7 @@ export default abstract class AbstractToolbar {
 	 *
 	 * **Example**:
 	 * ```ts,runnable
-	 * import { Editor } from 'easy-draw';
+	 * import { Editor } from 'easydrawer';
 	 * const editor = new Editor(document.body);
 	 * const toolbar = editor.addToolbar();
 	 *
@@ -454,7 +453,7 @@ export default abstract class AbstractToolbar {
 	 *
 	 * @example
 	 * ```ts,runnable
-	 * import { Editor, makeDropdownToolbar } from 'easy-draw';
+	 * import { Editor, makeDropdownToolbar } from 'easydrawer';
 	 *
 	 * const editor = new Editor(document.body);
 	 * const toolbar = makeDropdownToolbar(editor);
@@ -581,14 +580,17 @@ export default abstract class AbstractToolbar {
       if (tool instanceof PenTool) {
         const widget = new PenToolWidget(this.editor, tool, this.localizationTable);
         this.addWidget(widget);
+      } else if (tool instanceof ShapeTool) {
+        const widget = new ShapeToolWidget(this.editor, tool, this.localizationTable);
+        this.addWidget(widget);
       } else if (tool instanceof EraserTool) {
-        // this.addWidget(new EraserWidget(this.editor, tool, this.localizationTable));
+        this.addWidget(new EraserWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof SelectionTool) {
-        // this.addWidget(new SelectionToolWidget(this.editor, tool, this.localizationTable));
+        this.addWidget(new SelectionToolWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof TextTool) {
-        // this.addWidget(new TextToolWidget(this.editor, tool, this.localizationTable));
+        this.addWidget(new TextToolWidget(this.editor, tool, this.localizationTable));
       } else if (tool instanceof PanZoomTool) {
-        // this.addWidget(new HandToolWidget(this.editor, tool, this.localizationTable));
+        this.addWidget(new HandToolWidget(this.editor, tool, this.localizationTable));
       }
     }
   }
@@ -599,7 +601,7 @@ export default abstract class AbstractToolbar {
 	 */
   public addDefaultToolWidgets() {
     this.addWidgetsForPrimaryTools();
-    this.addDefaultEditorControlWidgets();
+    // this.addDefaultEditorControlWidgets();
   }
 
   /**
@@ -610,7 +612,7 @@ export default abstract class AbstractToolbar {
 	 */
   public addDefaultEditorControlWidgets() {
     this.addWidget(new DocumentPropertiesWidget(this.editor, this.localizationTable));
-    // this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
+    this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
   }
 
   public addDefaultActionButtons() {
@@ -636,7 +638,7 @@ export default abstract class AbstractToolbar {
 
     this.onRemove();
 
-    for (const widget of this.#widgetList) {
+    for (const widget of this.widgetList) {
       widget.remove();
     }
   }

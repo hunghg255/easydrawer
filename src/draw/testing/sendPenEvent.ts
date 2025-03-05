@@ -1,4 +1,4 @@
-import { type Point2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import getUniquePointerId from './getUniquePointerId';
 import type Editor from '../Editor';
@@ -13,7 +13,7 @@ import Pointer, { PointerDevice } from '../Pointer';
  */
 function sendPenEvent (editor: Editor,
   eventType: PointerEvtType,
-  point: Point2,
+  point: IVec2,
 
   allPointers?: Pointer[],
 

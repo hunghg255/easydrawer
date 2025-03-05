@@ -1,20 +1,37 @@
 {
-  "name": "easy-draw",
-  "version": "0.0.1",
-  "license": "MIT",
-  "main": "./dist/index.cjs",
+  "name": "easydrawer",
   "type": "module",
-  "types": "./dist/index.d.ts",
+  "version": "0.0.1",
+  "packageManager": "pnpm@8.15.9+sha512.499434c9d8fdd1a2794ebf4552b3b25c0a633abcee5bb15e7b5de90f32f47b513aca98cd5cfd001c31f0db454bc3804edccd578501e4ca293a6816166bbd9f81",
+  "author": "hunghg255",
+  "license": "MIT",
+  "homepage": "https://github.com/hunghg255/easydrawer",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hunghg255/easydrawer"
+  },
+  "bugs": {
+    "url": "https://github.com/hunghg255/easydrawer/issues"
+  },
+  "keywords": [],
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./styles.css": {
-      "import": "./dist/styles.css",
-      "require": "./dist/styles.css"
+      "require": "./dist/styles.css",
+      "import": "./dist/styles.css"
     },
     "./dist/*": "./dist/*",
     "./package.json": "./package.json",
@@ -31,7 +48,6 @@
   "files": [
     "dist"
   ],
-  "sideEffects": false,
   "scripts": {
     "build": "NODE_ENV=production tsup && pnpm run build:css",
     "build:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css && cp -R src/styles/assets/styles.css dist/styles.css",
@@ -49,9 +65,12 @@
     "dev:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css --watch",
     "dev": "npm-run-all --parallel dev:css dev:tsup dev:playground"
   },
-  "author": "hunghg255",
+  "dependencies": {
+    "bezier-js": "^6.1.4"
+  },
   "devDependencies": {
     "@hunghg255/eslint-config": "^0.0.16",
+    "@types/bezier-js": "^4.1.3",
     "@types/node": "^18.19.76",
     "autoprefixer": "^10.4.20",
     "bumpp": "^9.11.1",
@@ -70,20 +89,5 @@
   "git-hooks": {
     "pre-commit": "npm run lint",
     "commit-msg": "npm run verify-commit"
-  },
-  "keywords": [],
-  "homepage": "https://github.com/hunghg255/unbuild-package",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/hunghg255/unbuild-package"
-  },
-  "bugs": {
-    "url": "https://github.com/hunghg255/unbuild-package/issues"
-  },
-  "dependencies": {
-    "@melloware/coloris": "^0.24.0",
-    "bezier-js": "^6.1.4",
-    "lodash-es": "^4.17.21"
-  },
-  "packageManager": "pnpm@8.15.9+sha512.499434c9d8fdd1a2794ebf4552b3b25c0a633abcee5bb15e7b5de90f32f47b513aca98cd5cfd001c31f0db454bc3804edccd578501e4ca293a6816166bbd9f81"
+  }
 }

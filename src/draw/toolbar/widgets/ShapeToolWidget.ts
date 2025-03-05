@@ -1,3 +1,9 @@
+import { makeCircleBuilder } from '~/draw/components/builders/CircleBuilder';
+import { makeFilledDiamondBuilder } from '~/draw/components/builders/DiamondBuilder';
+import { makeFilledHexagonalBuilder } from '~/draw/components/builders/HexagonalBuilder';
+import { makeFilledSquareBuilder } from '~/draw/components/builders/SquareBuilder';
+import { makeFilledTriangleBuilder } from '~/draw/components/builders/TriangleBuilder';
+import type ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
 
 import BaseToolWidget from './BaseToolWidget';
@@ -7,19 +13,15 @@ import makeGridSelector from './components/makeGridSelector';
 import makeThicknessSlider from './components/makeThicknessSlider';
 import { selectStrokeTypeKeyboardShortcutIds } from './keybindings';
 import { makeArrowBuilder } from '../../components/builders/ArrowBuilder';
-import { makeCircleBuilder } from '../../components/builders/CircleBuilder';
 import { makeFreehandLineBuilder } from '../../components/builders/FreehandLineBuilder';
-import { makeLineBuilder } from '../../components/builders/LineBuilder';
 import { makePolylineBuilder } from '../../components/builders/PolylineBuilder';
 import { makePressureSensitiveFreehandLineBuilder } from '../../components/builders/PressureSensitiveFreehandLineBuilder';
 import {
   makeFilledRectangleBuilder,
-  makeOutlinedRectangleBuilder,
 } from '../../components/builders/RectangleBuilder';
 import { type ComponentBuilderFactory } from '../../components/builders/types';
 import type Editor from '../../Editor';
 import { type KeyPressEvent } from '../../inputEvents';
-import type Pen from '../../tools/Pen';
 import { EditorEventType } from '../../types';
 import { toolbarCSSPrefix } from '../constants';
 import { type IconElemType } from '../IconProvider';
@@ -47,23 +49,25 @@ export interface PenTypeRecord {
  *
  * See also {@link AbstractToolbar.addDefaultToolWidgets}.
  */
-export default class PenToolWidget extends BaseToolWidget {
+export default class ShapeToolWidget extends BaseToolWidget {
   private updateInputs: () => void = () => {};
   protected penTypes: Readonly<PenTypeRecord>[];
-  protected shapelikeIDs: string[];
+  // protected shapelikeIDs: string[];
 
   // A counter variable that ensures different HTML elements are given unique names/ids.
   private static idCounter = 0;
 
+  penTypeSelect: any;
+
   public constructor(
     editor: Editor,
-    private tool: Pen,
+    private tool: ShapeTool,
     localization?: ToolbarLocalization,
   ) {
-    super(editor, tool, tool.description, localization);
+    super(editor, tool, 'shape', localization);
 
     // Pen types that correspond to
-    this.shapelikeIDs = ['pressure-sensitive-pen', 'freehand-pen'];
+    // this.shapelikeIDs = ['pressure-sensitive-pen', 'freehand-pen'];
 
     // Additional client-specified pens.
     const additionalPens = editor.getCurrentSettings().pens?.additionalPenTypes ?? [];
@@ -71,62 +75,54 @@ export default class PenToolWidget extends BaseToolWidget {
 
     // Default pen types
     this.penTypes = [
-      // Non-shape pens
       {
-        name: this.localizationTable.flatTipPen,
-        id: 'pressure-sensitive-pen',
-
-        factory: makePressureSensitiveFreehandLineBuilder,
-      },
-      {
-        name: this.localizationTable.roundedTipPen,
-        id: 'freehand-pen',
-
-        factory: makeFreehandLineBuilder,
-      },
-      {
-        name: this.localizationTable.roundedTipPen2,
-        id: 'polyline-pen',
-
-        factory: makePolylineBuilder,
-      },
-      ...additionalPens.filter((pen) => !pen.isShapeBuilder),
-
-      // Shape pens
-      {
-        name: this.localizationTable.arrowPen,
-        id: 'arrow',
+        name: this.localizationTable.filledSquare,
+        id: 'square',
 
         isShapeBuilder: true,
-        factory: makeArrowBuilder,
-      },
-      {
-        name: this.localizationTable.linePen,
-        id: 'line',
-
-        isShapeBuilder: true,
-        factory: makeLineBuilder,
+        factory: makeFilledSquareBuilder,
       },
       {
         name: this.localizationTable.filledRectangle,
-        id: 'filled-rectangle',
+        id: 'rectangle',
 
         isShapeBuilder: true,
         factory: makeFilledRectangleBuilder,
       },
       {
-        name: this.localizationTable.outlinedRectanglePen,
-        id: 'outlined-rectangle',
-
-        isShapeBuilder: true,
-        factory: makeOutlinedRectangleBuilder,
-      },
-      {
-        name: this.localizationTable.outlinedCirclePen,
-        id: 'outlined-circle',
+        name: this.localizationTable.filledCircle,
+        id: 'circle',
 
         isShapeBuilder: true,
         factory: makeCircleBuilder,
+      },
+      {
+        name: this.localizationTable.filledTriangle,
+        id: 'triangle',
+
+        isShapeBuilder: true,
+        factory: makeFilledTriangleBuilder,
+      },
+      {
+        name: this.localizationTable.filledHexagonal,
+        id: 'hexagonal',
+
+        isShapeBuilder: true,
+        factory: makeFilledHexagonalBuilder,
+      },
+      {
+        name: this.localizationTable.filledDiamond,
+        id: 'diamond',
+
+        isShapeBuilder: true,
+        factory: makeFilledDiamondBuilder,
+      },
+      {
+        name: this.localizationTable.filledArrow,
+        id: 'arrow',
+
+        isShapeBuilder: true,
+        factory: makeArrowBuilder,
       },
       ...additionalPens.filter((pen) => pen.isShapeBuilder),
     ].filter(filterPens);
@@ -142,6 +138,8 @@ export default class PenToolWidget extends BaseToolWidget {
         this.updateInputs();
       }
     });
+
+    this.init();
   }
 
   protected getTitle(): string {
@@ -194,6 +192,22 @@ export default class PenToolWidget extends BaseToolWidget {
     }
   }
 
+  init() {
+    // Autocorrect and stabilization options
+    // const toggleButtonRow = this.createStrokeCorrectionOptions();
+
+    this.penTypeSelect = this.createPenTypeSelector();
+    this.penTypeSelect.setValue(1);
+  }
+
+  getPenTypeSelect() {
+    return this.penTypeSelect;
+  }
+
+  setShapeType(shapeType: number) {
+    this.penTypeSelect.setValue(shapeType);
+  }
+
   protected createIcon(): Element {
     return this.createIconForRecord(this.getCurrentPenType());
   }
@@ -209,13 +223,6 @@ export default class PenToolWidget extends BaseToolWidget {
       };
     });
 
-    const penItems = allChoices.filter((choice) => !choice.isShapeBuilder);
-    const penSelector = makeGridSelector(
-      this.localizationTable.selectPenType,
-      this.getCurrentPenTypeIdx(),
-      penItems,
-    );
-
     const shapeItems = allChoices.filter((choice) => choice.isShapeBuilder);
     const shapeSelector = makeGridSelector(
       this.localizationTable.selectShape,
@@ -227,30 +234,23 @@ export default class PenToolWidget extends BaseToolWidget {
       this.tool.setStrokeFactory(this.penTypes[newPenTypeIndex].factory);
     };
 
-    penSelector.value.onUpdate(onSelectorUpdate);
     shapeSelector.value.onUpdate(onSelectorUpdate);
 
     helpOverlay?.registerTextHelpForElements(
-      [penSelector.getRootElement(), shapeSelector.getRootElement()],
+      [shapeSelector.getRootElement()],
       this.localizationTable.penDropdown__penTypeHelpText,
     );
 
     return {
       setValue: (penTypeIndex: number) => {
-        penSelector.value.set(penTypeIndex);
         shapeSelector.value.set(penTypeIndex);
       },
 
       updateIcons: () => {
-        penSelector.updateIcons();
         shapeSelector.updateIcons();
       },
 
       addTo: (parent: HTMLElement) => {
-        if (penItems.length > 0) {
-          penSelector.addTo(parent);
-        }
-
         if (shapeItems.length > 0) {
           shapeSelector.addTo(parent);
         }
@@ -358,7 +358,7 @@ export default class PenToolWidget extends BaseToolWidget {
     });
     const { input: colorInput, container: colorInputContainer } = colorInputControl;
 
-    colorInput.id = `${toolbarCSSPrefix}colorInput${PenToolWidget.idCounter++}`;
+    colorInput.id = `${toolbarCSSPrefix}colorInput${ShapeToolWidget.idCounter++}`;
     colorLabel.innerText = this.localizationTable.colorLabel;
     colorLabel.setAttribute('for', colorInput.id);
 

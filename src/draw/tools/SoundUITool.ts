@@ -1,4 +1,4 @@
-import { LineSegment2, Color4, type Point2 } from '~/math';
+import { LineSegment2, Color4, type IVec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import type Editor from '../Editor';
@@ -134,7 +134,7 @@ export default class SoundUITool extends BaseTool {
 
     // Create a screen-reader-usable method of toggling the tool:
     this.toggleButtonContainer = document.createElement('div');
-    this.toggleButtonContainer.classList.add('easy-draw-sound-ui-toggle');
+    this.toggleButtonContainer.classList.add('easydrawer-sound-ui-toggle');
 
     this.toggleButton = document.createElement('button');
     this.toggleButton.addEventListener('click', () => {
@@ -183,7 +183,7 @@ export default class SoundUITool extends BaseTool {
     return false;
   }
 
-  private lastPointerPos: Point2;
+  private lastPointerPos: IVec2;
 
   public override onPointerDown({ current, allPointers }: PointerEvt): boolean {
     if (!this.soundFeedback) {

@@ -1,20 +1,20 @@
+import { type IVec2, type IVec3 } from '~/math/Vector';
+
 import Abstract2DShape from './Abstract2DShape';
 import LineSegment2 from './LineSegment2';
 import Rect2 from './Rect2';
 import type Mat33 from '../Mat33';
-import { type Point2 } from '../Vec2';
-import type Vec3 from '../Vec3';
 
 type TriangleBoundary = [LineSegment2, LineSegment2, LineSegment2];
 
-export default class Triangle extends Abstract2DShape {
+export class Triangle extends Abstract2DShape {
   /**
 	 * @see {@link fromVertices}
 	 */
   protected constructor(
-    public readonly vertex1: Vec3,
-    public readonly vertex2: Vec3,
-    public readonly vertex3: Vec3,
+    public readonly vertex1: IVec3,
+    public readonly vertex2: IVec3,
+    public readonly vertex3: IVec3,
   ) {
     super();
   }
@@ -23,15 +23,15 @@ export default class Triangle extends Abstract2DShape {
 	 * Creates a triangle from its three corners. Corners may be stored in a different
 	 * order than given.
 	 */
-  public static fromVertices(vertex1: Vec3, vertex2: Vec3, vertex3: Vec3) {
+  public static fromVertices(vertex1: IVec3, vertex2: IVec3, vertex3: IVec3) {
     return new Triangle(vertex1, vertex2, vertex3);
   }
 
-  public get vertices(): [Point2, Point2, Point2] {
+  public get vertices(): [IVec2, IVec2, IVec2] {
     return [this.vertex1, this.vertex2, this.vertex3];
   }
 
-  public map(mapping: (vertex: Vec3) => Vec3): Triangle {
+  public map(mapping: (vertex: IVec3) => IVec3): Triangle {
     return new Triangle(mapping(this.vertex1), mapping(this.vertex2), mapping(this.vertex3));
   }
 
@@ -68,8 +68,8 @@ export default class Triangle extends Abstract2DShape {
     return sides;
   }
 
-  public override intersectsLineSegment(lineSegment: LineSegment2): Vec3[] {
-    const result: Point2[] = [];
+  public override intersectsLineSegment(lineSegment: LineSegment2): IVec3[] {
+    const result: IVec2[] = [];
 
     for (const edge of this.getEdges()) {
       edge.intersectsLineSegment(lineSegment).forEach((point) => result.push(point));
@@ -80,7 +80,7 @@ export default class Triangle extends Abstract2DShape {
 
   /** @inheritdoc */
   public override containsPoint(
-    point: Vec3,
+    point: IVec3,
     epsilon: number = Abstract2DShape.smallValue,
   ): boolean {
     // Project `point` onto normals to each of this' sides.
@@ -117,7 +117,7 @@ export default class Triangle extends Abstract2DShape {
 	 * If `point` is inside `this`, the result is negative, otherwise, the result is
 	 * positive.
 	 */
-  public override signedDistance(point: Vec3): number {
+  public override signedDistance(point: IVec3): number {
     const sides = this.getEdges();
     const distances = sides.map((side) => side.distance(point));
     const distance = Math.min(...distances);

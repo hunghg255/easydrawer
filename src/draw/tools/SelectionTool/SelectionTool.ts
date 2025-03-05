@@ -1,4 +1,4 @@
-import { Mat33, type Rect2, type Point2, Vec2, Color4 } from '~/math';
+import { Mat33, type Rect2, type IVec2, Vec2, Color4 } from '~/math';
 
 import Selection from './Selection';
 import LassoSelectionBuilder from './SelectionBuilders/LassoSelectionBuilder';
@@ -11,18 +11,19 @@ import type AbstractComponent from '../../components/AbstractComponent';
 import TextComponent from '../../components/TextComponent';
 import type Editor from '../../Editor';
 import {
-  ContextMenuEvt,
-  CopyEvent,
-  KeyPressEvent,
-  KeyUpEvent,
-  PointerEvt,
+  type ContextMenuEvt,
+  type CopyEvent,
+  type KeyPressEvent,
+  type KeyUpEvent,
+  type PointerEvt,
 } from '../../inputEvents';
+import type Pointer from '../../Pointer';
+import CanvasRenderer from '../../rendering/renderers/CanvasRenderer';
+import SVGRenderer from '../../rendering/renderers/SVGRenderer';
 import { EditorEventType } from '../../types';
 import { MutableReactiveValue } from '../../util/ReactiveValue';
 import Viewport from '../../Viewport';
 import BaseTool from '../BaseTool';
-import CanvasRenderer from '../../rendering/renderers/CanvasRenderer';
-import SVGRenderer from '../../rendering/renderers/SVGRenderer';
 import {
   duplicateSelectionShortcut,
   translateLeftSelectionShortcutId,
@@ -41,7 +42,6 @@ import {
   stretchXYSelectionShortcutId,
   shrinkXYSelectionShortcutId,
 } from '../keybindings';
-import type Pointer from '../../Pointer';
 
 export const cssPrefix = 'selection-tool-';
 
@@ -62,7 +62,7 @@ export default class SelectionTool extends BaseTool {
   // ultimately restore the selection.
   private removeSelectionScheduled = false;
 
-  private startPoint: Vec2 | null = null; // canvas position
+  private startPoint: IVec2 | null = null; // canvas position
   private expandingSelectionBox = false;
   private shiftKeyPressed = false;
   private snapToGrid = false;
@@ -85,7 +85,7 @@ export default class SelectionTool extends BaseTool {
       });
     });
 
-    this.autoscroller = new ToPointerAutoscroller(editor.viewport, (scrollBy: Vec2) => {
+    this.autoscroller = new ToPointerAutoscroller(editor.viewport, (scrollBy: IVec2) => {
       editor.dispatch(Viewport.transformBy(Mat33.translation(scrollBy)), false);
 
       // Update the selection box/content to match the new viewport.
@@ -141,7 +141,7 @@ export default class SelectionTool extends BaseTool {
     this.selectionBox.addTo(this.handleOverlay);
   }
 
-  private showContextMenu = async (canvasAnchor: Point2, preferSelectionMenu = true) => {
+  private showContextMenu = async (canvasAnchor: IVec2, preferSelectionMenu = true) => {
     await showSelectionContextMenu(
       this.selectionBox,
       this.editor,
@@ -166,7 +166,7 @@ export default class SelectionTool extends BaseTool {
       current = current.snappedToGrid(this.editor.viewport);
     }
 
-    // Don't rely on .isPrimary -- it's buggy in Firefox. See https://github.com/personalizedrefrigerator/easy-draw/issues/71
+    // Don't rely on .isPrimary -- it's buggy in Firefox. See https://github.com/personalizedrefrigerator/easydrawer/issues/71
     if (allPointers.length === 1) {
       this.startPoint = current.canvasPos;
 

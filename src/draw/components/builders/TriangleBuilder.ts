@@ -1,11 +1,11 @@
-import { Mat33, Rect2, Path } from '~/math';
+import { type Rect2, Path, PathCommandType } from '~/math';
 
 import makeSnapToGridAutocorrect from './autocorrect/makeSnapToGridAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import { pathToRenderable } from '../../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
-import Viewport from '../../Viewport';
+import   Viewport from '../../Viewport';
 import type AbstractComponent from '../AbstractComponent';
 import Stroke from '../Stroke';
 
@@ -15,9 +15,9 @@ import Stroke from '../Stroke';
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeFilledTriangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, true, viewport);
+    return new TriangleBuilder(initialPoint, true, viewport);
   },
 );
 
@@ -27,13 +27,13 @@ export const makeFilledRectangleBuilder: ComponentBuilderFactory = makeSnapToGri
  * Example:
  * [[include:doc-pages/inline-examples/changing-pen-types.md]]
  */
-export const makeOutlinedRectangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
+export const makeOutlinedTriangleBuilder: ComponentBuilderFactory = makeSnapToGridAutocorrect(
   (initialPoint: StrokeDataPoint, viewport: Viewport) => {
-    return new RectangleBuilder(initialPoint, false, viewport);
+    return new TriangleBuilder(initialPoint, false, viewport);
   },
 );
 
-export default class RectangleBuilder implements ComponentBuilder {
+export default class TriangleBuilder implements ComponentBuilder {
   private endPoint: StrokeDataPoint;
 
   public constructor(
@@ -51,26 +51,34 @@ export default class RectangleBuilder implements ComponentBuilder {
   }
 
   private buildPreview(): Stroke {
-    const canvasAngle = this.viewport.getRotationAngle();
-    const rotationMat = Mat33.zRotation(-canvasAngle);
-    // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
+    const startPoint = this.startPoint.pos;
+    const endPoint = this.endPoint.pos;
     const strokeWidth = Viewport.roundPoint(
       this.endPoint.width,
       5 / this.viewport.getScaleFactor(),
     );
+    // Calculate the third point of the triangle
+    // Creating an equilateral-like triangle where the third point is perpendicular to the line
+    const vector = endPoint.minus(startPoint);
+    const perpendicular = vector.orthog().normalized();
+    const height = vector.magnitude() * 0.866; // Approximately sqrt(3)/2 for equilateral proportions
+    const thirdPoint = startPoint.plus(vector.times(0.5)).plus(perpendicular.times(height));
 
-    // Adjust startPoint and endPoint such that applying [rotationMat] to them
-    // brings them to this.startPoint and this.endPoint.
-    const startPoint = rotationMat.inverse().transformVec2(this.startPoint.pos);
-    const endPoint = rotationMat.inverse().transformVec2(this.endPoint.pos);
-
-    const rect = Rect2.fromCorners(startPoint, endPoint);
-    const path = Path.fromRect(rect, this.filled ? null : this.endPoint.width)
-      .transformedBy(
-        // Rotate the canvas rectangle so that its rotation matches the screen
-        rotationMat,
-      )
-      .mapPoints((point) => this.viewport.roundPoint(point));
+    // Create the triangle path
+    const path = new Path(startPoint, [
+      {
+        kind: PathCommandType.LineTo,
+        point: endPoint,
+      },
+      {
+        kind: PathCommandType.LineTo,
+        point: thirdPoint,
+      },
+      {
+        kind: PathCommandType.LineTo,
+        point: startPoint,
+      },
+    ]).mapPoints((point) => this.viewport.roundPoint(point));
 
     const preview = new Stroke([
       pathToRenderable(path, {
@@ -81,8 +89,11 @@ export default class RectangleBuilder implements ComponentBuilder {
         },
       }),
     ]);
-
     return preview;
+  }
+
+  private getLineWidth(): number {
+    return Math.max(this.startPoint.width, this.endPoint.width);
   }
 
   public build(): AbstractComponent {

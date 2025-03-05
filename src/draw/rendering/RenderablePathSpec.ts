@@ -1,9 +1,9 @@
-import { Color4, Mat33, Path, type PathCommand, PathCommandType, type Point2, Rect2 } from '~/math';
+import { Color4, Mat33, Path, type PathCommand, PathCommandType, type IVec2, Rect2 } from '~/math';
 
 import type RenderingStyle from './RenderingStyle';
 
 interface RenderablePathSpec {
-  startPoint: Point2;
+  startPoint: IVec2;
   commands: PathCommand[];
   style: RenderingStyle;
   path?: Path;

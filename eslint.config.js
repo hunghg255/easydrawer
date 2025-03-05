@@ -5,6 +5,10 @@ export default [
   {
     rules: {
       indent: 'warn',
+      "@typescript-eslint/no-unused-vars": 'warn',
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/no-empty-function": "off",
+      quotes: ["error", "single"]
     },
   },
   {

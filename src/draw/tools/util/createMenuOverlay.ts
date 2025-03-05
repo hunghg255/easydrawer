@@ -1,4 +1,4 @@
-import { type Point2 } from '~/math';
+import { type IVec2 } from '~/math';
 
 import type Editor from '../../Editor';
 import { type IconElemType } from '../../toolbar/IconProvider';
@@ -14,7 +14,7 @@ interface MenuOption<KeyType> {
 let idCounter = 0;
 
 async function createMenuOverlay <KeyType>(editor: Editor,
-  canvasAnchor: Point2,
+  canvasAnchor: IVec2,
   options: MenuOption<KeyType>[]) {
   const overlay = document.createElement('div');
   const { remove: removeOverlay } = editor.createHTMLOverlay(overlay);

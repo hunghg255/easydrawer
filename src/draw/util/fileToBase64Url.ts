@@ -13,6 +13,7 @@ async function fileToBase64Url (file: Blob,
 
     return await new Promise((resolve: (result: string | null) => void, reject) => {
       reader.addEventListener('load', () => resolve(reader.result as string | null));
+      // eslint-disable-next-line unicorn/prefer-add-event-listener
       reader.onerror = reject;
       reader.addEventListener('abort', reject);
       reader.addEventListener('progress', (evt) => {

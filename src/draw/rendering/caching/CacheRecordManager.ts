@@ -54,7 +54,7 @@ export class CacheRecordManager {
       lru.setRenderingRegion(drawTo);
 
       if (this.cacheState.debugMode) {
-        console.log("[Cache] Now re-alloc'd. Last used cycle: ", lru.getLastUsedCycle());
+        console.log('[Cache] Now re-alloc\'d. Last used cycle: ', lru.getLastUsedCycle());
         console.assert(
           lru['cacheState'] === this.cacheState,
           '[Cache] Unequal cache states! cacheState should be a shared object!',

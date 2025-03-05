@@ -1,6 +1,6 @@
 // Types related to the image editor
 
-import type { Mat33, Point2, Vec2, Rect2, Color4 } from '~/math';
+import type { Mat33, IVec2, Rect2, Color4 } from '~/math';
 
 import type Command from './commands/Command';
 import type AbstractComponent from './components/AbstractComponent';
@@ -74,7 +74,7 @@ export interface EditorViewportChangedEvent {
 
 export interface DisplayResizedEvent {
   readonly kind: EditorEventType.DisplayResized;
-  readonly newSize: Vec2;
+  readonly newSize: IVec2;
 }
 
 export interface EditorUndoStackUpdated {
@@ -169,10 +169,11 @@ export interface ImageLoader {
 }
 
 export interface StrokeDataPoint {
-  pos: Point2;
+  pos: IVec2;
   width: number;
 
   /** Time in milliseconds (e.g. as returned by `performance.now()`). */
   time: number;
   color: Color4;
+  borderColor?: Color4;
 }

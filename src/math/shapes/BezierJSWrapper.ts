@@ -1,9 +1,10 @@
 import { Bezier } from 'bezier-js';
 
+import { Vec2, type IVec2 } from '~/math/Vector';
+
 import LineSegment2 from './LineSegment2';
 import Parameterized2DShape from './Parameterized2DShape';
 import Rect2 from './Rect2';
-import { type Point2, Vec2 } from '../Vec2';
 
 // The typings for Bezier are incorrect in some cases:
 interface CorrectedBezierType extends Bezier {
@@ -31,7 +32,7 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
   }
 
   /** Returns the start, control points, and end point of this Bézier. */
-  public abstract getPoints(): readonly Point2[];
+  public abstract getPoints(): readonly IVec2[];
 
   protected getBezier() {
     if (!this.#bezierJs) {
@@ -40,7 +41,7 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
     return this.#bezierJs;
   }
 
-  public override signedDistance(point: Point2): number {
+  public override signedDistance(point: IVec2): number {
     // .d: Distance
     return this.nearestPointTo(point).point.distanceTo(point);
   }
@@ -50,7 +51,7 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
 	 *
 	 * @see {@link approximateDistance}
 	 */
-  public override distance(point: Point2) {
+  public override distance(point: IVec2) {
     // A Bézier curve has no interior, thus, signed distance is the same as distance.
     return this.signedDistance(point);
   }
@@ -58,29 +59,29 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
   /**
 	 * @returns the curve evaluated at `t`.
 	 */
-  public override at(t: number): Point2 {
+  public override at(t: number): IVec2 {
     return Vec2.ofXY(this.getBezier().get(t));
   }
 
   /** @returns the curve's directional derivative at `t`. */
-  public derivativeAt(t: number): Point2 {
+  public derivativeAt(t: number): IVec2 {
     return Vec2.ofXY(this.getBezier().derivative(t));
   }
 
-  public secondDerivativeAt(t: number): Point2 {
+  public secondDerivativeAt(t: number): IVec2 {
     return Vec2.ofXY(this.getBezier().dderivative(t));
   }
 
   /** @returns the [normal vector](https://en.wikipedia.org/wiki/Normal_(geometry)) to this curve at `t`. */
-  public normal(t: number): Vec2 {
+  public normal(t: number): IVec2 {
     return Vec2.ofXY(this.getBezier().normal(t));
   }
 
-  public override normalAt(t: number): Vec2 {
+  public override normalAt(t: number): IVec2 {
     return this.normal(t);
   }
 
-  public override tangentAt(t: number): Vec2 {
+  public override tangentAt(t: number): IVec2 {
     return this.derivativeAt(t).normalized();
   }
 
@@ -148,11 +149,11 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
     ];
   }
 
-  public override nearestPointTo(point: Point2) {
+  public override nearestPointTo(point: IVec2) {
     // One implementation could be similar to this:
     //   const projection = this.getBezier().project(point);
     //   return {
-    //    point: Vec2.ofXY(projection),
+    //    point: IVec2.ofXY(projection),
     //    parameterValue: projection.t!,
     //   };
     // However, Bezier-js is rather impercise (and relies on a lookup table).
@@ -285,7 +286,7 @@ export abstract class BezierJSWrapper extends Parameterized2DShape {
  */
 class BezierJSWrapperImpl extends BezierJSWrapper {
   public constructor(
-    private controlPoints: readonly Point2[],
+    private controlPoints: readonly IVec2[],
     curve?: Bezier,
   ) {
     super(curve);

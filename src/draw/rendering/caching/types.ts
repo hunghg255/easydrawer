@@ -1,4 +1,4 @@
-import type { Vec2 } from '~/math';
+import type { IVec2 } from '~/math';
 
 import type { CacheRecordManager } from './CacheRecordManager';
 import type AbstractRenderer from '../renderers/AbstractRenderer';
@@ -11,7 +11,7 @@ export interface CacheProps {
   // Returns whether the cache can be rendered onto [renderer].
   isOfCorrectType(renderer: AbstractRenderer): boolean;
 
-  blockResolution: Vec2;
+  blockResolution: IVec2;
   cacheSize: number;
 
   // Maximum amount a cached image can be scaled without a re-render

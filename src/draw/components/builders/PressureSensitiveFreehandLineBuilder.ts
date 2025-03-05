@@ -1,5 +1,5 @@
 import {
-  type Point2,
+  type IVec2,
   Vec2,
   Rect2,
   type PathCommand,
@@ -135,7 +135,7 @@ export default class PressureSensitiveFreehandLineBuilder implements ComponentBu
       pathStartConnector = this.pathStartConnector;
     }
 
-    let startPoint: Point2;
+    let startPoint: IVec2;
     const lastLowerSegment = lowerPath[lowerPath.length - 1];
     if (
       lastLowerSegment.kind === PathCommandType.LineTo ||
@@ -215,7 +215,7 @@ export default class PressureSensitiveFreehandLineBuilder implements ComponentBu
     return new Stroke(this.previewFullPath()!);
   }
 
-  private roundPoint(point: Point2): Point2 {
+  private roundPoint(point: IVec2): IVec2 {
     let minFit = Math.min(this.minFitAllowed, this.curveStartWidth / 3);
 
     if (minFit < 1e-10) {
@@ -231,17 +231,17 @@ export default class PressureSensitiveFreehandLineBuilder implements ComponentBu
       return false;
     }
 
-    const getIntersection = (curve1: QuadraticBezier, curve2: QuadraticBezier): Point2 | null => {
+    const getIntersection = (curve1: QuadraticBezier, curve2: QuadraticBezier): IVec2 | null => {
       const intersections = curve1.intersectsBezier(curve2);
       if (intersections.length === 0) return null;
       return intersections[0].point;
     };
 
-    const getExitDirection = (curve: QuadraticBezier): Vec2 => {
+    const getExitDirection = (curve: QuadraticBezier): IVec2 => {
       return curve.p2.minus(curve.p1).normalized();
     };
 
-    const getEnterDirection = (curve: QuadraticBezier): Vec2 => {
+    const getEnterDirection = (curve: QuadraticBezier): IVec2 => {
       return curve.p1.minus(curve.p0).normalized();
     };
 

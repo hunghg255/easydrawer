@@ -3,21 +3,21 @@
  * @packageDocumentation
  */
 
-import { Mat33, Rect2, type Point2, Vec2, type Mat33Array } from '~/math';
+import { Mat33, Rect2, type IVec2, Vec2, type Mat33Array } from '~/math';
 
 import SelectionHandle, { HandleAction, handleSize } from './SelectionHandle';
-import { DragTransformer, ResizeTransformer, RotateTransformer } from './TransformMode';
-import { ResizeMode, SelectionBoxChild } from './types';
-import EditorImage from '../../image/EditorImage';
-import uniteCommands from '../../commands/uniteCommands';
 import SelectionMenuShortcut from './SelectionMenuShortcut';
 import { cssPrefix } from './SelectionTool';
-import Command from '../../commands/Command';
+import { DragTransformer, ResizeTransformer, RotateTransformer } from './TransformMode';
+import { ResizeMode, type SelectionBoxChild } from './types';
+import type Command from '../../commands/Command';
 import Duplicate from '../../commands/Duplicate';
 import Erase from '../../commands/Erase';
 import SerializableCommand from '../../commands/SerializableCommand';
+import uniteCommands from '../../commands/uniteCommands';
 import type AbstractComponent from '../../components/AbstractComponent';
 import type Editor from '../../Editor';
+import EditorImage from '../../image/EditorImage';
 import { type EditorLocalization } from '../../localization';
 import type Pointer from '../../Pointer';
 import { assertIsNumberArray, assertIsStringArray } from '../../util/assertions';
@@ -52,7 +52,7 @@ export default class Selection {
   public constructor(
     selectedElems: AbstractComponent[],
     private editor: Editor,
-    showContextMenu: (anchor: Point2) => void,
+    showContextMenu: (anchor: IVec2) => void,
   ) {
     selectedElems = [...selectedElems];
     this.selectedElems = selectedElems;
@@ -80,7 +80,7 @@ export default class Selection {
     this.innerContainer.appendChild(this.backgroundElem);
     this.outerContainer.appendChild(this.innerContainer);
 
-    const makeResizeHandle = (mode: ResizeMode, side: Vec2) => {
+    const makeResizeHandle = (mode: ResizeMode, side: IVec2) => {
       const modeToAction = {
         [ResizeMode.Both]: HandleAction.ResizeXY,
         [ResizeMode.HorizontalOnly]: HandleAction.ResizeX,
@@ -186,7 +186,7 @@ export default class Selection {
   }
 
   public get preTransformedScreenRegion(): Rect2 {
-    const toScreen = (vec: Point2) => this.editor.viewport.canvasToScreen(vec);
+    const toScreen = (vec: IVec2) => this.editor.viewport.canvasToScreen(vec);
     return Rect2.fromCorners(
       toScreen(this.preTransformRegion.topLeft),
       toScreen(this.preTransformRegion.bottomRight),
@@ -324,7 +324,7 @@ export default class Selection {
       selectedElems: AbstractComponent[] | string[],
 
       // Information used to describe the transformation
-      private selectionCenter: Point2,
+      private selectionCenter: IVec2,
 
       // Full transformation used to transform elements.
       private fullTransform: Mat33,
@@ -558,10 +558,8 @@ export default class Selection {
       if (!inImage && parent) {
         this.removedFromImage[elem.getId()] = true;
         parent.remove();
-      }
-      // If we're making things visible and the selected object wasn't previously
-      // visible,
-      else if (!parent && this.removedFromImage[elem.getId()]) {
+      } else if (!parent && this.removedFromImage[elem.getId()]) {
+        // If we're making things visible and the selected object wasn't previously visible
         EditorImage.addComponent(elem).apply(this.editor);
 
         this.removedFromImage[elem.getId()] = false;
@@ -806,7 +804,7 @@ export default class Selection {
     this.hasParent = true;
   }
 
-  public setToPoint(point: Point2) {
+  public setToPoint(point: IVec2) {
     this.originalRegion = this.originalRegion.grownToPoint(point);
     this.selectionTightBoundingBox = null;
 

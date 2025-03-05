@@ -1,4 +1,4 @@
-import type { Rect2, Point2 } from '~/math';
+import type { Rect2, IVec2 } from '~/math';
 
 import type Pointer from '../../Pointer';
 
@@ -34,7 +34,7 @@ export interface SelectionBoxChild {
   updatePosition(selectionScreenBBox: Rect2): void;
 
   /** @returns true iff `point` (in editor **canvas** coordinates) is in this child. */
-  containsPoint(point: Point2): boolean;
+  containsPoint(point: IVec2): boolean;
 
   /** Adds this component's HTMLElement to the given `container`. */
   addTo(container: HTMLElement): void;

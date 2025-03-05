@@ -1,4 +1,4 @@
-import { Path, type Point2, Rect2 } from '~/math';
+import { Path, type IVec2, Rect2 } from '~/math';
 
 import SelectionBuilder from './SelectionBuilder';
 import type EditorImage from '../../../image/EditorImage';
@@ -9,13 +9,13 @@ import type EditorImage from '../../../image/EditorImage';
 export default class RectSelectionBuilder extends SelectionBuilder {
   private rect: Rect2;
 
-  public constructor(startPoint: Point2) {
+  public constructor(startPoint: IVec2) {
     super();
 
     this.rect = Rect2.fromCorners(startPoint, startPoint);
   }
 
-  public onPointerMove(canvasPoint: Point2) {
+  public onPointerMove(canvasPoint: IVec2) {
     this.rect = this.rect.grownToPoint(canvasPoint);
   }
 

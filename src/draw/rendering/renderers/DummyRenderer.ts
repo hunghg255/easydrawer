@@ -1,4 +1,4 @@
-import { type Mat33, type Rect2, type Point2, Vec2, type Vec3 } from '~/math';
+import { type Mat33, type Rect2, type IVec2, Vec2,  } from '~/math';
 
 import AbstractRenderer, { type RenderableImage } from './AbstractRenderer';
 import type Viewport from '../../Viewport';
@@ -11,19 +11,19 @@ export default class DummyRenderer extends AbstractRenderer {
   public clearedCount = 0;
   public renderedPathCount = 0;
   public lastFillStyle: RenderingStyle | null = null;
-  public lastPoint: Point2 | null = null;
+  public lastPoint: IVec2 | null = null;
   public objectNestingLevel = 0;
   public lastText: string | null = null;
   public lastImage: RenderableImage | null = null;
 
   // List of points drawn since the last clear.
-  public pointBuffer: Point2[] = [];
+  public pointBuffer: IVec2[] = [];
 
   public constructor(viewport: Viewport) {
     super(viewport);
   }
 
-  public displaySize(): Vec2 {
+  public displaySize(): IVec2 {
     // Do we have a stored viewport size?
     const viewportSize = this.getViewport().getScreenRectSize();
 
@@ -50,7 +50,7 @@ export default class DummyRenderer extends AbstractRenderer {
     }
   }
 
-  protected beginPath(startPoint: Vec3) {
+  protected beginPath(startPoint: IVec2) {
     this.lastPoint = startPoint;
     this.pointBuffer.push(startPoint);
   }
@@ -60,21 +60,21 @@ export default class DummyRenderer extends AbstractRenderer {
     this.lastFillStyle = style;
   }
 
-  protected lineTo(point: Vec3) {
+  protected lineTo(point: IVec2) {
     point = this.canvasToScreen(point);
 
     this.lastPoint = point;
     this.pointBuffer.push(point);
   }
 
-  protected moveTo(point: Point2) {
+  protected moveTo(point: IVec2) {
     point = this.canvasToScreen(point);
 
     this.lastPoint = point;
     this.pointBuffer.push(point);
   }
 
-  protected traceCubicBezierCurve(p1: Vec3, p2: Vec3, p3: Vec3) {
+  protected traceCubicBezierCurve(p1: IVec2, p2: IVec2, p3: IVec2) {
     p1 = this.canvasToScreen(p1);
     p2 = this.canvasToScreen(p2);
     p3 = this.canvasToScreen(p3);
@@ -83,7 +83,7 @@ export default class DummyRenderer extends AbstractRenderer {
     this.pointBuffer.push(p1, p2, p3);
   }
 
-  protected traceQuadraticBezierCurve(controlPoint: Vec3, endPoint: Vec3) {
+  protected traceQuadraticBezierCurve(controlPoint: IVec2, endPoint: IVec2) {
     controlPoint = this.canvasToScreen(controlPoint);
     endPoint = this.canvasToScreen(endPoint);
 
@@ -91,7 +91,7 @@ export default class DummyRenderer extends AbstractRenderer {
     this.pointBuffer.push(controlPoint, endPoint);
   }
 
-  public drawPoints(..._points: Vec3[]) {
+  public drawPoints(..._points: IVec2[]) {
     // drawPoints is intended for debugging.
     // As such, it is unlikely to be the target of automated tests.
   }

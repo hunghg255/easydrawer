@@ -1,5 +1,4 @@
-import { type Point2, Vec2 } from './Vec2';
-import Vec3 from './Vec3';
+import { Vec3, Vec2, type IVec3, type IVec2 } from './Vector';
 
 /**
  * See {@link Mat33.toArray}.
@@ -52,7 +51,7 @@ export type Mat33Array = [number, number, number, number, number, number, number
  * ```
  */
 export class Mat33 {
-  private readonly rows: Vec3[];
+  private readonly rows: IVec3[];
 
   /**
 	 * Creates a matrix from inputs in the form,
@@ -93,7 +92,7 @@ export class Mat33 {
 	 * \end{bmatrix}
 	 * $$
 	 */
-  public static ofRows(r1: Vec3, r2: Vec3, r3: Vec3): Mat33 {
+  public static ofRows(r1: IVec3, r2: IVec3, r3: IVec3): Mat33 {
     return new Mat33(r1.x, r1.y, r1.z, r2.x, r2.y, r2.z, r3.x, r3.y, r3.z);
   }
 
@@ -248,7 +247,7 @@ export class Mat33 {
 	 *
 	 * Unlike {@link transformVec3}, this **does** translate the given vector.
 	 */
-  public transformVec2(other: Vec2): Vec2 {
+  public transformVec2(other: IVec2): IVec2 {
     // When transforming a Vec2, we want to use the z transformation
     // components of this for translation:
     //  ⎡ . . tX ⎤
@@ -267,7 +266,7 @@ export class Mat33 {
 	 * Applies this as a linear transformation to the given vector (doesn't translate).
 	 * This is the standard way of transforming vectors in ℝ³.
 	 */
-  public transformVec3(other: Vec3): Vec3 {
+  public transformVec3(other: IVec3): IVec3 {
     return Vec3.of(this.rows[0].dot(other), this.rows[1].dot(other), this.rows[2].dot(other));
   }
 
@@ -432,7 +431,7 @@ export class Mat33 {
 	 * 	\end{pmatrix}
 	 * $$
 	 */
-  public static translation(amount: Vec2): Mat33 {
+  public static translation(amount: IVec2): Mat33 {
     // When transforming Vec2s by a 3x3 matrix, we give the input
     // Vec2s z = 1. As such,
     //   outVec2.x = inVec2.x * 1 + inVec2.y * 0 + 1 * amount.x
@@ -460,7 +459,7 @@ export class Mat33 {
 	 * );
 	 * ```
 	 */
-  public static zRotation(radians: number, center: Point2 = Vec2.zero): Mat33 {
+  public static zRotation(radians: number, center: IVec2 = Vec2.zero): Mat33 {
     if (radians === 0) {
       return Mat33.identity;
     }
@@ -475,7 +474,7 @@ export class Mat33 {
     return result.rightMul(Mat33.translation(center.times(-1)));
   }
 
-  public static scaling2D(amount: number | Vec2, center: Point2 = Vec2.zero): Mat33 {
+  public static scaling2D(amount: number | IVec2, center: IVec2 = Vec2.of(0, 0)): Mat33 {
     let result = Mat33.translation(center);
     let xAmount, yAmount;
 

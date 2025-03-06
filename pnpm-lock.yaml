@@ -63,7 +63,7 @@ importers:
 
   playground:
     dependencies:
-      easy-draw:
+      easydrawer:
         specifier: workspace:*
         version: link:..
       react:

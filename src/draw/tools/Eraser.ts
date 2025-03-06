@@ -158,8 +158,8 @@ export default class Eraser extends BaseTool {
     const rect = this.getEraserRect(point);
     const rect2 = this.getEraserRect(this.lastPoint ?? point);
     const fill: RenderingStyle = {
-      fill: Color4.transparent,
-      stroke: { width: size / 10, color: Color4.gray },
+      fill: Color4.gray,
+      stroke: { width: size / 10, color: Color4.blue },
     };
     renderer.drawPath(
       pathToRenderable(Path.fromConvexHullOf([...rect.corners, ...rect2.corners]), fill),

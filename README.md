@@ -1,4 +1,4 @@
-# Easy Drawer
+# EasyDrawer
 
 ## Development
 

@@ -62,6 +62,8 @@
     "release": "bumpp -r && npm publish",
     "dev:tsup": "NODE_ENV=development tsup --watch",
     "dev:playground": "pnpm --dir ./playground run dev",
+    "build:playground": "pnpm build && pnpm --dir ./playground run build",
+    "build:preview": "pnpm --dir ./playground run preview",
     "dev:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css --watch",
     "dev": "npm-run-all --parallel dev:css dev:tsup dev:playground"
   },

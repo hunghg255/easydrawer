@@ -51,7 +51,7 @@
   "scripts": {
     "build": "NODE_ENV=production tsup && pnpm run build:css",
     "build:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css && cp -R src/styles/assets/styles.css dist/styles.css",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "pnpm run build",
     "lint": "eslint src",
     "lint-fix": "npm run lint -- --fix",
     "start": "esno src/index.ts",
@@ -59,7 +59,7 @@
     "verify-commit": "verify-commit-msg",
     "prepare": "git-scm-hooks",
     "changelog": "npx changeloggithub@latest --all true && git add CHANGELOG.md && git commit -m 'chore: update CHANGELOG.md'",
-    "release": "bumpp -r && npm run changelog",
+    "release": "bumpp -r && npm publish",
     "dev:tsup": "NODE_ENV=development tsup --watch",
     "dev:playground": "pnpm --dir ./playground run dev",
     "dev:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css --watch",

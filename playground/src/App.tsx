@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { useEffect, useState } from 'react';
 import './App.css';
 
@@ -247,7 +248,7 @@ function ShapeOption ({ changeShape, changeColorShape, changeBorderColorShape }:
 }
 
 function App() {
-  const [tool, setTool] = useState<'select' | 'text' | 'pencil' | 'highlighter' | 'eraser' | 'shapes'>(null);
+  const [tool, setTool] = useState<'select' | 'text' | 'pencil' | 'highlighter' | 'eraser' | 'shapes' | null>(null);
   const [edit, setEdit] = useState(false);
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
@@ -263,13 +264,12 @@ function App() {
       refWidget.current = makeDropdownToolbar(refEditor.current);
       refWidget.current.addDefaultToolWidgets();
 
-      const saveButton = refWidget.current.addSaveButton(() => {
-        // saveCallback();
-        console.log('save');
-        const svgElem = refEditor.current.toSVG();
-        console.log('The saved SVG:', svgElem.outerHTML);
+      // const saveButton = refWidget.current.addSaveButton(() => {
+      //   console.log('save');
+      //   const svgElem = refEditor.current!.toSVG();
+      //   console.log('The saved SVG:', svgElem.outerHTML);
 
-      });
+      // });
 
       //       const d = `
       // <svg viewBox="0 0 500 500" width="500" height="500" version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"><style id="easydrawer-style-sheet">path{stroke-linecap:round;stroke-linejoin:round;}text{white-space:pre;}</style><path d="M793,55q-29,7 -42,12q-36.6,14.1 -62,31q-15,10 -35,46q-14.7,26.4 145,42q4.6,.4 -22,7q-20.9,4.5 -38,8q-13.5,2.7 -20,6q-1.5,.8 6-6q1.7-1.5 36-14q9.3-2.9 17-5q5.5-8.6 8-18q7.6-28.5 54-61q14.3-10 44-10q8.2,0 21,32q4,10 4,46q0,17.2 -41,50q-16.2,13 -48,18q-81.3,12.8 -102-1q-6.7-4.5 -1-33q1-5 16-15q3-2 31-2q5.5,.5 10,1" fill="none" stroke="#000000" stroke-width=".8"></path><path d="M757,102q-22,0 -33,3q-37.3,10.2 -77,13q-18.7,2.9 -34,6q-29.3,5.9 -31,7" fill="none" stroke="#d7273d" stroke-width=".8"></path><path d="M490,83q77-1 130-1q6,0 14-4" fill="none" stroke="#ffffff" stroke-width=".8"></path><path d="M478,121q116,0 126-1q8.8-.9 13-3" fill="none" stroke="#00875a" stroke-width=".8"></path><path d="M462,188q83.9-1.8 95-4q19.2-2 35-3q1.2-.1 6-1" fill="none" stroke="#00875a" stroke-width="1.5"></path><path d="M493,220q89.1,0 162,0" fill="none" stroke="#00875a" stroke-width="2.5"></path><path d="M451,140l0-20q-71,0 -157,0l0,20q86,0 157,0" fill="#2576b94d"></path><path d="M48,63l41,0l0,41l-41,0l0-41" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M139,161l0-20l-95,0l0,20l95,0" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M155,212q0-23 -20-35q-20-11 -40,0q-20,12 -20,35q0,23 20,35q20,11 40,0q20-12 20-35" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M205,216l57,41l-64,29l7-70" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M384,281l-11,19l-23,0l-11-19l11-20l23,0l11,20" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M431,297l24-30l24,30l-24,30l-24-30" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M561,435l151,40l-151-41l0-1l-1,1l0,1l1,0" fill="#f99f07"></path><path d="M355,433l-140,36l140-35l1,0l0-1l-1-1l0,1" fill="#f99f07"></path></svg>
@@ -290,15 +290,17 @@ function App() {
       refEditor.current.setReadOnly(!edit);
 
       if (!edit) {
+        //@ts-expect-error
         document.querySelector('.imageEditorContainer').style.pointerEvents = 'none';
       } else {
+        //@ts-expect-error
         document.querySelector('.imageEditorContainer').style.pointerEvents = 'auto';
       }
     }
   }, [refEditor.current, edit]);
 
   const setColorPen = (color: string) => {
-    const penTool = refEditor.current.toolController.getPrimaryTools()[2];
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
     const shapeWidget = refWidget.current.getWidgetById('pen-1');
 
     console.log(refWidget.current);
@@ -311,7 +313,7 @@ function App() {
   };
 
   const setThicknessPen = (thickness: number) => {
-    const penTool = refEditor.current.toolController.getPrimaryTools()[2];
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
     const shapeWidget = refWidget.current.getWidgetById('pen-1');
 
     if (penTool && shapeWidget) {
@@ -321,7 +323,7 @@ function App() {
   };
 
   const setColorHighlight = (color: string) => {
-    const penTool = refEditor.current.toolController.getPrimaryTools()[3];
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[3] as any;
 
     const shapeWidget = refWidget.current.getWidgetById('pen-2');
 
@@ -340,7 +342,7 @@ function App() {
   };
 
   const changeColorShape = (color: string) => {
-    const penTool = refEditor.current.toolController.getPrimaryTools()[5];
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
     const shapeWidget = refWidget.current.getWidgetById('shape');
 
     if (penTool && shapeWidget) {
@@ -350,7 +352,7 @@ function App() {
   };
 
   const changeBorderColorShape = (color: string) => {
-    const penTool = refEditor.current.toolController.getPrimaryTools()[5];
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
     const shapeWidget = refWidget.current.getWidgetById('shape');
 
     if (penTool && shapeWidget) {
@@ -370,7 +372,7 @@ function App() {
 
         <button
           onClick={() => {
-            const penTool = refEditor.current.toolController.getPrimaryTools();
+            const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
             if (tool === 'select') {
               setTool(null);
@@ -388,9 +390,9 @@ function App() {
         </button>
 
         <button onClick={() => {
-          const penTool = refEditor.current.toolController.getPrimaryTools();
+          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-          refEditor.current.toolController.setToolEnabled(penTool[1]);
+          refEditor.current!.toolController.setToolEnabled(penTool[1]);
           if (tool === 'text') {
             penTool[1].setEnabled(false);
 
@@ -407,7 +409,7 @@ function App() {
         </button>
 
         <button onClick={() => {
-          const penTool = refEditor.current.toolController.getPrimaryTools();
+          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
           if (tool === 'pencil') {
             setTool(null);
@@ -429,7 +431,7 @@ function App() {
         />}
 
         <button onClick={() => {
-          const penTool = refEditor.current.toolController.getPrimaryTools();
+          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
           if (tool === 'highlighter') {
             setTool(null);
@@ -448,7 +450,7 @@ function App() {
         {tool === 'highlighter' && <HighlightOption setColorHighlight={setColorHighlight}/>}
 
         <button onClick={() => {
-          const penTool = refEditor.current.toolController.getPrimaryTools();
+          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
           if (tool === 'eraser') {
             setTool(null);
@@ -465,9 +467,9 @@ function App() {
         </button>
 
         <button onClick={() => {
-          const penTool = refEditor.current.toolController.getPrimaryTools();
+          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-          refEditor.current.toolController.setToolEnabled(penTool[5]);
+          refEditor.current!.toolController.setToolEnabled(penTool[5]);
 
           if (tool === 'shapes') {
             setTool(null);
@@ -487,7 +489,7 @@ function App() {
           changeBorderColorShape={changeBorderColorShape}
           changeColorShape={changeColorShape}
           changeShape={changeShape}
-                              />}
+        />}
       </div>
 
       <img alt="placeholder"

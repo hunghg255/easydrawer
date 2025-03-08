@@ -387,6 +387,8 @@ export default class BackgroundComponent extends AbstractComponent implements Re
       return localizationTable.emptyBackground;
     } else if (this.backgroundType === BackgroundType.Grid) {
       return localizationTable.gridBackground;
+    } else if (this.backgroundType === BackgroundType.Dot) {
+      return localizationTable.dotBackground;
     } else {
       const exhaustivenessCheck: never = this.backgroundType;
       return exhaustivenessCheck;
@@ -413,6 +415,7 @@ export default class BackgroundComponent extends AbstractComponent implements Re
     if (
       jsonBackgroundType === BackgroundType.None ||
 			jsonBackgroundType === BackgroundType.Grid ||
+			jsonBackgroundType === BackgroundType.Dot ||
 			jsonBackgroundType === BackgroundType.SolidColor
     ) {
       backgroundType = jsonBackgroundType;

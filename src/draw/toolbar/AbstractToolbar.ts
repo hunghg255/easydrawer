@@ -12,7 +12,6 @@ import DocumentPropertiesWidget from './widgets/DocumentPropertiesWidget';
 import EraserWidget from './widgets/EraserToolWidget';
 import ExitActionWidget from './widgets/ExitActionWidget';
 import HandToolWidget from './widgets/HandToolWidget';
-import InsertImageWidget from './widgets/InsertImageWidget/InsertImageWidget';
 import PenToolWidget from './widgets/PenToolWidget';
 import SaveActionWidget from './widgets/SaveActionWidget';
 import SelectionToolWidget from './widgets/SelectionToolWidget';
@@ -601,7 +600,7 @@ export default abstract class AbstractToolbar {
 	 */
   public addDefaultToolWidgets() {
     this.addWidgetsForPrimaryTools();
-    // this.addDefaultEditorControlWidgets();
+    this.addDefaultEditorControlWidgets();
   }
 
   /**
@@ -612,7 +611,7 @@ export default abstract class AbstractToolbar {
 	 */
   public addDefaultEditorControlWidgets() {
     this.addWidget(new DocumentPropertiesWidget(this.editor, this.localizationTable));
-    this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
+    // this.addWidget(new InsertImageWidget(this.editor, this.localizationTable));
   }
 
   public addDefaultActionButtons() {

@@ -432,7 +432,7 @@ export class Editor {
       });
     });
     this.display = new Display(this, this.settings.renderingMode, this.renderingRegion);
-    this.image = new EditorImage();
+
     this.history = new UndoRedoHistory(this, this.announceRedoCallback, this.announceUndoCallback);
     this.toolController = new ToolController(this, this.localization);
 
@@ -441,6 +441,10 @@ export class Editor {
     this.toolController.addInputMapper(new ContextMenuRecognizer());
 
     parent.appendChild(this.container);
+    console.log(this.display.width);
+    console.log(this.display.height);
+
+    this.image = new EditorImage(this.display.width, this.display.height);
 
     this.viewport.updateScreenSize(Vec2.of(this.display.width, this.display.height));
 
@@ -590,6 +594,7 @@ export class Editor {
 
     const handleResize = () => {
       this.viewport.updateScreenSize(Vec2.of(this.display.width, this.display.height));
+      this.image.updateScreenSizeImage(this.display.width, this.display.height);
       this.rerender();
       this.updateEditorSizeVariables();
     };

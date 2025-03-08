@@ -30,6 +30,7 @@ export enum BackgroundType {
   SolidColor,
   Grid,
   None,
+  Dot = 3,
 }
 
 export const imageBackgroundCSSClassName = 'easydrawer-image-background';
@@ -44,6 +45,7 @@ export const imageBackgroundNonAutomaticSecondaryColorCSSClassName =
 
 export const backgroundTypeToClassNameMap = {
   [BackgroundType.Grid]: 'easydrawer-image-background-grid',
+  [BackgroundType.Dot]: 'easydrawer-image-background-dot',
   [BackgroundType.SolidColor]: imageBackgroundCSSClassName,
   [BackgroundType.None]: '',
 };

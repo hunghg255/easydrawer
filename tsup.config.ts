@@ -6,11 +6,9 @@ export default defineConfig({
   treeshake: true,
   clean: true,
   platform: 'browser',
-  dts: {
-    entry: 'src/index.ts',
-  },
+  dts: true,
   splitting: true,
   minify: true,
-  sourcemap: false,
+  sourcemap: process.env.NODE_ENV !== 'production',
   ignoreWatch: ['**/node_modules', '**/dist'],
 });

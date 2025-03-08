@@ -89,7 +89,7 @@ export default class EditorImage {
   public readonly notifier: EditorImageNotifier;
 
   // @internal
-  public constructor() {
+  public constructor(width?: number, height?: number) {
     this.root = new RootImageNode();
     this.background = new RootImageNode();
     this.componentsById = new Map();
@@ -100,8 +100,12 @@ export default class EditorImage {
     });
 
     // Default to a 500x500 image
-    this.importExportViewport.updateScreenSize(Vec2.of(500, 500));
+    this.importExportViewport.updateScreenSize(Vec2.of(width || 500, height || 500));
     this.shouldAutoresizeExportViewport = false;
+  }
+
+  updateScreenSizeImage(width: number, height: number) {
+    this.importExportViewport.updateScreenSize(Vec2.of(width || 500, height || 500));
   }
 
   // Returns all components that make up the background of this image. These
@@ -1316,4 +1320,5 @@ export class RootImageNode extends ImageNode {
       return exhaustivenessCheck;
     }
   }
+
 }

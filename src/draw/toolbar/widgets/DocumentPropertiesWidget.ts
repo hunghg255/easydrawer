@@ -123,10 +123,25 @@ export default class DocumentPropertiesWidget extends BaseWidget {
 
     this.editor.dispatch(this.editor.image.setImportExportRect(newRect));
     this.editor.queueRerender();
+
   }
 
   protected override getHelpText(): string {
     return this.localizationTable.pageDropdown__baseHelpText;
+  }
+
+  setBackgroundGrid() {
+    this.editor.dispatch(this.setBackgroundType(BackgroundType.Grid));
+    this.editor.dispatch(this.editor.image.setAutoresizeEnabled(true));
+  }
+
+  setBackgroundDot() {
+    this.editor.dispatch(this.setBackgroundType(BackgroundType.Dot));
+    this.editor.dispatch(this.editor.image.setAutoresizeEnabled(true));
+  }
+
+  removeBackground() {
+    this.editor.dispatch(this.setBackgroundType(BackgroundType.None));
   }
 
   private static idCounter = 0;

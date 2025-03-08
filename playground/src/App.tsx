@@ -1,12 +1,35 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { useEffect, useState } from 'react';
-import './App.css';
 
+import { Button, ColorPicker, Slider } from 'antd';
 import {
   makeDropdownToolbar,
   Editor,
-  Color4
+  Color4,
 } from 'easydrawer';
+import { Circle,Triangle, Diamond, RectangleHorizontal, Square, LucideArrowLeft } from 'lucide-react';
+
+import styles from './App.module.css';
+
+export function TablerHexagonalPrism() {
+  return (
+    <svg height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <g fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+      >
+        <path d="m20.792 6.996l-3.775 2.643A2 2 0 0 1 15.87 10H8.13c-.41 0-.81-.126-1.146-.362L3.21 6.997M8 10v11m8-11v11"></path>
+        <path d="m3.853 18.274l3.367 2.363A2 2 0 0 0 8.367 21h7.265c.41 0 .811-.126 1.147-.363l3.367-2.363c.536-.375.854-.99.854-1.643V7.369c0-.655-.318-1.268-.853-1.643L16.78 3.363A2 2 0 0 0 15.633 3H8.367c-.41 0-.811.126-1.147.363L3.853 5.726A2 2 0 0 0 3 7.37v9.261c0 .655.318 1.269.853 1.644z"></path>
+      </g>
+    </svg>
+  );
+}
 
 const enum ShapeType {
   square= 0,
@@ -19,30 +42,18 @@ const enum ShapeType {
 }
 
 function PencilOption ({ setColorPen, setThicknessPen }: any) {
+  const [thickness, setThickness] = useState(1.5);
+
   return (
-    <div className='options'>
+    <div className={styles.options}>
       <div>
         <p>
           Color
         </p>
 
-        <button
-          onClick={() => setColorPen(Color4.black)}
-        >
-          Black
-        </button>
-
-        <button onClick={() => setColorPen(Color4.red)}>
-          Red
-        </button>
-
-        <button onClick={() => setColorPen(Color4.white)}>
-          White
-        </button>
-
-        <button onClick={() => setColorPen(Color4.green)}>
-          Green
-        </button>
+        <ColorPicker
+          onChange={(color) => setColorPen(Color4.fromHex(color.toHex()))}
+        />
       </div>
 
       <div>
@@ -50,17 +61,39 @@ function PencilOption ({ setColorPen, setThicknessPen }: any) {
           Lighweight
         </p>
 
-        <button onClick={() => setThicknessPen(1.5)}>
-          Thin (1.5px)
-        </button>
+        <Button onClick={() => {
+          setThicknessPen(1.5);
+          setThickness(1.5);
+        }}
+        style={{
+          border: thickness === 1.5 ? '3px solid black' : '1px solid #aaa',
+        }}
+        >
+          1.5
+        </Button>
 
-        <button onClick={() => setThicknessPen(3)}>
-          Medium (3px)
-        </button>
+        <Button onClick={() => {
+          setThicknessPen(3);
+          setThickness(3);
+        }}
+        style={{
+          margin: '0 10px',
+          border: thickness ===3 ? '3px solid black' : '1px solid #aaa',
+        }}
+        >
+          3
+        </Button>
 
-        <button onClick={() => setThicknessPen(5)}>
-          Thick (5px)
-        </button>
+        <Button onClick={() => {
+          setThicknessPen(5);
+          setThickness(5);
+        }}
+        style={{
+          border: thickness === 5 ? '3px solid black' : '1px solid #aaa',
+        }}
+        >
+          5
+        </Button>
       </div>
     </div>
   );
@@ -68,180 +101,152 @@ function PencilOption ({ setColorPen, setThicknessPen }: any) {
 
 function HighlightOption ({ setColorHighlight }: any) {
   return (
-    <div className='options'>
+    <div className={styles.options}>
       <div>
         <p>
           Color
         </p>
 
-        <button onClick={() => setColorHighlight(Color4.blackHighlight)}>
-          Black
-        </button>
-
-        <button onClick={() => setColorHighlight(Color4.blueHighlight)}>
-          Blue
-        </button>
-
-        <button onClick={() => setColorHighlight(Color4.redHighlight)}>
-          Red
-        </button>
+        <ColorPicker
+          onChange={(color) => setColorHighlight(Color4.fromHex(color.toHex()))}
+        />
       </div>
     </div>
   );
 }
 
-function ShapeOption ({ changeShape, changeColorShape, changeBorderColorShape }: any) {
+function ShapeOption ({ changeShape, changeColorShape, changeBorderColorShape,
+  onThicknessChange
+
+}: any) {
+  const [type, setType] = useState(ShapeType.square);
+
   return (
-    <div className='options'>
+    <div className={styles.options}>
       <div>
         <p>
           Type
         </p>
 
-        <button onClick={() => changeShape(ShapeType.square)}>
-          Vuông
-        </button>
+        <Button onClick={() => {
+          changeShape(ShapeType.square);
+          setType(ShapeType.square);
+        }}
+        style={{
+          border: type === ShapeType.square ? '3px solid black' : '1px solid #aaa',
+          margin: '0 5px',
+        }}
+        >
+          <Square />
+        </Button>
 
-        <button onClick={() => changeShape(ShapeType.rectangle)}>
-          Chữ nhật
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.rectangle);
+            setType(ShapeType.rectangle);
+          }}
+          style={{
+            border: type === ShapeType.rectangle ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <RectangleHorizontal />
+        </Button>
 
-        <button   onClick={() => changeShape(ShapeType.circle)}>
-          Tròn
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.circle);
+            setType(ShapeType.circle);
+          }}
+          style={{
+            border: type === ShapeType.circle ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <Circle />
+        </Button>
 
-        <button onClick={() => changeShape(ShapeType.triangle)}>
-          Tam giác
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.triangle);
+            setType(ShapeType.triangle);
+          }}
+          style={{
+            border: type === ShapeType.triangle ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <Triangle />
+        </Button>
 
-        <button  onClick={() => changeShape(ShapeType.hexagonal)}>
-          Lúc Giác
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.hexagonal);
+            setType(ShapeType.hexagonal);
+          }}
+          style={{
+            border: type === ShapeType.hexagonal ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <TablerHexagonalPrism />
+        </Button>
 
-        <button onClick={() => changeShape(ShapeType.diamond)}>
-          Hình Thoi
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.diamond);
+            setType(ShapeType.diamond);
+          }}
+          style={{
+            border: type === ShapeType.diamond ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <Diamond />
+        </Button>
 
-        <button onClick={() => changeShape(ShapeType.arrow)}>
-          Mũi Tên
-        </button>
+        <Button
+          onClick={() => {
+            changeShape(ShapeType.arrow);
+            setType(ShapeType.arrow);
+          }}
+          style={{
+            border: type === ShapeType.arrow ? '3px solid black' : '1px solid #aaa',
+            margin: '0 5px',
+          }}
+        >
+          <LucideArrowLeft />
+        </Button>
       </div>
 
       <div>
-        Filled Color
-        <button>
-          X
-        </button>
+        <p>
+          Filled Color
+        </p>
 
-        <button onClick={() => changeColorShape(Color4.black)}>
-          Black
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.red)}>
-          red
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.blue)}>
-          blue
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.orange)}>
-          orange
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.green)}>
-          green
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.gray)}>
-          gray
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.white)}>
-          white
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.pink)}>
-          pink
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.blueLight)}>
-          blue light
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.yellow)}>
-          yellow
-        </button>
-
-        <button onClick={() => changeColorShape(Color4.greenLight)}>
-          green light
-        </button>
+        <ColorPicker
+          onChange={(color) => changeColorShape(Color4.fromHex(color.toHex()))}
+        />
       </div>
 
       <div>
-        Border Color
+        <p>
+          Border Color
+        </p>
 
-        <button>
-          X
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.black)}>
-          Black
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.red)}>
-          red
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.blue)}>
-          blue
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.orange)}>
-          orange
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.green)}>
-          green
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.gray)}>
-          gray
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.white)}>
-          white
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.pink)}>
-          pink
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.blueLight)}>
-          blue light
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.yellow)}>
-          yellow
-        </button>
-
-        <button onClick={() => changeBorderColorShape(Color4.greenLight)}>
-          green light
-        </button>
+        <ColorPicker
+          onChange={(color) => changeBorderColorShape(Color4.fromHex(color.toHex()))}
+        />
       </div>
 
       <div>
-        Border Thickness
+        <p>
+          Border Thickness
+        </p>
 
-        <input type='range' />
-      </div>
-
-      <div>
-        Preview
-
-        <button>
-          Insert
-        </button>
+        <Slider
+          onChange={(value) => onThicknessChange(value)}
+        />
       </div>
     </div>
   );
@@ -252,33 +257,20 @@ function App() {
   const [edit, setEdit] = useState(false);
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
+  const [grid, setGrid] = useState(false);
 
   useEffect(() => {
     const init = async () => {
-      const parentElement = document.body;
-      refEditor.current = new Editor(parentElement, {
-        minZoom: 1,
-        maxZoom: 1,
-      });
+      const parentElement = document.querySelector('#easydrawer');
+
+      if (!parentElement) return;
+
+      refEditor.current = new Editor(parentElement as any);
 
       refWidget.current = makeDropdownToolbar(refEditor.current);
       refWidget.current.addDefaultToolWidgets();
 
-      // const saveButton = refWidget.current.addSaveButton(() => {
-      //   console.log('save');
-      //   const svgElem = refEditor.current!.toSVG();
-      //   console.log('The saved SVG:', svgElem.outerHTML);
-
-      // });
-
-      //       const d = `
-      // <svg viewBox="0 0 500 500" width="500" height="500" version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg"><style id="easydrawer-style-sheet">path{stroke-linecap:round;stroke-linejoin:round;}text{white-space:pre;}</style><path d="M793,55q-29,7 -42,12q-36.6,14.1 -62,31q-15,10 -35,46q-14.7,26.4 145,42q4.6,.4 -22,7q-20.9,4.5 -38,8q-13.5,2.7 -20,6q-1.5,.8 6-6q1.7-1.5 36-14q9.3-2.9 17-5q5.5-8.6 8-18q7.6-28.5 54-61q14.3-10 44-10q8.2,0 21,32q4,10 4,46q0,17.2 -41,50q-16.2,13 -48,18q-81.3,12.8 -102-1q-6.7-4.5 -1-33q1-5 16-15q3-2 31-2q5.5,.5 10,1" fill="none" stroke="#000000" stroke-width=".8"></path><path d="M757,102q-22,0 -33,3q-37.3,10.2 -77,13q-18.7,2.9 -34,6q-29.3,5.9 -31,7" fill="none" stroke="#d7273d" stroke-width=".8"></path><path d="M490,83q77-1 130-1q6,0 14-4" fill="none" stroke="#ffffff" stroke-width=".8"></path><path d="M478,121q116,0 126-1q8.8-.9 13-3" fill="none" stroke="#00875a" stroke-width=".8"></path><path d="M462,188q83.9-1.8 95-4q19.2-2 35-3q1.2-.1 6-1" fill="none" stroke="#00875a" stroke-width="1.5"></path><path d="M493,220q89.1,0 162,0" fill="none" stroke="#00875a" stroke-width="2.5"></path><path d="M451,140l0-20q-71,0 -157,0l0,20q86,0 157,0" fill="#2576b94d"></path><path d="M48,63l41,0l0,41l-41,0l0-41" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M139,161l0-20l-95,0l0,20l95,0" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M155,212q0-23 -20-35q-20-11 -40,0q-20,12 -20,35q0,23 20,35q20,11 40,0q20-12 20-35" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M205,216l57,41l-64,29l7-70" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M384,281l-11,19l-23,0l-11-19l11-20l23,0l11,20" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M431,297l24-30l24,30l-24,30l-24-30" fill="#f99f07" stroke="#000000" stroke-width="1"></path><path d="M561,435l151,40l-151-41l0-1l-1,1l0,1l1,0" fill="#f99f07"></path><path d="M355,433l-140,36l140-35l1,0l0-1l-1-1l0,1" fill="#f99f07"></path></svg>
-      // `;
-      //       await refEditor.current.loadFromSVG(d);
-
-      // After loading, re-enable editing.
-      // editor.setReadOnly(false);
-      // saveButton.setDisabled(false);
+      // document-properties-widget
     };
 
     init();
@@ -302,9 +294,6 @@ function App() {
   const setColorPen = (color: string) => {
     const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
     const shapeWidget = refWidget.current.getWidgetById('pen-1');
-
-    console.log(refWidget.current);
-    console.log(shapeWidget);
 
     if (penTool && shapeWidget) {
       penTool.setColor(color);
@@ -351,6 +340,16 @@ function App() {
     }
   };
 
+  const onThicknessChange = (v: any) => {
+    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
+    const shapeWidget = refWidget.current.getWidgetById('shape');
+
+    if (penTool && shapeWidget) {
+      penTool.setThickness(v);
+      shapeWidget.serializeState();
+    }
+  };
+
   const changeBorderColorShape = (color: string) => {
     const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
     const shapeWidget = refWidget.current.getWidgetById('shape');
@@ -361,148 +360,256 @@ function App() {
     }
   };
 
+  const saveButtonSvg = () => {
+    const svgElem = refEditor.current!.toSVG();
+
+    console.log('The saved SVG:', svgElem.outerHTML);
+    // download svg string
+    const svgString = new XMLSerializer().serializeToString(svgElem);
+    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'drawing.svg';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const saveButtonImage = () => {
+    const img = refEditor.current!.toDataURL("image/webp");
+    const a = document.createElement('a');
+    a.href = img;
+    a.download = 'drawing.png';
+    a.click();
+  };
+
+  const toggleGrid = () => {
+    const documentW = refWidget.current.getWidgetById('document-properties-widget');
+
+    if (!grid) {
+      documentW?.setBackgroundGrid();
+      setGrid(true);
+    } else {
+      documentW?.removeBackground();
+      setGrid(false);
+    }
+  };
+
   return (
     <>
-      <div className='wrapper'>
-        <button
-          onClick={() => setEdit(!edit)}
+
+      <div className={styles.lessonContent}>
+        <div
+          className={styles.wrapper}
         >
-          {!edit ? 'Edit ✅' : 'Disable ❌'}
-        </button>
+          <Button
+            onClick={() => setEdit(!edit)}
 
-        <button
-          onClick={() => {
-            const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            {!edit ? 'Edit ✅' : 'Disable ❌'}
+          </Button>
 
-            if (tool === 'select') {
-              setTool(null);
-              penTool[0].setEnabled(false);
+          <Button
+            type='primary'
 
-              return;
-            }
-            setTool('select');
-            penTool[0].setEnabled(true);
-          }}
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              if (tool === 'select') {
+                setTool(null);
+                penTool[0].setEnabled(false);
+
+                return;
+              }
+              setTool('select');
+              penTool[0].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Select Tool
+            {' '}
+            {tool === 'select' && '✅'}
+          </Button>
+
+          <Button
+            type='primary'
+
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              refEditor.current!.toolController.setToolEnabled(penTool[1]);
+              if (tool === 'text') {
+                penTool[1].setEnabled(false);
+
+                setTool(null);
+                return;
+              }
+              setTool('text');
+              penTool[1].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Text
+            {' '}
+            {tool === 'text' && '✅'}
+          </Button>
+
+          <Button
+            type='primary'
+
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              if (tool === 'pencil') {
+                setTool(null);
+                penTool[2].setEnabled(false);
+                return;
+              }
+              setTool('pencil');
+              penTool[2].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Pencil Tool
+            {' '}
+            {tool === 'pencil' && '✅'}
+          </Button>
+
+          {tool === 'pencil' && <PencilOption
+            setColorPen={setColorPen}
+            setThicknessPen={setThicknessPen}
+          />}
+
+          <Button
+            type='primary'
+
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              if (tool === 'highlighter') {
+                setTool(null);
+                penTool[3].setEnabled(false);
+                return;
+              }
+              setTool('highlighter');
+              penTool[3].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Highlighter
+            {' '}
+            {tool === 'highlighter' && '✅'}
+          </Button>
+
+          {tool === 'highlighter' && <HighlightOption setColorHighlight={setColorHighlight}/>}
+
+          <Button
+            type='primary'
+
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              if (tool === 'eraser') {
+                setTool(null);
+                penTool[4].setEnabled(false);
+                return;
+              }
+              setTool('eraser');
+              penTool[4].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Eraser
+            {' '}
+            {tool === 'eraser' && '✅'}
+          </Button>
+
+          <Button
+            type='primary'
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+
+              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+
+              if (tool === 'shapes') {
+                setTool(null);
+                penTool[5].setEnabled(false);
+                return;
+              }
+              setTool('shapes');
+              penTool[5].setEnabled(true);
+            }}
+            style={{
+              width: '100%',
+            }}
+          >
+            Shapes
+            {' '}
+            {tool === 'shapes' && '✅'}
+          </Button>
+
+          {tool === 'shapes' && <ShapeOption
+            changeBorderColorShape={changeBorderColorShape}
+            changeColorShape={changeColorShape}
+            changeShape={changeShape}
+            onThicknessChange={onThicknessChange}
+          />}
+
+          <hr />
+
+          <Button
+            onClick={saveButtonSvg}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Save SVG
+          </Button>
+
+          <Button
+            onClick={saveButtonImage}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Save PNG
+          </Button>
+
+          <Button
+            onClick={toggleGrid}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Toogle Grid
+            {' '}
+            {grid ? '❌' : '✅'}
+          </Button>
+
+        </div>
+
+        <div className={styles.easyDrawer}
+          id='easydrawer'
         >
-          Select Tool
-          {' '}
-          {tool === 'select' && '✅'}
-        </button>
-
-        <button onClick={() => {
-          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
-
-          refEditor.current!.toolController.setToolEnabled(penTool[1]);
-          if (tool === 'text') {
-            penTool[1].setEnabled(false);
-
-            setTool(null);
-            return;
-          }
-          setTool('text');
-          penTool[1].setEnabled(true);
-        }}
-        >
-          Text
-          {' '}
-          {tool === 'text' && '✅'}
-        </button>
-
-        <button onClick={() => {
-          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
-
-          if (tool === 'pencil') {
-            setTool(null);
-            penTool[2].setEnabled(false);
-            return;
-          }
-          setTool('pencil');
-          penTool[2].setEnabled(true);
-        }}
-        >
-          Pencil Tool
-          {' '}
-          {tool === 'pencil' && '✅'}
-        </button>
-
-        {tool === 'pencil' && <PencilOption
-          setColorPen={setColorPen}
-          setThicknessPen={setThicknessPen}
-        />}
-
-        <button onClick={() => {
-          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
-
-          if (tool === 'highlighter') {
-            setTool(null);
-            penTool[3].setEnabled(false);
-            return;
-          }
-          setTool('highlighter');
-          penTool[3].setEnabled(true);
-        }}
-        >
-          Highlighter
-          {' '}
-          {tool === 'highlighter' && '✅'}
-        </button>
-
-        {tool === 'highlighter' && <HighlightOption setColorHighlight={setColorHighlight}/>}
-
-        <button onClick={() => {
-          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
-
-          if (tool === 'eraser') {
-            setTool(null);
-            penTool[4].setEnabled(false);
-            return;
-          }
-          setTool('eraser');
-          penTool[4].setEnabled(true);
-        }}
-        >
-          Eraser
-          {' '}
-          {tool === 'eraser' && '✅'}
-        </button>
-
-        <button onClick={() => {
-          const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
-
-          refEditor.current!.toolController.setToolEnabled(penTool[5]);
-
-          if (tool === 'shapes') {
-            setTool(null);
-            penTool[5].setEnabled(false);
-            return;
-          }
-          setTool('shapes');
-          penTool[5].setEnabled(true);
-        }}
-        >
-          Shapes
-          {' '}
-          {tool === 'shapes' && '✅'}
-        </button>
-
-        {tool === 'shapes' && <ShapeOption
-          changeBorderColorShape={changeBorderColorShape}
-          changeColorShape={changeColorShape}
-          changeShape={changeShape}
-        />}
+        </div>
       </div>
-
-      <img alt="placeholder"
-        src="https://plus.unsplash.com/premium_photo-1681412205238-8171ccaca82b?q=80&w=3540&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
-      />
     </>
   );
 }

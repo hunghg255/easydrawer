@@ -1,4 +1,5 @@
 import { makePressureSensitiveFreehandLineBuilder, SelectionTool, TextTool } from '~/draw/lib';
+import PanZoom, { PanZoomMode } from '~/draw/tools/PanZoom';
 import ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
 
@@ -40,16 +41,16 @@ export default class ToolController implements InputEventListener {
     const primaryToolGroup = new ToolEnabledGroup();
     this.primaryToolGroup = primaryToolGroup;
 
-    // const panZoomTool = new PanZoom(
-    //   editor,
-    //   PanZoomMode.TwoFingerTouchGestures | PanZoomMode.RightClickDrags,
-    //   localization.touchPanTool,
-    // );
-    // const keyboardPanZoomTool = new PanZoom(
-    //   editor,
-    //   PanZoomMode.Keyboard,
-    //   localization.keyboardPanZoom,
-    // );
+    const panZoomTool = new PanZoom(
+      editor,
+      PanZoomMode.TwoFingerTouchGestures | PanZoomMode.RightClickDrags,
+      localization.touchPanTool,
+    );
+    const keyboardPanZoomTool = new PanZoom(
+      editor,
+      PanZoomMode.Keyboard,
+      localization.keyboardPanZoom,
+    );
     const primaryPenTool = new Pen(editor, localization.penTool(1), {
       color: Color4.black,
       thickness: 1.5,
@@ -59,14 +60,6 @@ export default class ToolController implements InputEventListener {
       color: Color4.black,
       thickness: 1.5,
     });
-
-    // const secondaryPenTool = new Pen(editor, localization.penTool(2), {
-    //   color: Color4.clay,
-    //   thickness: 4,
-    // });
-
-    // Stabilize the secondary pen tool.
-    // secondaryPenTool.setInputMapper(new InputStabilizer(editor.viewport));
 
     const eraser = new Eraser(editor, localization.eraserTool);
 
@@ -85,7 +78,6 @@ export default class ToolController implements InputEventListener {
       }),
 
       eraser,
-      // new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
       shapeTool
     ];
 
@@ -98,9 +90,8 @@ export default class ToolController implements InputEventListener {
       // new ScrollbarTool(editor),
       // new PipetteTool(editor, localization.pipetteTool),
       // soundExplorer,
-      // panZoomTool,
       ...primaryTools,
-      // keyboardPanZoomTool,
+
       new UndoRedoShortcut(editor),
       new ToolbarShortcutHandler(editor),
       new ToolSwitcherShortcut(editor),
@@ -108,9 +99,13 @@ export default class ToolController implements InputEventListener {
       new FindTool(editor),
       new PasteHandler(editor),
       new SelectAllShortcutHandler(editor),
+
+      panZoomTool,
+      keyboardPanZoomTool,
+      new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
     ];
     primaryTools.forEach((tool) => tool.setToolGroup(primaryToolGroup));
-    // panZoomTool.setEnabled(true);
+    panZoomTool.setEnabled(true);
     primaryPenTool.setEnabled(true);
 
     editor.notifier.on(EditorEventType.ToolEnabled, (event) => {

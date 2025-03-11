@@ -441,8 +441,6 @@ export class Editor {
     this.toolController.addInputMapper(new ContextMenuRecognizer());
 
     parent.appendChild(this.container);
-    console.log(this.display.width);
-    console.log(this.display.height);
 
     this.image = new EditorImage(this.display.width, this.display.height);
 

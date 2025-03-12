@@ -268,6 +268,82 @@ export default class BackgroundComponent extends AbstractComponent implements Re
     return new Path(startPoint, result);
   }
 
+  private generateDotPath(visibleRect?: Rect2) {
+    const contentBBox = this.getFullBoundingBox(visibleRect);
+
+    // .grownBy acts on all sides, so we need only grow by strokeWidth / 2 (1 * the stroke radius)
+    const targetRect = (visibleRect?.intersection(contentBBox) ?? contentBBox).grownBy(
+      this.gridStrokeWidth / 2,
+    );
+
+    const roundDownToGrid = (coord: number) => Math.floor(coord / this.gridSize) * this.gridSize;
+    const roundUpToGrid = (coord: number) => Math.ceil(coord / this.gridSize) * this.gridSize;
+
+    const startY = roundUpToGrid(targetRect.y);
+    const endY = roundDownToGrid(targetRect.y + targetRect.h);
+    const startX = roundUpToGrid(targetRect.x);
+    const endX = roundDownToGrid(targetRect.x + targetRect.w);
+
+    const result: PathCommand[] = [];
+
+    // Don't generate grids with a huge number of rows/columns -- such grids
+    // take a long time to render and are likely invisible due to the number of
+    // cells.
+    const rowCount = (endY - startY) / this.gridSize;
+    const colCount = (endX - startX) / this.gridSize;
+    const maxGridCols = 1000;
+    const maxGridRows = 1000;
+    if (rowCount > maxGridRows || colCount > maxGridCols) {
+      return Path.empty;
+    }
+
+    const startPoint = Vec2.of(targetRect.x, startY);
+
+    for (let y = startY; y <= endY; y += this.gridSize) {
+      for (let x = startX; x <= endX; x += this.gridSize) {
+        const center = Vec2.of(x, y);
+        const radius = this.gridStrokeWidth;
+
+        // Move to the rightmost point of the circle
+        result.push({
+          kind: PathCommandType.MoveTo,
+          point: Vec2.of(x + radius, y),
+        });
+
+        // Draw circle using four arc segments
+        // Top right quadrant
+        result.push({
+          kind: PathCommandType.QuadraticBezierTo,
+          controlPoint: Vec2.of(x + radius, y - radius * 0.55),
+          endPoint: Vec2.of(x, y - radius),
+        });
+
+        // Top left quadrant
+        result.push({
+          kind: PathCommandType.QuadraticBezierTo,
+          controlPoint: Vec2.of(x - radius * 0.55, y - radius),
+          endPoint: Vec2.of(x - radius, y),
+        });
+
+        // Bottom left quadrant
+        result.push({
+          kind: PathCommandType.QuadraticBezierTo,
+          controlPoint: Vec2.of(x - radius, y + radius * 0.55),
+          endPoint: Vec2.of(x, y + radius),
+        });
+
+        // Bottom right quadrant
+        result.push({
+          kind: PathCommandType.QuadraticBezierTo,
+          controlPoint: Vec2.of(x + radius * 0.55, y + radius),
+          endPoint: Vec2.of(x + radius, y),
+        });
+      }
+    }
+
+    return new Path(startPoint, result);
+  }
+
   /**
 	 * @returns this background's bounding box if the screen size is taken into
 	 * account (which may be necessary if this component is configured to fill the
@@ -330,7 +406,31 @@ export default class BackgroundComponent extends AbstractComponent implements Re
         fill: Color4.transparent,
         stroke: { width: this.gridStrokeWidth, color: gridColor },
       };
+
       canvas.drawPath(pathToRenderable(this.generateGridPath(visibleRect), style));
+    }
+
+    if (this.backgroundType === BackgroundType.Dot) {
+      let dotColor = this.secondaryColor;
+      dotColor ??= Color4.ofRGBA(
+        1 - this.mainColor.r,
+        1 - this.mainColor.g,
+        1 - this.mainColor.b,
+        0.2,
+      );
+
+      // If the background fill is completely transparent, ensure visibility on otherwise light
+      // and dark backgrounds.
+      if (this.mainColor.a === 0) {
+        dotColor = Color4.fromHex('#cccccc');
+      }
+
+      const style = {
+        fill: dotColor,
+        stroke: { width: this.gridStrokeWidth, color: dotColor },
+      };
+
+      canvas.drawPath(pathToRenderable(this.generateDotPath(visibleRect), style));
     }
 
     const backgroundTypeCSSClass = backgroundTypeToClassNameMap[this.backgroundType];

@@ -257,7 +257,7 @@ function App() {
   const [edit, setEdit] = useState(false);
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
-  const [grid, setGrid] = useState(false);
+  const [bg, setBg] = useState<'none' | 'grid' | 'dot'>('none');
 
   useEffect(() => {
     const init = async () => {
@@ -386,12 +386,26 @@ function App() {
   const toggleGrid = () => {
     const documentW = refWidget.current.getWidgetById('document-properties-widget');
 
-    if (!grid) {
+    if (bg !== 'grid') {
+      documentW?.removeBackground();
       documentW?.setBackgroundGrid();
-      setGrid(true);
+      setBg('grid');
     } else {
       documentW?.removeBackground();
-      setGrid(false);
+      setBg('none');
+    }
+  };
+
+  const toggleDot= () => {
+    const documentW = refWidget.current.getWidgetById('document-properties-widget');
+
+    if (bg !== 'dot') {
+      documentW?.removeBackground();
+      documentW?.setBackgroundDot();
+      setBg('dot');
+    } else {
+      documentW?.removeBackground();
+      setBg('none');
     }
   };
 
@@ -600,7 +614,19 @@ function App() {
           >
             Toogle Grid
             {' '}
-            {grid ? '❌' : '✅'}
+            {bg === 'grid' ? '❌' : '✅'}
+          </Button>
+
+          <Button
+            onClick={toggleDot}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Toogle Dot
+            {' '}
+            {bg === 'dot' ? '❌' : '✅'}
           </Button>
 
         </div>

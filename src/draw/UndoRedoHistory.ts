@@ -99,6 +99,14 @@ class UndoRedoHistory {
   public get redoStackSize(): number {
     return this.#redoStack.length;
   }
+
+  public clearAll(): void {
+    while (this.undoStackSize > 0) {
+      this.undo();
+    }
+    this.#undoStack = [];
+    this.#redoStack = [];
+  }
 }
 
 export default UndoRedoHistory;

@@ -43,7 +43,7 @@ class CircleBuilder implements ComponentBuilder {
     const stepSize = (Math.PI * 2) / numDivisions;
 
     // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
-    const strokeWidth = Viewport.roundPoint(
+    const strokeWidth = this.endPoint.width === 0 ? this.endPoint.width : Viewport.roundPoint(
       this.endPoint.width,
       5 / this.viewport.getScaleFactor(),
     );
@@ -85,7 +85,7 @@ class CircleBuilder implements ComponentBuilder {
         fill: this.endPoint.color,
         stroke: {
           width: strokeWidth,
-          color: this.endPoint.borderColor || this.endPoint.color,
+          color: strokeWidth === 0 ? this.endPoint.color : this.endPoint.borderColor || this.endPoint.color,
         },
       }),
     ]);

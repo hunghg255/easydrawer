@@ -53,7 +53,7 @@ export default class HexagonalBuilder implements ComponentBuilder {
   private buildPreview(): Stroke {
     const startPoint = this.startPoint.pos;
     const endPoint = this.endPoint.pos;
-    const strokeWidth = Viewport.roundPoint(
+    const strokeWidth = this.endPoint.width === 0 ? this.endPoint.width : Viewport.roundPoint(
       this.endPoint.width,
       5 / this.viewport.getScaleFactor(),
     );
@@ -92,7 +92,7 @@ export default class HexagonalBuilder implements ComponentBuilder {
         fill: this.endPoint.color ,
         stroke: {
           width: strokeWidth,
-          color: this.endPoint.borderColor || this.endPoint.color,
+          color: strokeWidth === 0 ? this.endPoint.color : this.endPoint.borderColor || this.endPoint.color,
         },
       }),
     ]);

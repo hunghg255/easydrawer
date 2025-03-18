@@ -58,7 +58,8 @@ export default class ToolController implements InputEventListener {
 
     const shapeTool = new ShapeTool(editor, localization.penTool(3), {
       color: Color4.black,
-      thickness: 1.5,
+      borderColor: Color4.black,
+      thickness: 0,
     });
 
     const eraser = new Eraser(editor, localization.eraserTool);

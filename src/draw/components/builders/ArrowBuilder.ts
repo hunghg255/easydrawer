@@ -4,7 +4,7 @@ import makeSnapToGridAutocorrect from './autocorrect/makeSnapToGridAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
-import type Viewport from '../../Viewport';
+import Viewport from '../../Viewport';
 import type AbstractComponent from '../AbstractComponent';
 import Stroke from '../Stroke';
 
@@ -31,7 +31,7 @@ export default class ArrowBuilder implements ComponentBuilder {
   }
 
   private getLineWidth(): number {
-    return Math.max(this.endPoint.width, this.startPoint.width);
+    return Math.max(this.endPoint.width || 5, this.startPoint.width || 5);
   }
 
   public getBBox(): Rect2 {
@@ -45,10 +45,16 @@ export default class ArrowBuilder implements ComponentBuilder {
     const toEnd = endPoint.minus(lineStartPoint).normalized();
     const arrowLength = endPoint.distanceTo(lineStartPoint);
 
+    // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
+    const strokeWidth = this.endPoint.width === 0 ? this.endPoint.width : Viewport.roundPoint(
+      this.endPoint.width,
+      5 / this.viewport.getScaleFactor(),
+    );
+
     // Ensure that the arrow tip is smaller than the arrow.
-    const arrowTipSize = Math.min(this.getLineWidth(), arrowLength / 2);
-    const startSize = this.startPoint.width / 2;
-    const endSize = this.endPoint.width / 2;
+    const arrowTipSize = Math.min(strokeWidth + 3, arrowLength / 2);
+    const startSize = strokeWidth + 3;
+    const endSize = strokeWidth + 3;
 
     const arrowTipBase = endPoint.minus(toEnd.times(arrowTipSize));
 
@@ -98,6 +104,10 @@ export default class ArrowBuilder implements ComponentBuilder {
         commands: path.parts,
         style: {
           fill: this.startPoint.color,
+          stroke: {
+            width: strokeWidth,
+            color: strokeWidth === 0 ? this.endPoint.color : this.endPoint.borderColor || this.endPoint.color,
+          },
         },
       },
     ]);

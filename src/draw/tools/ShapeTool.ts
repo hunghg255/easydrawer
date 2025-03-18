@@ -57,7 +57,7 @@ export default class ShapeTool extends BaseTool {
       factory: makeFreehandLineBuilder,
       color: Color4.black,
       borderColor: Color4.black,
-      thickness: 4,
+      thickness: 0,
       ...style,
     });
 

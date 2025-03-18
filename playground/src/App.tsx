@@ -252,6 +252,8 @@ function ShapeOption ({ changeShape, changeColorShape, changeBorderColorShape,
   );
 }
 
+let clear = false;
+
 function App() {
   const [tool, setTool] = useState<'select' | 'text' | 'pencil' | 'highlighter' | 'eraser' | 'shapes' | null>(null);
   const [edit, setEdit] = useState(false);
@@ -407,6 +409,37 @@ function App() {
       documentW?.removeBackground();
       setBg('none');
     }
+  };
+
+  const onUndo =() => {
+    if (clear) {
+      while (refEditor.current!.history.redoStackSize > 0) {
+        refEditor.current!.history.redo();
+      }
+      clear = false;
+      return;
+    }
+
+    refEditor.current!.history.undo();
+  };
+
+  const onRedo =() => {
+    if (clear) {
+      return;
+    }
+
+    refEditor.current!.history.redo();
+  };
+
+  const onClear =() => {
+    if (clear) {
+      return;
+    }
+
+    while (refEditor.current!.history.undoStackSize > 0) {
+      onUndo();
+    }
+    clear = true;
   };
 
   return (
@@ -582,6 +615,38 @@ function App() {
             changeShape={changeShape}
             onThicknessChange={onThicknessChange}
           />}
+
+          <hr />
+
+          <Button
+            onClick={onUndo}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Undo
+          </Button>
+
+          <Button
+            onClick={onRedo}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Redo
+          </Button>
+
+          <Button
+            onClick={onClear}
+            type='primary'
+            style={{
+              width: '100%',
+            }}
+          >
+            Clear
+          </Button>
 
           <hr />
 

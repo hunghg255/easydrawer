@@ -181,6 +181,8 @@ export interface EditorSettings {
     /** Plugins that create custom components while loading with {@link Editor.loadFromSVG}. */
     loaderPlugins?: SVGLoaderPlugin[];
   } | null;
+
+  disableZoom: boolean;
 }
 
 /**
@@ -379,6 +381,7 @@ export class Editor {
         loaderPlugins: settings.svg?.loaderPlugins ?? [],
       },
       clipboardApi: settings.clipboardApi ?? null,
+      disableZoom: settings.disableZoom ?? false,
     } satisfies EditorSettings;
 
     // Validate settings

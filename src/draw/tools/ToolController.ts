@@ -87,6 +87,12 @@ export default class ToolController implements InputEventListener {
     // soundExplorer.setEnabled(false);
     shapeTool.setEnabled(false);
 
+    const zoomTool = [
+      panZoomTool,
+      keyboardPanZoomTool,
+      new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
+    ];
+
     this.tools = [
       // new ScrollbarTool(editor),
       // new PipetteTool(editor, localization.pipetteTool),
@@ -100,11 +106,12 @@ export default class ToolController implements InputEventListener {
       new FindTool(editor),
       new PasteHandler(editor),
       new SelectAllShortcutHandler(editor),
-
-      panZoomTool,
-      keyboardPanZoomTool,
-      new PanZoom(editor, PanZoomMode.SinglePointerGestures, localization.anyDevicePanning),
     ];
+
+    if (!editor.getCurrentSettings().disableZoom) {
+      this.tools.push(...zoomTool);
+    }
+
     primaryTools.forEach((tool) => tool.setToolGroup(primaryToolGroup));
     panZoomTool.setEnabled(true);
     primaryPenTool.setEnabled(true);

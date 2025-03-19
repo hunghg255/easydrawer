@@ -378,7 +378,7 @@ function App() {
   };
 
   const saveButtonImage = () => {
-    const img = refEditor.current!.toDataURL("image/webp");
+    const img = refEditor.current!.toDataURL('image/webp');
     const a = document.createElement('a');
     a.href = img;
     a.download = 'drawing.png';

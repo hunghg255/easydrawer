@@ -34,13 +34,16 @@ export default abstract class SelectionBuilder {
     // rather than in the bounding box.
     const clickSize = viewport.getSizeOfPixelOnCanvas() * 3;
     const isClick = path.bbox.maxDimension <= clickSize;
+
     if (isClick) {
       const searchRegionSize = viewport.visibleRect.maxDimension / 200;
       const minSizeBox = path.bbox.grownBy(searchRegionSize);
 
       components = image.getComponentsIntersecting(minSizeBox).filter((component) => {
-        return minSizeBox.containsRect(component.getBBox()) || component.intersectsRect(minSizeBox);
+        // return minSizeBox.containsRect(component.getBBox()) || component.intersectsRect(minSizeBox);
+        return !!component;
       });
+
       components = filterComponents(components);
 
       if (components.length > 1) {

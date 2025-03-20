@@ -40,6 +40,7 @@ export default class Pen extends BaseTool {
   private style: PenStyle;
 
   private shapeAutocompletionEnabled = false;
+  private pressureSensitivityEnabled = true;
   private autocorrectedShape: AbstractComponent | null = null;
   private lastAutocorrectedShape: AbstractComponent | null = null;
   private removedAutocorrectedShapeTime = 0;
@@ -73,6 +74,7 @@ export default class Pen extends BaseTool {
   // Converts a `pointer` to a `StrokeDataPoint`.
   protected toStrokePoint(pointer: Pointer): StrokeDataPoint {
     const minPressure = 0.3;
+    const defaultPressure = 0.5; // https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent/pressure#value
     let pressure = Math.max(pointer.pressure ?? 1.0, minPressure);
 
     if (!isFinite(pressure)) {
@@ -85,12 +87,27 @@ export default class Pen extends BaseTool {
 
     const pos = pointer.canvasPos;
 
+    if (!this.getPressureSensitivityEnabled()) {
+      pressure = defaultPressure;
+    }
+
     return {
       pos,
       width: pressure * this.getPressureMultiplier(),
       color: this.style.color,
       time: pointer.timeStamp,
     };
+  }
+
+  public setPressureSensitivityEnabled(enabled: boolean) {
+    if (enabled !== this.pressureSensitivityEnabled) {
+      this.pressureSensitivityEnabled = enabled;
+      this.noteUpdated();
+    }
+  }
+
+  public getPressureSensitivityEnabled() {
+    return this.pressureSensitivityEnabled;
   }
 
   // Displays the stroke that is currently being built with the display's `wetInkRenderer`.

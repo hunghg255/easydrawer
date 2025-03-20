@@ -441,6 +441,7 @@ export default class PenToolWidget extends BaseToolWidget {
       strokeFactoryId: this.getCurrentPenType()?.id,
       inputStabilization: !!this.tool.getInputMapper(),
       strokeAutocorrect: this.tool.getStrokeAutocorrectionEnabled(),
+      pressureSensitivity: this.tool.getPressureSensitivityEnabled(),
     };
   }
 
@@ -481,6 +482,9 @@ export default class PenToolWidget extends BaseToolWidget {
         }
       }
     }
+    console.log({
+      state
+    });
 
     if (state.inputStabilization !== undefined) {
       this.tool.setHasStabilization(!!state.inputStabilization);

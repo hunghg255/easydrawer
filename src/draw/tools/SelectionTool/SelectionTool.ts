@@ -325,7 +325,7 @@ export default class SelectionTool extends BaseTool {
         this.editor.announceForAccessibility(
           this.editor.localization.selectedElements(selectedItemCount),
         );
-        this.zoomToSelection();
+        // this.zoomToSelection();
       }
     }
 

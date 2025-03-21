@@ -259,6 +259,7 @@ function App() {
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
   const [bg, setBg] = useState<'none' | 'grid' | 'dot'>('none');
+  const refInput = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -443,6 +444,10 @@ function App() {
     clear = true;
   };
 
+  const loadButtonSvg = () => {
+    refInput.current!.click();
+  };
+
   return (
     <>
 
@@ -625,7 +630,7 @@ function App() {
                 changeColorShape={changeColorShape}
                 changeShape={changeShape}
                 onThicknessChange={onThicknessChange}
-                                    />}
+              />}
 
               <hr />
 
@@ -659,7 +664,18 @@ function App() {
                 Clear
               </Button>
 
+              <br />
               <hr />
+
+              <Button
+                onClick={loadButtonSvg}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Load SVG
+              </Button>
 
               <Button
                 onClick={saveButtonSvg}
@@ -712,6 +728,28 @@ function App() {
           id='easydrawer'
         >
         </div>
+
+        <input accept='image/svg+xml'
+          ref={refInput}
+          type='file'
+          onChange={(e) => {
+            const file = e.target.files![0];
+
+            const reader = new FileReader();
+            // eslint-disable-next-line unicorn/prefer-add-event-listener
+            reader.onload = (e) => {
+              const svg = e.target!.result as string;
+              if (refEditor.current) {
+                refEditor.current.history.clearAll();
+                refEditor.current.loadFromSVG(svg);
+              }
+            };
+            reader.readAsText(file);
+          }}
+          style={{
+            display: 'none',
+          }}
+        />
       </div>
     </>
   );

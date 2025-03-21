@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import React, { useEffect, useState } from 'react';
 
-import { Button, ColorPicker, Slider } from 'antd';
+import { Button, ColorPicker, Row, Slider } from 'antd';
 import {
   makeDropdownToolbar,
   Editor,
@@ -277,19 +276,21 @@ function App() {
 
     init();
 
+    setEdit(true);
+
   }, []);
 
   useEffect(() => {
     if (refEditor.current) {
-      refEditor.current.setReadOnly(!edit);
+      // refEditor.current.setReadOnly(!edit);
 
-      if (!edit) {
-        //@ts-expect-error
-        document.querySelector('.imageEditorContainer').style.pointerEvents = 'none';
-      } else {
-        //@ts-expect-error
-        document.querySelector('.imageEditorContainer').style.pointerEvents = 'auto';
-      }
+      // if (!edit) {
+      //   //@ts-expect-error
+      //   document.querySelector('.imageEditorContainer').style.pointerEvents = 'none';
+      // } else {
+      //   //@ts-expect-error
+      //   document.querySelector('.imageEditorContainer').style.pointerEvents = 'auto';
+      // }
     }
   }, [refEditor.current, edit]);
 
@@ -446,255 +447,266 @@ function App() {
     <>
 
       <div className={styles.lessonContent}>
-        <div
-          className={styles.wrapper}
-        >
-          <Button
-            onClick={() => setEdit(!edit)}
-
-            type='primary'
-            style={{
-              width: '100%',
-            }}
+        {
+          !edit ? <div
+            className={styles.btnEdit}
+            onClick={() => setEdit(true)}
           >
-            {!edit ? 'Edit ✅' : 'Disable ❌'}
-          </Button>
+            <Button
+              onClick={() => setEdit(false)}
+              type='dashed'
+            >
+              Edit
+            </Button>
+          </div> :
+            <div
+              className={styles.wrapper}
+            >
+              <Row justify={'end'}>
+                <Button
+                  onClick={() => setEdit(false)}
+                  type='dashed'
+                >
+                  ❌
+                </Button>
+              </Row>
 
-          <Button
-            type='primary'
+              <Button
+                type='primary'
 
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              if (tool === 'select') {
-                setTool(null);
-                penTool[0].setEnabled(false);
+                  if (tool === 'select') {
+                    setTool(null);
+                    penTool[0].setEnabled(false);
 
-                return;
-              }
-              setTool('select');
-              penTool[0].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Select Tool
-            {' '}
-            {tool === 'select' && '✅'}
-          </Button>
+                    return;
+                  }
+                  setTool('select');
+                  penTool[0].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Select Tool
+                {' '}
+                {tool === 'select' && '✅'}
+              </Button>
 
-          <Button
-            type='primary'
+              <Button
+                type='primary'
 
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              refEditor.current!.toolController.setToolEnabled(penTool[1]);
-              if (tool === 'text') {
-                penTool[1].setEnabled(false);
+                  refEditor.current!.toolController.setToolEnabled(penTool[1]);
+                  if (tool === 'text') {
+                    penTool[1].setEnabled(false);
 
-                setTool(null);
-                return;
-              }
-              setTool('text');
-              penTool[1].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Text
-            {' '}
-            {tool === 'text' && '✅'}
-          </Button>
+                    setTool(null);
+                    return;
+                  }
+                  setTool('text');
+                  penTool[1].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Text
+                {' '}
+                {tool === 'text' && '✅'}
+              </Button>
 
-          <Button
-            type='primary'
+              <Button
+                type='primary'
 
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              if (tool === 'pencil') {
-                setTool(null);
-                penTool[2].setEnabled(false);
-                return;
-              }
-              setTool('pencil');
-              penTool[2].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Pencil Tool
-            {' '}
-            {tool === 'pencil' && '✅'}
-          </Button>
+                  if (tool === 'pencil') {
+                    setTool(null);
+                    penTool[2].setEnabled(false);
+                    return;
+                  }
+                  setTool('pencil');
+                  penTool[2].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Pencil Tool
+                {' '}
+                {tool === 'pencil' && '✅'}
+              </Button>
 
-          {tool === 'pencil' && <PencilOption
-            setColorPen={setColorPen}
-            setThicknessPen={setThicknessPen}
-          />}
+              {tool === 'pencil' && <PencilOption
+                setColorPen={setColorPen}
+                setThicknessPen={setThicknessPen}
+                                    />}
 
-          <Button
-            type='primary'
+              <Button
+                type='primary'
 
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              if (tool === 'highlighter') {
-                setTool(null);
-                penTool[3].setEnabled(false);
-                return;
-              }
-              setTool('highlighter');
-              penTool[3].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Highlighter
-            {' '}
-            {tool === 'highlighter' && '✅'}
-          </Button>
+                  if (tool === 'highlighter') {
+                    setTool(null);
+                    penTool[3].setEnabled(false);
+                    return;
+                  }
+                  setTool('highlighter');
+                  penTool[3].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Highlighter
+                {' '}
+                {tool === 'highlighter' && '✅'}
+              </Button>
 
-          {tool === 'highlighter' && <HighlightOption setColorHighlight={setColorHighlight}/>}
+              {tool === 'highlighter' && <HighlightOption setColorHighlight={setColorHighlight}/>}
 
-          <Button
-            type='primary'
+              <Button
+                type='primary'
 
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              if (tool === 'eraser') {
-                setTool(null);
-                penTool[4].setEnabled(false);
-                return;
-              }
-              setTool('eraser');
-              penTool[4].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Eraser
-            {' '}
-            {tool === 'eraser' && '✅'}
-          </Button>
+                  if (tool === 'eraser') {
+                    setTool(null);
+                    penTool[4].setEnabled(false);
+                    return;
+                  }
+                  setTool('eraser');
+                  penTool[4].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Eraser
+                {' '}
+                {tool === 'eraser' && '✅'}
+              </Button>
 
-          <Button
-            type='primary'
-            onClick={() => {
-              const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
+              <Button
+                type='primary'
+                onClick={() => {
+                  const penTool = refEditor.current!.toolController.getPrimaryTools() as any;
 
-              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+                  refEditor.current!.toolController.setToolEnabled(penTool[5]);
 
-              if (tool === 'shapes') {
-                setTool(null);
-                penTool[5].setEnabled(false);
-                return;
-              }
-              setTool('shapes');
-              penTool[5].setEnabled(true);
-            }}
-            style={{
-              width: '100%',
-            }}
-          >
-            Shapes
-            {' '}
-            {tool === 'shapes' && '✅'}
-          </Button>
+                  if (tool === 'shapes') {
+                    setTool(null);
+                    penTool[5].setEnabled(false);
+                    return;
+                  }
+                  setTool('shapes');
+                  penTool[5].setEnabled(true);
+                }}
+                style={{
+                  width: '100%',
+                }}
+              >
+                Shapes
+                {' '}
+                {tool === 'shapes' && '✅'}
+              </Button>
 
-          {tool === 'shapes' && <ShapeOption
-            changeBorderColorShape={changeBorderColorShape}
-            changeColorShape={changeColorShape}
-            changeShape={changeShape}
-            onThicknessChange={onThicknessChange}
-          />}
+              {tool === 'shapes' && <ShapeOption
+                changeBorderColorShape={changeBorderColorShape}
+                changeColorShape={changeColorShape}
+                changeShape={changeShape}
+                onThicknessChange={onThicknessChange}
+                                    />}
 
-          <hr />
+              <hr />
 
-          <Button
-            onClick={onUndo}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Undo
-          </Button>
+              <Button
+                onClick={onUndo}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Undo
+              </Button>
 
-          <Button
-            onClick={onRedo}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Redo
-          </Button>
+              <Button
+                onClick={onRedo}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Redo
+              </Button>
 
-          <Button
-            onClick={onClear}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Clear
-          </Button>
+              <Button
+                onClick={onClear}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Clear
+              </Button>
 
-          <hr />
+              <hr />
 
-          <Button
-            onClick={saveButtonSvg}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Save SVG
-          </Button>
+              <Button
+                onClick={saveButtonSvg}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Save SVG
+              </Button>
 
-          <Button
-            onClick={saveButtonImage}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Save PNG
-          </Button>
+              <Button
+                onClick={saveButtonImage}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Save PNG
+              </Button>
 
-          <Button
-            onClick={toggleGrid}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Toogle Grid
-            {' '}
-            {bg === 'grid' ? '❌' : '✅'}
-          </Button>
+              <Button
+                onClick={toggleGrid}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Toogle Grid
+                {' '}
+                {bg === 'grid' ? '❌' : '✅'}
+              </Button>
 
-          <Button
-            onClick={toggleDot}
-            type='primary'
-            style={{
-              width: '100%',
-            }}
-          >
-            Toogle Dot
-            {' '}
-            {bg === 'dot' ? '❌' : '✅'}
-          </Button>
+              <Button
+                onClick={toggleDot}
+                type='primary'
+                style={{
+                  width: '100%',
+                }}
+              >
+                Toogle Dot
+                {' '}
+                {bg === 'dot' ? '❌' : '✅'}
+              </Button>
 
-        </div>
+            </div>
+        }
 
         <div className={styles.easyDrawer}
           id='easydrawer'

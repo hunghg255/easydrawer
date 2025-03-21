@@ -17,6 +17,14 @@
   border-radius: 10px;
 }
 
+.btnEdit {
+  cursor: pointer;
+  position: fixed;
+  top: 5px;
+  left: 5px;
+  z-index: 1000;
+}
+
 .easyDrawer {
   position: fixed;
   top: 0;
@@ -27,9 +35,9 @@
   background-color: #ffecc0;
 }
 
-.easyDrawerActive {
+/* .easyDrawerActive {
   z-index: 10;
-}
+} */
 
 .options p {
   margin: 0 0 6px;

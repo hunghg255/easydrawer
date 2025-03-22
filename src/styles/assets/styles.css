@@ -957,7 +957,7 @@ svg {
     }
   }
 
-  .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
+  .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
   .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
     opacity: .8;
     animation: 1s ease show-label-delayed
@@ -1108,7 +1108,7 @@ svg {
   height: var(--toolbar-button-size)
 }
 
-.toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
+.toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
 .toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
   opacity: .8;
   animation: 1s ease show-label-delayed
@@ -1231,7 +1231,7 @@ svg {
   --button-label-hover-offset-y: var(--button-size)
 }
 
-.toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label>.button-label-text,
+.toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label>.button-label-text,
 .toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label>.button-label-text {
   opacity: .8;
   animation: 1s ease show-label-delayed
@@ -1276,7 +1276,7 @@ svg {
   --button-label-hover-offset-y: 0
 }
 
-.toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
+.toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
 .toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
   opacity: .8;
   animation: 1s ease show-label-delayed

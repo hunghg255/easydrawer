@@ -1,9 +1,10 @@
 export default {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
-  corePlugins: {
-    preflight: true,
-  },
   darkMode: 'class',
+  corePlugins: {
+    preflight: false,
+  },
+  prefix: 'easydrawer-',
   theme: {
     extend: {
       fontFamily: {
@@ -100,6 +101,7 @@ export default {
     'cursor-ns-resize',
     'cursor-ew-resize',
     'cursor-move',
+    'dark'
   ],
   plugins: [
     ({ addUtilities }) => {

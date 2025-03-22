@@ -1,4 +1,3 @@
-@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -52,31 +51,31 @@
 
 
 button {
-  @apply hover:bg-none;
-  @apply outline-none;
-  @apply border-none;
-  @apply transition-colors ease-linear;
-  @apply cursor-pointer;
+  @apply hover:easydrawer-bg-none;
+  @apply easydrawer-outline-none;
+  @apply easydrawer-border-none;
+  @apply easydrawer-transition-colors easydrawer-ease-linear;
+  @apply easydrawer-cursor-pointer;
 }
 
 input {
-  @apply outline-none;
-  @apply border-none;
-  @apply bg-none bg-transparent;
-  @apply outline-none;
-  @apply placeholder:text-neutral-500 placeholder:italic placeholder:text-xs;
-  @apply placeholder-shown:truncate;
+  @apply easydrawer-outline-none;
+  @apply easydrawer-border-none;
+  @apply easydrawer-bg-none easydrawer-bg-transparent;
+  @apply easydrawer-outline-none;
+  @apply placeholder:easydrawer-text-neutral-500 placeholder:easydrawer-italic placeholder:easydrawer-text-xs;
+  @apply placeholder-shown:easydrawer-truncate;
 }
 
 svg {
-  @apply w-auto h-auto;
-  @apply pointer-events-none;
+  @apply easydrawer-w-auto easydrawer-h-auto;
+  @apply easydrawer-pointer-events-none;
 }
 
 .container {
-  @apply flex;
-  @apply items-center;
-  @apply justify-center;
+  @apply easydrawer-flex;
+  @apply easydrawer-items-center;
+  @apply easydrawer-justify-center;
 }
 
 
@@ -915,7 +914,7 @@ svg {
     }
   }
 
-  .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
+  .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
   .toolbar-edge-toolbar.one-row>*>.toolbar-toolContainer.label-inline>.toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
     opacity: .8;
     animation: 1s ease show-label-delayed
@@ -1066,7 +1065,7 @@ svg {
   height: var(--toolbar-button-size)
 }
 
-.toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
+.toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
 .toolbar-edge-toolbar .toolbar-toolContainer:not(.no-icon):not(.label-inline) .toolbar-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
   opacity: .8;
   animation: 1s ease show-label-delayed
@@ -1189,7 +1188,7 @@ svg {
   --button-label-hover-offset-y: var(--button-size)
 }
 
-.toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label>.button-label-text,
+.toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label>.button-label-text,
 .toolbar-edgemenu-container .toolbar-grid-selector .choice-button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label>.button-label-text {
   opacity: .8;
   animation: 1s ease show-label-delayed
@@ -1234,7 +1233,7 @@ svg {
   --button-label-hover-offset-y: 0
 }
 
-.toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:not(:focus-visible)>label,
+.toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):hover:easydrawer-not(:focus-visible)>label,
 .toolbar-edgemenu-container .toolbar-button-grid button:not(.no-long-press-or-hover):not(.has-long-press-or-hover):active>label {
   opacity: .8;
   animation: 1s ease show-label-delayed

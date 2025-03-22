@@ -66,6 +66,9 @@ importers:
       antd:
         specifier: ^5.24.3
         version: 5.24.3(react-dom@19.0.0)(react@19.0.0)
+      classnames:
+        specifier: ^2.5.1
+        version: 2.5.1
       easydrawer:
         specifier: workspace:*
         version: link:..

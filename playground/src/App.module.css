@@ -1,29 +1,4 @@
-.wrapper {
-  display: flex;
-  flex-direction: column;
-  background-color: white;
-  border-radius: 10px;
-  width: 240px;
-  cursor: pointer;
-  position: fixed;
-  top: 5px;
-  left: 5px;
-  z-index: 1000;
-  padding: 10px;
-  gap: 10px;
-  z-index: 100;
-  border: 1px solid #ccc;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
 
-.btnEdit {
-  cursor: pointer;
-  position: fixed;
-  top: 5px;
-  left: 5px;
-  z-index: 1000;
-}
 
 .easyDrawer {
   position: fixed;

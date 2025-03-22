@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "antd": "^5.24.3",
+    "classnames": "^2.5.1",
     "easydrawer": "workspace:*",
     "lucide-react": "^0.477.0",
     "react": "^19.0.0",

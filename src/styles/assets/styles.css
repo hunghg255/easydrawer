@@ -1,45 +1,5 @@
 
 
-* {
-  outline: none !important;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  backface-visibility: hidden;
-  box-sizing: border-box;
-
-  /* WebKit (Chrome, Safari, Edge) specific scrollbar styles */
-  &::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    border-radius: 10px;
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.3);
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, .4);
-  }
-
-  &::-webkit-scrollbar-corner {
-    background: transparent;
-  }
-}
-
-@-moz-document url-prefix() {
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
-    scrollbar-width: 6px;
-  }
-}
 
 .toolbar-root {
   display: none;
@@ -48,64 +8,6 @@
   height: 0 !important;
 }
 
-
-button:hover {
-  background-image: none;
-}
-
-
-button {
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-  border-style: none;
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-  transition-timing-function: linear;
-  cursor: pointer;
-}
-
-input {
-  border-style: none;
-  background-color: transparent;
-  background-image: none;
-  outline: 2px solid transparent;
-  outline-offset: 2px;
-}
-
-input::-moz-placeholder {
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-style: italic;
-  --tw-text-opacity: 1;
-  color: rgb(115 115 115 / var(--tw-text-opacity, 1));
-}
-
-input::placeholder {
-  font-size: 0.75rem;
-  line-height: 1rem;
-  font-style: italic;
-  --tw-text-opacity: 1;
-  color: rgb(115 115 115 / var(--tw-text-opacity, 1));
-}
-
-input:-moz-placeholder-shown {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-input:placeholder-shown {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-svg {
-  height: auto;
-  width: auto;
-  pointer-events: none;
-}
 
 .container {
   display: flex;

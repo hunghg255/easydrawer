@@ -1,4 +1,8 @@
-# EasyDrawer 1
+# EasyDrawer
+
+## Documentation
+
+- [Documentation](https://easydrawer-docs.vercel.app/)
 
 ## Development
 

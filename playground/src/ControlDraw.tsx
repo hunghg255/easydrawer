@@ -7,7 +7,7 @@ import {
 } from 'easydrawer';
 
 import styles from './control.module.css';
-import { AkarIconsDotGridFill, GardenUploadStroke12, MingcuteDiamondSquareLine, HugeiconsCursorRectangleSelection01, HugeiconsPng01, HugeiconsSvg01, IcSharpArrowRightAlt, IcSharpGrid4x4, MaterialSymbolsCircleOutline, MaterialSymbolsDelete, MaterialSymbolsEdit, MaterialSymbolsHexagonOutline, MaterialSymbolsRectangleOutline, MdiFormatLetterCase, MdiSquareOutline, OuiEraser, PhHighlighter, SolarUndoLeftRoundBold, SolarUndoRightRoundBold, TablerTriangle } from './icon';
+import { AkarIconsDotGridFill, GardenUploadStroke12, MingcuteDiamondSquareLine, HugeiconsCursorRectangleSelection01, HugeiconsPng01, HugeiconsSvg01, IcSharpArrowRightAlt, IcSharpGrid4x4, MaterialSymbolsCircleOutline, MaterialSymbolsDelete, MaterialSymbolsEdit, MaterialSymbolsHexagonOutline, MaterialSymbolsRectangleOutline, MdiFormatLetterCase, MdiSquareOutline, OuiEraser, PhHighlighter, SolarUndoLeftRoundBold, SolarUndoRightRoundBold, TablerTriangle, MageImageUpload, FluentColorBackground24Filled } from './icon';
 
 const enum ShapeType {
   square = 0,
@@ -58,6 +58,16 @@ function HighlightOption({ setColorHighlight }: any) {
   );
 }
 
+function BgOption({ setColorBackground }: any) {
+  return (
+    <div className={styles.options}>
+      <ColorPicker
+        onChange={(color) => setColorBackground(Color4.fromHex(color.toHex()))}
+      />
+    </div>
+  );
+}
+
 function ShapeOption({ changeColorShape, changeBorderColorShape,
   onThicknessChange
 }: any) {
@@ -98,10 +108,8 @@ function ShapeOption({ changeColorShape, changeBorderColorShape,
 
 function ControlDrawer(props: any) {
   const {
-    tool,
     setColorPen,
     refEditor,
-    setTool,
     setThicknessPen,
     setColorHighlight,
     changeBorderColorShape,
@@ -117,7 +125,11 @@ function ControlDrawer(props: any) {
     toggleGrid,
     toggleDot,
     bg,
+    toggleBackground,
+    setColorBackground,
+    onUploadImage
   } = props;
+  const [tool, setTool] = useState<'select' | 'text' | 'pencil' | 'highlighter' | 'eraser' | 'shapes' | null>(null);
 
   const [type, setType] = useState(ShapeType.square);
 
@@ -363,6 +375,15 @@ function ControlDrawer(props: any) {
 
           <button
             className={classNames(styles.tool)}
+            onClick={onUploadImage}
+          >
+            <MageImageUpload />
+          </button>
+
+          <div className={styles.line}></div>
+
+          <button
+            className={classNames(styles.tool)}
             onClick={onUndo}
           >
             <SolarUndoLeftRoundBold />
@@ -418,6 +439,15 @@ function ControlDrawer(props: any) {
           <div className={styles.line}></div>
 
           <button
+            onClick={toggleBackground}
+            className={classNames(styles.tool, {
+              [styles.active]: bg === 'bg',
+            })}
+          >
+            <FluentColorBackground24Filled />
+          </button>
+
+          <button
             onClick={toggleGrid}
             className={classNames(styles.tool, {
               [styles.active]: bg === 'grid',
@@ -449,6 +479,10 @@ function ControlDrawer(props: any) {
             changeColorShape={changeColorShape}
             changeShape={changeShape}
             onThicknessChange={onThicknessChange}
+          />}
+
+          {bg === 'bg' && <BgOption
+            setColorBackground={setColorBackground}
           />}
         </div>
       </div>

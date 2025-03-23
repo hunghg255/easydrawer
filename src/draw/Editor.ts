@@ -1,3 +1,5 @@
+import { ImageComponent } from '~/draw/lib';
+import fileToBase64Url from '~/draw/util/fileToBase64Url';
 import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
 import type Command from './commands/Command';
@@ -1939,6 +1941,57 @@ export class Editor {
 
     // TODO: Is additional cleanup necessary here?
     this.toolController.onEditorDestroyed();
+  }
+
+  async uploadImages(files: File[]) {
+    const filesArr = Array.from(files);
+
+    if (filesArr.length === 0) {
+      return;
+    }
+
+    const dataImages = (
+      await Promise.all(
+        filesArr.map(async (imageFile) => {
+          return fileToBase64Url(imageFile);
+        }),
+      )
+    ).flat();
+
+    const newComponents: AbstractComponent[] = [];
+    let transform = Mat33.identity;
+    let fullBBox = null;
+
+    for (const base64Url of dataImages) {
+      const image = new Image();
+      image.src = base64Url as string;
+
+      let component;
+      try {
+        component = await ImageComponent.fromImage(image, transform);
+      } catch (error) {
+        console.error('Error loading image', error);
+        return;
+      }
+
+      const componentBBox = component.getBBox();
+      if (componentBBox.area === 0) {
+        return;
+      }
+
+      newComponents.push(component);
+
+      fullBBox ??= componentBBox;
+      fullBBox.union(componentBBox);
+
+      // Update the transform for the next item.
+      const shift = Vec2.of(0, componentBBox.height);
+      transform = transform.rightMul(Mat33.translation(shift));
+    }
+
+    if (newComponents.length > 0) {
+      this.addAndCenterComponents(newComponents);
+    }
   }
 }
 

@@ -137,6 +137,14 @@ export default class DocumentPropertiesWidget extends BaseWidget {
 
   setBackgroundDot() {
     this.editor.dispatch(this.setBackgroundType(BackgroundType.Dot));
+  }
+
+  public updateBackgroundColor(color: Color4) {
+    this.editor.dispatch(this.editor.setBackgroundColor(color));
+  }
+
+  setBackgroundSolid() {
+    this.editor.dispatch(this.setBackgroundType(BackgroundType.SolidColor));
     this.editor.dispatch(this.editor.image.setAutoresizeEnabled(true));
   }
 

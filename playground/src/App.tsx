@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/prefer-add-event-listener */
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -11,12 +12,11 @@ import ControlDrawer from './ControlDraw';
 let clear = false;
 
 function App() {
-  const [tool, setTool] = useState<'select' | 'text' | 'pencil' | 'highlighter' | 'eraser' | 'shapes' | null>(null);
-  const [edit, setEdit] = useState(false);
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
-  const [bg, setBg] = useState<'none' | 'grid' | 'dot'>('none');
+  const [bg, setBg] = useState<'none' | 'bg' | 'grid' | 'dot'>('none');
   const refInput = React.useRef<HTMLInputElement | null>(null);
+  const refInputImage = React.useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -29,28 +29,14 @@ function App() {
       refWidget.current = makeDropdownToolbar(refEditor.current);
       refWidget.current.addDefaultToolWidgets();
 
+      const image = refWidget.current.getWidgetById('image');
+      console.log('image', image);
+
       // document-properties-widget
     };
 
     init();
-
-    setEdit(true);
-
   }, []);
-
-  useEffect(() => {
-    if (refEditor.current) {
-      // refEditor.current.setReadOnly(!edit);
-
-      // if (!edit) {
-      //   //@ts-expect-error
-      //   document.querySelector('.imageEditorContainer').style.pointerEvents = 'none';
-      // } else {
-      //   //@ts-expect-error
-      //   document.querySelector('.imageEditorContainer').style.pointerEvents = 'auto';
-      // }
-    }
-  }, [refEditor.current, edit]);
 
   const setColorPen = (color: string) => {
     const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
@@ -170,6 +156,24 @@ function App() {
     }
   };
 
+  const toggleBackground = () => {
+    const documentW = refWidget.current.getWidgetById('document-properties-widget');
+
+    if (bg !== 'bg') {
+      documentW?.setBackgroundSolid();
+      setBg('bg');
+    } else {
+      // documentW?.removeBackground();
+      setBg('none');
+    }
+  };
+
+  const setColorBackground = (color: any) => {
+    const documentW = refWidget.current.getWidgetById('document-properties-widget');
+
+    documentW?.updateBackgroundColor(color);
+  };
+
   const onUndo =() => {
     if (clear) {
       while (refEditor.current!.history.redoStackSize > 0) {
@@ -205,6 +209,10 @@ function App() {
     refInput.current!.click();
   };
 
+  const onUploadImage = () => {
+    refInputImage.current!.click();
+  };
+
   return (
     <>
       <div className={styles.lessonContent}>
@@ -219,16 +227,17 @@ function App() {
           onRedo={onRedo}
           onThicknessChange={onThicknessChange}
           onUndo={onUndo}
+          onUploadImage={onUploadImage}
           refEditor={refEditor}
           savebuttonImage={saveButtonImage}
           savebuttonSvg={saveButtonSvg}
+          setColorBackground={setColorBackground}
           setColorHighlight={setColorHighlight}
           setColorPen={setColorPen}
           setThicknessPen={setThicknessPen}
-          setTool={setTool}
+          toggleBackground={toggleBackground}
           toggleDot={toggleDot}
           toggleGrid={toggleGrid}
-          tool={tool}
         />
 
         <div className={styles.easyDrawer}
@@ -243,7 +252,7 @@ function App() {
             const file = e.target.files![0];
 
             const reader = new FileReader();
-            // eslint-disable-next-line unicorn/prefer-add-event-listener
+
             reader.onload = (e) => {
               const svg = e.target!.result as string;
               if (refEditor.current) {
@@ -252,6 +261,20 @@ function App() {
               }
             };
             reader.readAsText(file);
+          }}
+          style={{
+            display: 'none',
+          }}
+        />
+
+        <input accept='image/*'
+          multiple
+          ref={refInputImage}
+          type='file'
+          onChange={async (e) => {
+            const files = e.target.files;
+
+            refEditor.current!.uploadImages(files as any);
           }}
           style={{
             display: 'none',

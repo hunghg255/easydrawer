@@ -7,7 +7,7 @@ import {
 } from 'easydrawer';
 
 import styles from './control.module.css';
-import { AkarIconsDotGridFill, GardenUploadStroke12, MingcuteDiamondSquareLine, HugeiconsCursorRectangleSelection01, HugeiconsPng01, HugeiconsSvg01, IcSharpArrowRightAlt, IcSharpGrid4x4, MaterialSymbolsCircleOutline, MaterialSymbolsDelete, MaterialSymbolsEdit, MaterialSymbolsHexagonOutline, MaterialSymbolsRectangleOutline, MdiFormatLetterCase, MdiSquareOutline, OuiEraser, PhHighlighter, SolarUndoLeftRoundBold, SolarUndoRightRoundBold, TablerTriangle, MageImageUpload, FluentColorBackground24Filled, PhLineSegmentFill } from './icon';
+import { AkarIconsDotGridFill, GardenUploadStroke12, MingcuteDiamondSquareLine, HugeiconsCursorRectangleSelection01, HugeiconsPng01, HugeiconsSvg01, IcSharpArrowRightAlt, IcSharpGrid4x4, MaterialSymbolsCircleOutline, MaterialSymbolsDelete, MaterialSymbolsEdit, MaterialSymbolsHexagonOutline, MaterialSymbolsRectangleOutline, MdiFormatLetterCase, MdiSquareOutline, OuiEraser, PhHighlighter, SolarUndoLeftRoundBold, SolarUndoRightRoundBold, TablerTriangle, MageImageUpload, FluentColorBackground24Filled, PhLineSegmentFill, IcSharpFavorite, MaterialSymbolsKidStar, MaterialSymbolsCloud, AkarIconsParallelogram } from './icon';
 
 const enum ShapeType {
   square = 0,
@@ -18,6 +18,10 @@ const enum ShapeType {
   diamond = 5,
   arrow = 6,
   line = 7,
+  heart = 8,
+  star = 9,
+  cloud = 10,
+  parallelogram = 11
 }
 
 function PencilOption({ setColorPen, setThicknessPen }: any) {
@@ -378,9 +382,6 @@ function ControlDrawer(props: any) {
             })}
             onClick={() => {
               const penTool = refEditor.current!.toolController.getPrimaryTools();
-              console.log({
-                penTool
-              });
 
               refEditor.current!.toolController.setToolEnabled(penTool[5]);
               setTool('shapes');
@@ -391,6 +392,78 @@ function ControlDrawer(props: any) {
             }}
           >
             <PhLineSegmentFill />
+          </button>
+
+          <button
+            className={classNames(styles.tool, {
+              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+            })}
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools();
+
+              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+              setTool('shapes');
+              penTool[5].setEnabled(true);
+
+              changeShape(ShapeType.heart);
+              setType(ShapeType.heart);
+            }}
+          >
+            <IcSharpFavorite />
+          </button>
+
+          <button
+            className={classNames(styles.tool, {
+              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+            })}
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools();
+
+              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+              setTool('shapes');
+              penTool[5].setEnabled(true);
+
+              changeShape(ShapeType.star);
+              setType(ShapeType.star);
+            }}
+          >
+            <MaterialSymbolsKidStar />
+          </button>
+
+          <button
+            className={classNames(styles.tool, {
+              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+            })}
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools();
+
+              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+              setTool('shapes');
+              penTool[5].setEnabled(true);
+
+              changeShape(ShapeType.cloud);
+              setType(ShapeType.cloud);
+            }}
+          >
+            <MaterialSymbolsCloud />
+          </button>
+
+          <button
+            className={classNames(styles.tool, {
+              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+            })}
+            onClick={() => {
+              const penTool = refEditor.current!.toolController.getPrimaryTools();
+
+              refEditor.current!.toolController.setToolEnabled(penTool[5]);
+              setTool('shapes');
+              penTool[5].setEnabled(true);
+
+              changeShape(ShapeType.parallelogram);
+              setType(ShapeType.parallelogram);
+            }}
+          >
+            <AkarIconsParallelogram />
           </button>
 
           <div className={styles.line}></div>

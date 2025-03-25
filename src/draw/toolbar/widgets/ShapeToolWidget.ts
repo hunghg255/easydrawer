@@ -1,7 +1,11 @@
 import { makeCircleBuilder } from '~/draw/components/builders/CircleBuilder';
+import { makeCloudBuilder } from '~/draw/components/builders/CloudBuilder';
 import { makeFilledDiamondBuilder } from '~/draw/components/builders/DiamondBuilder';
+import { makeHeartBuilder } from '~/draw/components/builders/HeartBuilder';
 import { makeFilledHexagonalBuilder } from '~/draw/components/builders/HexagonalBuilder';
+import { makeParallelogramBuilder } from '~/draw/components/builders/ParallelogramBuilder';
 import { makeFilledSquareBuilder } from '~/draw/components/builders/SquareBuilder';
+import { makeStarBuilder } from '~/draw/components/builders/StarBuilder';
 import { makeFilledTriangleBuilder } from '~/draw/components/builders/TriangleBuilder';
 import { makeLineBuilder } from '~/draw/lib';
 import type ShapeTool from '~/draw/tools/ShapeTool';
@@ -131,6 +135,34 @@ export default class ShapeToolWidget extends BaseToolWidget {
 
         isShapeBuilder: true,
         factory: makeLineBuilder,
+      },
+      {
+        name: this.localizationTable.linePen,
+        id: 'heart',
+
+        isShapeBuilder: true,
+        factory: makeHeartBuilder,
+      },
+      {
+        name: this.localizationTable.linePen,
+        id: 'star',
+
+        isShapeBuilder: true,
+        factory: makeStarBuilder,
+      },
+      {
+        name: this.localizationTable.linePen,
+        id: 'cloud',
+
+        isShapeBuilder: true,
+        factory: makeCloudBuilder,
+      },
+      {
+        name: this.localizationTable.linePen,
+        id: 'parallelogram',
+
+        isShapeBuilder: true,
+        factory: makeParallelogramBuilder,
       },
       ...additionalPens.filter((pen) => pen.isShapeBuilder),
     ].filter(filterPens);

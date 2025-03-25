@@ -396,7 +396,7 @@ function ControlDrawer(props: any) {
 
           <button
             className={classNames(styles.tool, {
-              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+              [styles.active]: tool === 'shapes' && type === ShapeType.heart,
             })}
             onClick={() => {
               const penTool = refEditor.current!.toolController.getPrimaryTools();
@@ -414,7 +414,7 @@ function ControlDrawer(props: any) {
 
           <button
             className={classNames(styles.tool, {
-              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+              [styles.active]: tool === 'shapes' && type === ShapeType.star,
             })}
             onClick={() => {
               const penTool = refEditor.current!.toolController.getPrimaryTools();
@@ -432,7 +432,7 @@ function ControlDrawer(props: any) {
 
           <button
             className={classNames(styles.tool, {
-              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+              [styles.active]: tool === 'shapes' && type === ShapeType.cloud,
             })}
             onClick={() => {
               const penTool = refEditor.current!.toolController.getPrimaryTools();
@@ -450,7 +450,7 @@ function ControlDrawer(props: any) {
 
           <button
             className={classNames(styles.tool, {
-              [styles.active]: tool === 'shapes' && type === ShapeType.line,
+              [styles.active]: tool === 'shapes' && type === ShapeType.parallelogram,
             })}
             onClick={() => {
               const penTool = refEditor.current!.toolController.getPrimaryTools();

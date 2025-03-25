@@ -3,6 +3,7 @@ import { makeFilledDiamondBuilder } from '~/draw/components/builders/DiamondBuil
 import { makeFilledHexagonalBuilder } from '~/draw/components/builders/HexagonalBuilder';
 import { makeFilledSquareBuilder } from '~/draw/components/builders/SquareBuilder';
 import { makeFilledTriangleBuilder } from '~/draw/components/builders/TriangleBuilder';
+import { makeLineBuilder } from '~/draw/lib';
 import type ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
 
@@ -123,6 +124,13 @@ export default class ShapeToolWidget extends BaseToolWidget {
 
         isShapeBuilder: true,
         factory: makeArrowBuilder,
+      },
+      {
+        name: this.localizationTable.linePen,
+        id: 'line',
+
+        isShapeBuilder: true,
+        factory: makeLineBuilder,
       },
       ...additionalPens.filter((pen) => pen.isShapeBuilder),
     ].filter(filterPens);

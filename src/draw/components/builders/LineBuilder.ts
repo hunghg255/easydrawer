@@ -5,7 +5,7 @@ import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import { pathToRenderable } from '../../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
-import type Viewport from '../../Viewport';
+import Viewport from '../../Viewport';
 import type AbstractComponent from '../AbstractComponent';
 import Stroke from '../Stroke';
 
@@ -41,8 +41,14 @@ export default class LineBuilder implements ComponentBuilder {
     const endPoint = this.endPoint.pos;
     const toEnd = endPoint.minus(startPoint).normalized();
 
-    const startSize = this.startPoint.width / 2;
-    const endSize = this.endPoint.width / 2;
+    // Round the stroke width so that when exported it doesn't have unnecessary trailing decimals.
+    const strokeWidth = this.endPoint.width === 0 ? this.endPoint.width : Viewport.roundPoint(
+      this.endPoint.width,
+      5 / this.viewport.getScaleFactor(),
+    );
+
+    const startSize = strokeWidth + 3;
+    const endSize = strokeWidth + 3;
 
     const lineNormal = toEnd.orthog();
     const scaledStartNormal = lineNormal.times(startSize);
@@ -69,7 +75,11 @@ export default class LineBuilder implements ComponentBuilder {
       },
     ]).mapPoints((point) => this.viewport.roundPoint(point));
 
-    const preview = new Stroke([pathToRenderable(path, { fill: this.startPoint.color })]);
+    const preview = new Stroke([pathToRenderable(path, { fill: this.startPoint.color,
+      stroke: {
+        width: strokeWidth,
+        color: strokeWidth === 0 ? this.endPoint.color : this.endPoint.borderColor || this.endPoint.color,
+      }, })]);
 
     return preview;
   }

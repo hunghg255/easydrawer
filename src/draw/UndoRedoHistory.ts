@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+
 import { Erase } from '~/draw/lib';
 
 import type Command from './commands/Command';
@@ -104,13 +105,35 @@ class UndoRedoHistory {
   }
 
   public clearAllDraft(): void {
-    const elememnt = this.#undoStack?.map((elem) => {
+    const isErase = this.#undoStack?.findLastIndex((it) => {
       //@ts-expect-error
-      return elem?.element;
+      return !it?.element;
     });
-    if (elememnt?.length) {
-      this.editor.dispatch(new Erase(elememnt));
+
+    if (isErase !== -1) {
+      const newArr = this.#undoStack?.slice(isErase + 1);
+
+      if (newArr?.length) {
+        const elememnt = newArr?.map((elem) => {
+          //@ts-expect-error
+          return elem?.element;
+        });
+
+        if (elememnt?.length) {
+          this.editor.dispatch(new Erase(elememnt));
+        }
+      }
+    } else {
+      const elememnt = this.#undoStack?.map((elem) => {
+        //@ts-expect-error
+        return elem?.element;
+      });
+
+      if (elememnt?.length) {
+        this.editor.dispatch(new Erase(elememnt));
+      }
     }
+
   }
 
   public clearAllStack(): void {

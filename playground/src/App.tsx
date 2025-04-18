@@ -9,8 +9,6 @@ import {
 import styles from './App.module.css';
 import ControlDrawer from './ControlDraw';
 
-let clear = false;
-
 function App() {
   const refEditor = React.useRef<Editor | null>(null);
   const refWidget = React.useRef<any>(null);
@@ -175,34 +173,15 @@ function App() {
   };
 
   const onUndo =() => {
-    if (clear) {
-      while (refEditor.current!.history.redoStackSize > 0) {
-        refEditor.current!.history.redo();
-      }
-      clear = false;
-      return;
-    }
-
     refEditor.current!.history.undo();
   };
 
   const onRedo =() => {
-    if (clear) {
-      return;
-    }
-
     refEditor.current!.history.redo();
   };
 
   const onClear =() => {
-    if (clear) {
-      return;
-    }
-
-    while (refEditor.current!.history.undoStackSize > 0) {
-      onUndo();
-    }
-    clear = true;
+    refEditor.current!.history.clearAllDraft();
   };
 
   const loadButtonSvg = () => {
@@ -256,7 +235,7 @@ function App() {
             reader.onload = (e) => {
               const svg = e.target!.result as string;
               if (refEditor.current) {
-                refEditor.current.history.clearAll();
+                refEditor.current.history.clearAllStack();
                 refEditor.current.loadFromSVG(svg);
               }
             };

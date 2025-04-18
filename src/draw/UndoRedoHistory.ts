@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+import { Erase } from '~/draw/lib';
+
 import type Command from './commands/Command';
 import type Editor from './Editor';
 import { EditorEventType, UndoEventType } from './types';
@@ -100,7 +103,17 @@ class UndoRedoHistory {
     return this.#redoStack.length;
   }
 
-  public clearAll(): void {
+  public clearAllDraft(): void {
+    const elememnt = this.#undoStack?.map((elem) => {
+      //@ts-expect-error
+      return elem?.element;
+    });
+    if (elememnt?.length) {
+      this.editor.dispatch(new Erase(elememnt));
+    }
+  }
+
+  public clearAllStack(): void {
     while (this.undoStackSize > 0) {
       this.undo();
     }

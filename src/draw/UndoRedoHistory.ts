@@ -105,35 +105,37 @@ class UndoRedoHistory {
   }
 
   public clearAllDraft(): void {
-    const isErase = this.#undoStack?.findLastIndex((it) => {
-      //@ts-expect-error
-      return !it?.element;
-    });
-
-    if (isErase !== -1) {
-      const newArr = this.#undoStack?.slice(isErase + 1);
-
-      if (newArr?.length) {
-        const elememnt = newArr?.map((elem) => {
-          //@ts-expect-error
-          return elem?.element;
-        });
-
-        if (elememnt?.length) {
-          this.editor.dispatch(new Erase(elememnt));
-        }
-      }
-    } else {
-      const elememnt = this.#undoStack?.map((elem) => {
-        //@ts-expect-error
-        return elem?.element;
-      });
-
-      if (elememnt?.length) {
-        this.editor.dispatch(new Erase(elememnt));
-      }
+    if (!this.#undoStack?.length) {
+      return;
     }
 
+    const elementRemoved: any = [];
+    const elementNotRemoved: any = [];
+
+    this.#undoStack.forEach((elem) => {
+      //@ts-expect-error
+      if (elem?.toRemove?.length) {
+      //@ts-expect-error
+        elem?.toRemove?.forEach((it) => {
+          elementRemoved.push(it?.id);
+        });
+      }
+    });
+
+    this.#undoStack.forEach((elem) => {
+      //@ts-expect-error
+      if (elem?.element) {
+      //@ts-expect-error
+        if (!elementRemoved?.includes(elem?.element?.id)) {
+          //@ts-expect-error
+          elementNotRemoved.push(elem?.element);
+        }
+      }
+    });
+
+    if (elementNotRemoved?.length) {
+      this.editor.dispatch(new Erase(elementNotRemoved));
+    }
   }
 
   public clearAllStack(): void {

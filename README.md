@@ -6,6 +6,10 @@
 
 ## Development
 
+## Deep wiki
+
+- [Deep wiki](https://deepwiki.com/hunghg255/easydrawer)
+
 ### Setup
 
 ```

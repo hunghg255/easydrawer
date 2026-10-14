@@ -138,6 +138,31 @@ colorInput.addEventListener('input', () => {
 });
 ```
 
+## Floating toolbar next to the selection
+
+```ts
+const bar = document.querySelector<HTMLElement>('#selection-bar')!; // position: absolute, inside the editor's parent
+editor.selection.onChange(() => {
+  const rect = editor.selection.getScreenRect();
+  bar.hidden = !rect;
+  if (!rect) return;
+  bar.style.left = `${rect.center.x - bar.offsetWidth / 2}px`;
+  bar.style.top = `${rect.bottomRight.y + 12}px`;
+});
+bar.querySelector('.front')!.addEventListener('click', () => editor.selection.bringToFront());
+bar.querySelector('.lock')!.addEventListener('click', () => editor.selection.lock());
+bar.querySelector('.delete')!.addEventListener('click', () => editor.selection.delete());
+```
+
+## Add a sticky note from code
+
+```ts
+import { EditorImage, StickyNote } from 'easydrawer';
+
+const center = editor.viewport.visibleRect.center;
+await editor.dispatch(EditorImage.addComponent(StickyNote.centeredAt(center, { text: 'Hello!' })));
+```
+
 ## Read-only viewer
 
 ```ts

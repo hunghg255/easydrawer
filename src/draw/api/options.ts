@@ -22,7 +22,9 @@ export type ToolName =
   | 'eraser'
   | 'shape'
   | 'laser'
-  | 'eyedropper';
+  | 'eyedropper'
+  | 'sticky'
+  | 'connector';
 
 export const toolNames: readonly ToolName[] = [
   'select',
@@ -33,6 +35,8 @@ export const toolNames: readonly ToolName[] = [
   'shape',
   'laser',
   'eyedropper',
+  'sticky',
+  'connector',
 ];
 
 export interface PenToolOptions {
@@ -82,6 +86,21 @@ export interface LaserToolOptions {
   thickness?: number;
 }
 
+export interface StickyToolOptions {
+  /** Color of new notes. */
+  color?: ColorInput;
+}
+
+export interface ConnectorToolOptions {
+  color?: ColorInput;
+  /** Line width in pixels (at the zoom level used when drawing). Default: `2`. */
+  thickness?: number;
+  /** Where to draw arrowheads. Default: `'end'`. */
+  arrow?: 'end' | 'both' | 'none';
+  /** `'straight'` (default), or `'elbow'`: right-angle lines that go around other shapes. */
+  routing?: 'straight' | 'elbow';
+}
+
 /** Maps each tool name to its options type. */
 export interface ToolOptionsMap {
   select: SelectToolOptions;
@@ -92,6 +111,8 @@ export interface ToolOptionsMap {
   highlighter: PenToolOptions;
   eraser: EraserToolOptions;
   shape: ShapeToolOptions;
+  sticky: StickyToolOptions;
+  connector: ConnectorToolOptions;
 }
 
 /** Initial configuration of the built-in tools. */
@@ -106,6 +127,8 @@ export interface ToolsSettings {
   text?: TextToolOptions;
   select?: SelectToolOptions;
   laser?: LaserToolOptions;
+  sticky?: StickyToolOptions;
+  connector?: ConnectorToolOptions;
 }
 
 export interface InputSettings {

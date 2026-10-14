@@ -24,6 +24,11 @@ export interface CommandLocalization {
   andNMoreCommands: (count: number) => string;
 
   selectedElements: (count: number) => string;
+  lockedElements: (count: number) => string;
+  unlockedElements: (count: number) => string;
+  editedNoteText: string;
+  groupedElements: string;
+  ungroupedElements: string;
 }
 
 export const defaultCommandLocalization: CommandLocalization = {
@@ -55,4 +60,9 @@ export const defaultCommandLocalization: CommandLocalization = {
   zoomedIn: 'Zoomed in',
   andNMoreCommands: (count) => `And ${count} more commands.`,
   selectedElements: (count) => `Selected ${count} element${count === 1 ? '' : 's'}`,
+  lockedElements: (count) => `Locked ${count} element${count === 1 ? '' : 's'}`,
+  unlockedElements: (count) => `Unlocked ${count} element${count === 1 ? '' : 's'}`,
+  editedNoteText: 'Edited note',
+  groupedElements: 'Grouped',
+  ungroupedElements: 'Ungrouped',
 };

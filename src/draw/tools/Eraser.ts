@@ -199,7 +199,7 @@ export default class Eraser extends BaseTool {
 
     // Only erase components that could be selected (and thus interacted with)
     // by the user.
-    const eraseableElems = intersectingElems.filter((elem) => elem.isSelectable());
+    const eraseableElems = intersectingElems.filter((elem) => elem.isEditable());
 
     if (this.modeValue.get() === EraserMode.FullStroke) {
       // Remove any intersecting elements.

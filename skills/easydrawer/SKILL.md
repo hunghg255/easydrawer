@@ -6,7 +6,8 @@ description: Build drawing, sketching, whiteboard, annotation or signature featu
 # EasyDrawer
 
 `easydrawer` is a framework-agnostic drawing editor: natural pressure-sensitive ink, highlighter,
-eraser, 12 shapes, text, selection, images, grid/dot backgrounds, undo/redo, SVG/PNG export.
+eraser, 12 shapes, text, sticky notes, connectors (arrows attached to shapes), selection with
+lock/layering, images, grid/dot backgrounds, undo/redo, SVG/PNG export.
 It has **no visible built-in toolbar**: you build your own UI and drive the editor through its API.
 
 ## Setup
@@ -39,8 +40,8 @@ Rules:
 ## Core API (prefer this over low-level APIs)
 
 ```ts
-// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper'
-// Keyboard: V P M E T S K I switch tools (when the canvas has focus)
+// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper' | 'sticky' | 'connector'
+// Keyboard: V P M E T S K I N C switch tools (when the canvas has focus)
 editor.tools.use('eraser');              // activate; use(null) = pan/zoom only
 editor.tools.active;                     // current ToolName | null
 editor.tools.configure('pen', { color: 'red', thickness: 4, style: 'natural' });
@@ -49,7 +50,30 @@ editor.tools.configure('eraser', { thickness: 20, mode: 'partial-stroke' });
 editor.tools.configure('text', { fontSize: 24, fontFamily: 'serif', color: '#333' });
 editor.tools.configure('select', { mode: 'lasso' });   // or 'rectangle'
 editor.tools.configure('laser', { color: 'red' });      // fading trail, never saved
+editor.tools.configure('sticky', { color: '#fde68a' }); // click to add a note, click a note to edit
+editor.tools.configure('connector', { arrow: 'end', routing: 'elbow' }); // drag shape → shape; follows them; elbow = around other shapes
 const off = editor.tools.onChange((name) => {/* sync toolbar UI */});
+
+// Selection (what the 'select' tool has selected); all changes are undoable
+editor.selection.items;                               // AbstractComponent[]
+editor.selection.onChange(() => {                     // selection/edits/zoom/scroll changed
+  const rect = editor.selection.getScreenRect();      // Rect2 in px relative to the container, or null
+});
+editor.selection.setColor('#dc2626');
+editor.selection.bringToFront(); editor.selection.sendToBack();
+editor.selection.duplicate(); editor.selection.delete();
+editor.selection.lock(); editor.selection.unlockAll(); // locked = can't be selected/moved/erased
+editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+Shift+G
+editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
+editor.selection.distribute('horizontal');             // or 'vertical'
+// Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
+
+// AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
+await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
+await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.organizeNotes();                       // sticky notes → themed colored columns
+editor.ai.describeScene(); await editor.ai.requestJSON(messages); // build custom AI features
+// Server helper: openAICompatibleRequest({ url, model, apiKey }) for OpenAI/OpenRouter/Groq/Ollama…
 
 // History & document
 editor.undo(); editor.redo();
@@ -80,6 +104,8 @@ Colors accept any CSS color string or a `Color4`. `configure` only changes the o
 - ❌ Hand-written localStorage save/restore. ✅ `await editor.autosave({ key })`.
 - ❌ A custom color-picking overlay. ✅ `editor.tools.use('eyedropper')` (applies to the previous tool).
 - ❌ `Color4.fromHex(...)` just to set a color. ✅ pass the string.
+- ❌ Reaching into `editor.tools.select.getSelection()` (internal `Selection`) for a selection toolbar. ✅ `editor.selection.*`.
+- ❌ Drawing arrows with the shape tool and moving them by hand when shapes move. ✅ the `'connector'` tool.
 
 ## Pen styles
 

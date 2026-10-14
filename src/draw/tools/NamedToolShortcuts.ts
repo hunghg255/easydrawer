@@ -6,7 +6,7 @@ import { type KeyPressEvent } from '../inputEvents';
 
 /**
  * Switches tools with single-key shortcuts: V select, P pen, M highlighter, E eraser,
- * T text, S shapes, K laser, I eyedropper. Keys can be changed with
+ * T text, S shapes, K laser, I eyedropper, N sticky note, C connector. Keys can be changed with
  * {@link EditorSettings.keyboardShortcutOverrides} (IDs in `namedToolShortcutIds`).
  */
 export default class NamedToolShortcuts extends BaseTool {

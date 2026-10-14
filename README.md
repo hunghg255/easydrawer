@@ -33,8 +33,8 @@ const editor = new Editor(document.getElementById('drawing')!, {
 
 ### Tools
 
-Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper'`.
-Keyboard: `V` select, `P` pen, `M` highlighter, `E` eraser, `T` text, `S` shapes, `K` laser, `I` eyedropper.
+Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper' | 'sticky' | 'connector'`.
+Keyboard: `V` select, `P` pen, `M` highlighter, `E` eraser, `T` text, `S` shapes, `K` laser, `I` eyedropper, `N` sticky note, `C` connector.
 
 ```ts
 editor.tools.use('highlighter'); // switch tool
@@ -63,6 +63,25 @@ editor.tools.pen.getColor();
 | `text` | `color`, `fontSize`, `fontFamily` |
 | `select` | `mode` (`'rectangle'` · `'lasso'`) |
 | `laser` | `color`, `thickness` — a fading trail for presenting, never saved |
+| `sticky` | `color` — click to add a note and type, click a note to edit it |
+| `connector` | `color`, `thickness`, `arrow` (`'end'` · `'both'` · `'none'`), `routing` (`'straight'` · `'elbow'`: right angles around other shapes) — drag from one shape to another; the arrow follows them when they move |
+
+### Selection
+
+```ts
+editor.selection.items;                  // what the select tool has selected
+editor.selection.onChange(() => {        // e.g. to place a floating toolbar
+  const rect = editor.selection.getScreenRect();
+});
+editor.selection.setColor('#dc2626');
+editor.selection.bringToFront();         // sendToBack()
+editor.selection.duplicate();            // delete()
+editor.selection.group();                // Ctrl/⌘+G; ungroup() is Ctrl/⌘+Shift+G
+editor.selection.align('left');          // center, right, top, middle, bottom
+editor.selection.distribute('horizontal');
+editor.selection.lock();                 // locked objects can't be selected, moved or erased
+editor.selection.unlockAll();
+```
 
 ### Document
 
@@ -85,6 +104,20 @@ const stopAutosave = await editor.autosave({ key: 'my-drawing' }); // localStora
 
 editor.zoomIn(); editor.zoomOut(); editor.setZoom(1); editor.zoomToFit();
 editor.onZoomChange((zoom) => console.log(`${Math.round(zoom * 100)}%`));
+```
+
+## AI features
+
+Give the editor a function that calls a language model (through your own server, which keeps the API key),
+then generate diagrams from text and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
+
+```ts
+const editor = new Editor(element, {
+  ai: { request: ({ messages }) => fetch('/api/ai', { method: 'POST', body: JSON.stringify({ messages }) }).then((r) => r.json()).then((d) => d.content) },
+});
+
+await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
+await editor.ai.organizeNotes(); // sort sticky notes into themed columns
 ```
 
 ## Natural ink

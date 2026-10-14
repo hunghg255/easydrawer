@@ -68,6 +68,17 @@ interface LaserToolOptions {
   color?: string | Color4;
   thickness?: number;             // screen pixels
 }
+
+interface StickyToolOptions {
+  color?: string | Color4;        // color of new notes
+}
+
+interface ConnectorToolOptions {
+  color?: string | Color4;
+  thickness?: number;             // pixels at the zoom used when drawing
+  arrow?: 'end' | 'both' | 'none';
+  routing?: 'straight' | 'elbow';   // elbow: right angles, around other shapes
+}
 ```
 
 ### `onChange(callback): () => void`
@@ -89,6 +100,8 @@ The tool object for `name`, or `null` if it was removed with `toolController`.
 | `select` | `SelectionTool` |
 | `laser` | `LaserPointer` |
 | `eyedropper` | `PipetteTool` |
+| `sticky` | `StickyNoteTool` — `edit(note)` opens the text editor on a note |
+| `connector` | `ConnectorTool` |
 
 ```ts
 editor.tools.pen.getColor().toHexString();

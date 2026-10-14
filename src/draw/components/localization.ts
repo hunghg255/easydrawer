@@ -10,6 +10,8 @@ export interface ImageComponentLocalization {
   filledBackgroundWithColor: (color: string) => string;
 
   restyledElement: (elementDescription: string) => string;
+  stickyNote: (text: string) => string;
+  connector: string;
 }
 
 export const defaultComponentLocalization: ImageComponentLocalization = {
@@ -23,4 +25,6 @@ export const defaultComponentLocalization: ImageComponentLocalization = {
   text: (text) => `Text object: ${text}`,
   imageNode: (description: string) => `Image: ${description}`,
   restyledElement: (elementDescription: string) => `Restyled ${elementDescription}`,
+  stickyNote: (text) => `Sticky note: ${text}`,
+  connector: 'Connector',
 };

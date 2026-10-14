@@ -1,7 +1,7 @@
 import { Mat33, type Rect2, type IVec2, Vec2, toRoundedString } from '~/math';
 
 import AbstractRenderer, { type RenderableImage } from './AbstractRenderer';
-import { type LoadSaveDataTable } from '../../components/AbstractComponent';
+import { easydrawerSVGAttributesKey, type LoadSaveDataTable } from '../../components/AbstractComponent';
 import {
   svgAttributesDataKey,
   svgLoaderAttributeContainerID,
@@ -326,6 +326,19 @@ export default class SVGRenderer extends AbstractRenderer {
     // If empty/not an object, stop.
     if (!this.objectElems) {
       return;
+    }
+
+    // easydrawer's own data (lock state, sticky notes, connectors…). Kept even when
+    // sanitizing (e.g. for copy/paste): only `data-easydrawer-*` attributes are written.
+    const ownAttrs = loaderData?.[easydrawerSVGAttributesKey] as Array<[string, string]> | undefined;
+    if (ownAttrs) {
+      for (const elem of this.objectElems) {
+        for (const [attr, value] of ownAttrs) {
+          if (attr.startsWith('data-easydrawer-')) {
+            elem.setAttribute(attr, value);
+          }
+        }
+      }
     }
 
     if (loaderData && !this.sanitize) {

@@ -13,6 +13,41 @@ Creates an editor inside `parentElement`. See [Settings](./settings) for the opt
 | Member | Description |
 | --- | --- |
 | `tools` | Named access to the built-in tools. See [editor.tools](./tools). |
+| `selection` | What is selected with the select tool. See [below](#selection). |
+| `ai` | AI features: `generateDiagram(prompt)`, `drawDiagram(diagram)`, `organizeNotes()`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
+
+## Selection
+
+`editor.selection` reads and changes what is selected with the `'select'` tool. Every change can be undone.
+
+```ts
+editor.selection.items;               // selected components, bottom to top
+editor.selection.set([component]);    // select (switches to the select tool)
+editor.selection.selectAll();
+editor.selection.clear();
+
+const stop = editor.selection.onChange((items) => placeToolbar(editor.selection.getScreenRect()));
+```
+
+| Member | Description |
+| --- | --- |
+| `items` / `isEmpty` | The selected components |
+| `set(components)` / `selectAll()` / `clear()` | Change the selection. Locked components are skipped. |
+| `getScreenRect()` | The selection's box in CSS pixels relative to the editor's container (`Rect2`), or `null` |
+| `onChange(callback)` | Called when the selection or its position on screen may have changed (selection, edits, undo/redo, zoom, scroll). Returns an unsubscribe function. |
+| `setColor(color)` | Recolor the selection (strokes, shapes, text, notes, connectors) |
+| `bringToFront()` / `sendToBack()` | Layering |
+| `duplicate(offset?)` | Copy the selection, offset by `offset` screen pixels (default `24`), and select the copies |
+| `delete()` | Delete the selection |
+| `group()` / `ungroup()` / `hasGroups` | Grouped components are selected and moved together |
+| `align(edge)` | Align to the selection's `'left'`, `'center'`, `'right'`, `'top'`, `'middle'` or `'bottom'` (groups move as one) |
+| `distribute(direction)` | Equal gaps, `'horizontal'` or `'vertical'` (3+ items; the outermost don't move) |
+| `lock()` | Lock the selection: locked components can't be selected, moved or erased |
+| `unlockAll()` | Unlock everything. Returns the number of unlocked components. |
+| `lockedCount` | Number of locked components |
+
+Components also have `isLocked()` / `setLocked(locked)` and `getGroupId()` / `setGroup(groupId | null)`
+(commands: `editor.dispatch(component.setLocked(true))`).
 
 ## History
 

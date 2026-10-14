@@ -2,6 +2,9 @@ import { ImageComponent } from '~/draw/lib';
 import fileToBase64Url from '~/draw/util/fileToBase64Url';
 import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
+import EditorAI from './ai/EditorAI';
+import { type AISettings } from './ai/types';
+import EditorSelection from './api/EditorSelection';
 import EditorTools from './api/EditorTools';
 import {
   type BackgroundOptions,
@@ -17,7 +20,7 @@ import type AbstractComponent from './components/AbstractComponent';
 import BackgroundComponent, { BackgroundType } from './components/BackgroundComponent';
 import makeAboutDialog, { type AboutDialogEntry } from './dialogs/makeAboutDialog';
 import EventDispatcher from './EventDispatcher';
-import EditorImage from './image/EditorImage';
+import EditorImage, { EditorImageEventType } from './image/EditorImage';
 import { editorImageToSVGSync, editorImageToSVGAsync } from './image/export/editorImageToSVG';
 import {
   type HTMLPointerEventName,
@@ -214,6 +217,12 @@ export interface EditorSettings {
   /** Input settings (e.g. palm rejection for tablets). */
   input: InputSettings | null;
 
+  /**
+   * Enables the AI features (`editor.ai`): a function that sends a chat request to a
+   * language model, usually through your own server. See {@link AIRequestHandler}.
+   */
+  ai: AISettings | null;
+
   /** Initial background. */
   background: BackgroundOptions | null;
 }
@@ -319,6 +328,15 @@ export class Editor {
    * ```
    */
   public readonly tools: EditorTools;
+
+  /**
+   * What is selected with the `'select'` tool: change its color and layering, lock,
+   * duplicate or delete it, and find where it is on screen (e.g. for a floating toolbar).
+   */
+  public readonly selection: EditorSelection;
+
+  /** AI features: generate diagrams from text, organize sticky notes. See {@link EditorAI}. */
+  public readonly ai: EditorAI;
 
   /**
 	 * Global event dispatcher/subscriber.
@@ -429,6 +447,7 @@ export class Editor {
       disableZoom: settings.disableZoom ?? false,
       tools: settings.tools ?? null,
       input: settings.input ?? null,
+      ai: settings.ai ?? null,
       background: settings.background ?? null,
     } satisfies EditorSettings;
 
@@ -487,6 +506,8 @@ export class Editor {
     this.history = new UndoRedoHistory(this, this.announceRedoCallback, this.announceUndoCallback);
     this.toolController = new ToolController(this, this.localization);
     this.tools = new EditorTools(this);
+    this.selection = new EditorSelection(this);
+    this.ai = new EditorAI(this);
 
     // TODO: Make this pipeline configurable (e.g. allow users to add global input stabilization)
     this.toolController.addInputMapper(StrokeKeyboardControl.fromEditor(this));
@@ -495,6 +516,9 @@ export class Editor {
     parent.appendChild(this.container);
 
     this.image = new EditorImage(this.display.width, this.display.height);
+    this.image.notifier.on(EditorImageEventType.ComponentUpdated, () => {
+      void this.queueRerender();
+    });
 
     this.viewport.updateScreenSize(Vec2.of(this.display.width, this.display.height));
 

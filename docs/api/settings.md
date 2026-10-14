@@ -22,7 +22,8 @@ const editor = new Editor(element, {
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `tools.initial` | `ToolName \| null` | `'pen'` | Tool active at start |
-| `tools.pen`, `tools.highlighter`, `tools.shape`, `tools.eraser`, `tools.text` | tool options | | Initial [tool options](./tools#configure-name-options) |
+| `tools.pen`, `tools.highlighter`, `tools.shape`, `tools.eraser`, `tools.text`, `tools.select`, `tools.laser`, `tools.sticky`, `tools.connector` | tool options | | Initial [tool options](./tools#configure-name-options) |
+| `ai` | `{ request(req): Promise<string> }` | none | Enables `editor.ai`. See [AI features](/guide/ai#setup) |
 | `input.stylusOnly` | `boolean \| 'auto'` | `'auto'` | [Palm rejection](/guide/tablets#palm-rejection) |
 | `background` | `{ type?, color? }` | none | Initial background |
 | `minZoom` / `maxZoom` | `number` | `2e-10` / `1e12` | Zoom limits |

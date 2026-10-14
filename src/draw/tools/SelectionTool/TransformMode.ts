@@ -18,7 +18,7 @@ export class DragTransformer {
   }
   public onDragUpdate(canvasPos: IVec3) {
     const delta = this.editor.viewport.roundPoint(canvasPos.minus(this.dragStartPoint));
-    this.selection.setTransform(Mat33.translation(delta));
+    this.selection.setTransform(Mat33.translation(this.selection.snapDragDelta(delta)));
   }
   public onDragEnd() {
     return this.selection.finalizeTransform();

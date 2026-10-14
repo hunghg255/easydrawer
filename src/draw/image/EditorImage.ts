@@ -26,6 +26,8 @@ export enum EditorImageEventType {
   ComponentAdded,
   // Type for events fired whenever components are removed from the image
   ComponentRemoved,
+  // Fired after a component changed by itself (see updateComponent): the image must be redrawn.
+  ComponentUpdated,
 }
 
 interface StateChangeEvent {
@@ -34,7 +36,10 @@ interface StateChangeEvent {
 }
 
 interface ComponentAddRemoveEvent {
-  kind: EditorImageEventType.ComponentAdded | EditorImageEventType.ComponentRemoved;
+  kind:
+    | EditorImageEventType.ComponentAdded
+    | EditorImageEventType.ComponentRemoved
+    | EditorImageEventType.ComponentUpdated;
   image: EditorImage;
   componentId: string;
 }
@@ -140,6 +145,8 @@ export default class EditorImage {
 
     if (parent) {
       parent.remove();
+      // Re-added below: keep the component count unchanged.
+      this.componentCount--;
       this.addComponentDirectly(elem);
     }
   }
@@ -252,6 +259,30 @@ export default class EditorImage {
 
     sortLeavesByZIndex(leaves);
     return leaves.map((leaf) => leaf.getContent()!);
+  }
+
+  /**
+   * For components that change by themselves (e.g. a connector following a shape): takes
+   * `elem` out of the image while `update` changes it (its bounding box may change), puts it
+   * back and asks the editor to redraw. @internal
+   */
+  public updateComponent(elem: AbstractComponent, update: () => void) {
+    const parent = this.findParent(elem);
+    if (!parent) {
+      update();
+      return;
+    }
+
+    parent.remove();
+    this.componentCount--;
+    update();
+    this.addComponentDirectly(elem);
+
+    this.notifier.dispatch(EditorImageEventType.ComponentUpdated, {
+      kind: EditorImageEventType.ComponentUpdated,
+      image: this,
+      componentId: elem.getId(),
+    });
   }
 
   /** Called whenever (just after) an element is completely removed. @internal */

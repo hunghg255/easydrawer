@@ -143,6 +143,11 @@ export default class TextComponent extends AbstractComponent implements Restylea
 
   // Returns a set of TextMetrics for the given text, if a canvas is available.
   private static getTextMetrics(text: string, style: TextRenderingStyle): TextMetrics | null {
+    if (typeof document === 'undefined') {
+      // Not in a browser (e.g. server-side rendering or tests).
+      return null;
+    }
+
     TextComponent.textMeasuringCtx ??= document.createElement('canvas').getContext('2d') ?? null;
     if (!TextComponent.textMeasuringCtx) {
       return null;
@@ -166,6 +171,11 @@ export default class TextComponent extends AbstractComponent implements Restylea
     const textY = -metrics.actualBoundingBoxAscent;
     const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
     return new Rect2(0, textY, metrics.width, textHeight);
+  }
+
+  /** Width of `text` in canvas units when drawn with `style` (estimated without a DOM). */
+  public static measureTextWidth(text: string, style: TextRenderingStyle): number {
+    return this.getTextDimens(text, style).width;
   }
 
   private static getFontHeight(style: TextRenderingStyle): number {

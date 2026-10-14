@@ -5,6 +5,8 @@ export interface ToolLocalization {
   selectAllTool: string;
   eraserTool: string;
   laserPointerTool: string;
+  stickyNoteTool: string;
+  connectorTool: string;
   touchPanTool: string;
   twoFingerPanZoomTool: string;
   undoRedoTool: string;
@@ -57,6 +59,8 @@ export const defaultToolLocalization: ToolLocalization = {
   selectAllTool: 'Select all shortcut',
   eraserTool: 'Eraser',
   laserPointerTool: 'Laser pointer',
+  stickyNoteTool: 'Sticky note',
+  connectorTool: 'Connector (arrow)',
   touchPanTool: 'Touch panning',
   twoFingerPanZoomTool: 'Panning and zooming',
   undoRedoTool: 'Undo/Redo',

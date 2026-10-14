@@ -280,7 +280,9 @@ export default class TextTool extends BaseTool {
         canvasPos.plus(halfTestRegionSize),
       );
       const targetNodes = this.editor.image.getComponentsIntersecting(testRegion);
-      let targetTextNodes = targetNodes.filter((node) => node instanceof TextComponent);
+      let targetTextNodes = targetNodes.filter(
+        (node): node is TextComponent => node instanceof TextComponent && !node.isLocked(),
+      );
 
       // Don't try to edit text nodes that contain the viewport (this allows us
       // to zoom in on text nodes and add text on top of them.)
@@ -291,17 +293,7 @@ export default class TextTool extends BaseTool {
       this.flushInput();
 
       if (targetTextNodes.length > 0) {
-        const targetNode = targetTextNodes[targetTextNodes.length - 1];
-        this.setTextStyle(targetNode.getTextStyle());
-
-        // Create and temporarily apply removeExistingCommand.
-        this.removeExistingCommand = new Erase([targetNode]);
-        this.removeExistingCommand.apply(this.editor);
-
-        this.startTextInput(targetNode.getBaselinePos(), targetNode.getText());
-
-        this.contentTransform.set(targetNode.getTransform());
-        this.updateTextInput();
+        this.editText(targetTextNodes[targetTextNodes.length - 1]);
       } else {
         this.removeExistingCommand = null;
         this.startTextInput(current.canvasPos, '');
@@ -310,6 +302,21 @@ export default class TextTool extends BaseTool {
     }
 
     return false;
+  }
+
+  /** Shows a text box to edit an existing text component. */
+  public editText(targetNode: TextComponent) {
+    this.flushInput();
+    this.setTextStyle(targetNode.getTextStyle());
+
+    // Create and temporarily apply removeExistingCommand.
+    this.removeExistingCommand = new Erase([targetNode]);
+    this.removeExistingCommand.apply(this.editor);
+
+    this.startTextInput(targetNode.getBaselinePos(), targetNode.getText());
+
+    this.contentTransform.set(targetNode.getTransform());
+    this.updateTextInput();
   }
 
   public override onGestureCancel(): void {

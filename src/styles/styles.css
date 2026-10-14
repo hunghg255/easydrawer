@@ -2353,3 +2353,20 @@
     height: initial
   }
 }
+
+/* Sticky note text editor (StickyNoteTool) */
+.imageEditorContainer .easydrawer-sticky-note-editor textarea {
+  display: block;
+  box-sizing: border-box;
+  margin: 0;
+  border: none;
+  border-radius: 6px;
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
+  font-family: sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  resize: none;
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+}

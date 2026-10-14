@@ -49,6 +49,7 @@ export { default as EditorSelection } from './api/EditorSelection';
 export {
   default as EditorAI,
   type AIColorName,
+  type AICommandResult,
   type Diagram,
   type DiagramEdge,
   type DiagramNode,

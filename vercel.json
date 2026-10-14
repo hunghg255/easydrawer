@@ -4,5 +4,10 @@
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm build:docs",
   "outputDirectory": "docs/.vitepress/dist",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "functions": {
+    "api/ai.js": {
+      "maxDuration": 60
+    }
+  }
 }

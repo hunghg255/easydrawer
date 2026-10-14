@@ -71,7 +71,10 @@ editor.selection.distribute('horizontal');             // or 'vertical'
 // AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
 await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
 await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.editDiagram('add a step …');          // change the selected diagram (readDiagram() to inspect)
+await editor.ai.brainstorm();                          // ideas as notes around the selected note
 await editor.ai.organizeNotes();                       // sticky notes → themed colored columns
+await editor.ai.runCommand('color the notes about X in blue'); // → { message, actions }
 editor.ai.describeScene(); await editor.ai.requestJSON(messages); // build custom AI features
 // Server helper: openAICompatibleRequest({ url, model, apiKey }) for OpenAI/OpenRouter/Groq/Ollama…
 

@@ -23,6 +23,7 @@ export const lockedSVGAttribute = 'data-easydrawer-locked';
 export const idSVGAttribute = 'data-easydrawer-id';
 export const componentSVGAttribute = 'data-easydrawer-component';
 export const groupSVGAttribute = 'data-easydrawer-group';
+export const metadataSVGAttribute = 'data-easydrawer-meta';
 
 export enum ComponentSizingMode {
   /** The default. The compnent gets its size from its bounding box. */
@@ -157,7 +158,26 @@ export default abstract class AbstractComponent {
     if (this.groupId) {
       result.push([groupSVGAttribute, this.groupId]);
     }
+    if (this.metadata) {
+      result.push([metadataSVGAttribute, JSON.stringify(this.metadata)]);
+    }
     return result;
+  }
+
+  private metadata: Record<string, string> | null = null;
+
+  /**
+   * Small pieces of text attached to this component by apps or features (e.g. the kind of a
+   * diagram node made by `editor.ai`). Saved in SVG and JSON, and copied with the component.
+   */
+  public getMetadata(): Readonly<Record<string, string>> {
+    return this.metadata ?? {};
+  }
+
+  /** Replaces the metadata. Not undoable: intended for new components. */
+  public setMetadata(metadata: Record<string, string> | null) {
+    const entries = Object.entries(metadata ?? {}).filter(([k, v]) => typeof k === 'string' && typeof v === 'string');
+    this.metadata = entries.length > 0 ? Object.fromEntries(entries) : null;
   }
 
   private groupId: string | null = null;
@@ -609,6 +629,7 @@ export default abstract class AbstractComponent {
   // Returns a copy of this component.
   public clone() {
     const clone = this.createClone();
+    clone.metadata = this.metadata ? { ...this.metadata } : null;
 
     for (const attachmentKey in this.loadSaveData) {
       for (const val of this.loadSaveData[attachmentKey]) {
@@ -672,6 +693,7 @@ export default abstract class AbstractComponent {
       data,
       ...(this.locked ? { locked: true } : {}),
       ...(this.groupId ? { group: this.groupId } : {}),
+      ...(this.metadata ? { meta: this.metadata } : {}),
     };
   }
 
@@ -713,6 +735,9 @@ export default abstract class AbstractComponent {
     instance.id = json.id;
     instance.locked = json.locked === true;
     instance.groupId = typeof json.group === 'string' ? json.group : null;
+    if (json.meta && typeof json.meta === 'object') {
+      instance.setMetadata(json.meta);
+    }
 
     if (isFinite(json.zIndex)) {
       instance.zIndex = json.zIndex;

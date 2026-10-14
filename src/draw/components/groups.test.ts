@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { Mat33, Vec2 } from '~/math';
 
-import AbstractComponent, { easydrawerSVGAttributesKey, groupSVGAttribute } from './AbstractComponent';
+import AbstractComponent, { easydrawerSVGAttributesKey, groupSVGAttribute, metadataSVGAttribute } from './AbstractComponent';
 import StickyNote from './StickyNote';
 
 function note () {
@@ -43,5 +43,23 @@ describe('groups', () => {
     expect(preview.getBBox().x).toBeCloseTo(a.getBBox().x + 50);
     // The original doesn't move.
     expect(a.getBBox().x).toBeCloseTo(0);
+  });
+});
+
+describe('metadata', () => {
+  it('is saved, loaded and copied', () => {
+    const a = note();
+    a.setMetadata({ diagramNode: 'n1', kind: 'decision' });
+
+    const attrs = a.getLoadSaveData()[easydrawerSVGAttributesKey] as Array<[string, string]>;
+    expect(attrs).toContainEqual([metadataSVGAttribute, JSON.stringify({ diagramNode: 'n1', kind: 'decision' })]);
+    expect(AbstractComponent.deserialize(a.serialize()).getMetadata()).toEqual({ diagramNode: 'n1', kind: 'decision' });
+    expect(a.clone().getMetadata()).toEqual({ diagramNode: 'n1', kind: 'decision' });
+  });
+
+  it('ignores values that are not strings', () => {
+    const a = note();
+    a.setMetadata({ ok: 'yes', bad: 3 as any });
+    expect(a.getMetadata()).toEqual({ ok: 'yes' });
   });
 });

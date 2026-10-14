@@ -4,7 +4,11 @@ EasyDrawer can ask a language model to draw for you:
 
 - **Text → diagram**: describe a process, a flowchart or an architecture, and get shapes with text and arrows
   that stay attached to them. Decisions get labeled branches ("yes" / "no").
+- **Edit a diagram with words**: "add a step to send a confirmation email after the payment".
+- **Brainstorm**: ideas about a sticky note, as new notes around it.
 - **Organize sticky notes**: after a brainstorm, sort the notes into themed, colored columns with titles.
+- **Commands**: ask for anything in plain language — "color the notes about marketing in blue", "align the
+  selected shapes and group them", "what is missing in this flowchart?". In the playground: <kbd>Ctrl/⌘ K</kbd>.
 
 Everything the AI adds or moves is a single step in the undo history, and is made of normal shapes, text,
 notes and connectors that you can keep editing. Try it in the [playground](/playground) (the ✨ **AI** button).
@@ -93,6 +97,38 @@ await editor.ai.drawDiagram({
 
 Colors: `blue`, `green`, `yellow`, `pink`, `purple`, `gray`. Nodes are placed in layers with `layoutGraph`,
 which is exported too.
+
+## Edit a diagram
+
+```ts
+// With a diagram (or part of it) selected:
+await editor.ai.editDiagram('Add a step to send a confirmation email after the payment');
+```
+
+The AI gets the current diagram (`editor.ai.readDiagram()`) and returns the updated one, which replaces it in
+the same place — one undo step. Diagram shapes remember their node kind and color in their metadata
+(`component.getMetadata()`), saved in the SVG.
+
+## Brainstorm
+
+```ts
+// With a sticky note (or text) selected:
+const notes = await editor.ai.brainstorm({ count: 6 });
+```
+
+The ideas become notes in a ring around the topic, linked to it.
+
+## Commands
+
+```ts
+const result = await editor.ai.runCommand('Color the notes about marketing in blue');
+result.message; // the AI's reply, e.g. the answer to a question
+result.actions; // what was done, e.g. ['select', 'setColor']
+```
+
+The AI sees a description of the board (with the selection) and answers with actions that use the editor's
+API: select items, change their color, align, distribute, layering, group, lock, duplicate, delete, add notes,
+generate or edit diagrams, brainstorm and organize notes. Questions are answered in `message`.
 
 ## Organize sticky notes
 

@@ -27,6 +27,14 @@ function isValidMessages(messages) {
   return total <= maxCharacters;
 }
 
+// Open /api/ai in a browser to check the setup (no secrets are shown).
+export function GET() {
+  return json({
+    configured: !!process.env.OPENROUTER_API_KEY,
+    model: process.env.OPENROUTER_MODEL || defaultModel,
+  });
+}
+
 export async function POST(request) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {

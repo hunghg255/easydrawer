@@ -3,7 +3,8 @@
 A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, SVG/PNG export.
 Works with mouse, touch and styluses (Apple Pencil, Wacom, Surface Pen), with palm rejection on tablets.
 
-- [Documentation](https://easydrawer-docs.vercel.app/)
+- [Documentation](https://easydrawer-docs.vercel.app/) — source in [`docs/`](./docs) (`pnpm dev:docs`), with a full playground page
+- [AI skill](./skills/easydrawer) — teaches AI coding assistants (Claude Code…) to use EasyDrawer: `cp -r node_modules/easydrawer/skills/easydrawer .claude/skills/`
 - [Deep wiki](https://deepwiki.com/hunghg255/easydrawer)
 
 ## Install
@@ -141,13 +142,16 @@ src/
     ├── SVGLoader/             # SVG import
     └── localizations/         # translations
 playground/                    # React demo app (uses only the public API)
+docs/                          # VitePress docs site: guide, API, playground and AI skills pages
+skills/easydrawer/             # Agent Skill for AI coding assistants (shipped in the npm package)
 ```
 
 ## Development
 
 ```bash
 pnpm install
-pnpm dev     # library watch + playground
+pnpm dev       # library watch + playground
+pnpm dev:docs  # docs site (uses the library source directly)
 pnpm test    # unit tests (vitest)
 pnpm lint
 pnpm build

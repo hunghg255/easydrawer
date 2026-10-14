@@ -15,7 +15,7 @@
  * @packageDocumentation
  */
 
-import Editor, { EditorSettings } from './Editor';
+import Editor, { type EditorSettings } from './Editor';
 import AbstractToolbar from './toolbar/AbstractToolbar';
 
 export * from './image/lib';
@@ -27,7 +27,7 @@ export {
 } from './localizations/getLocalizationTable';
 export * from './localization';
 
-export { default as SVGLoader, SVGLoaderPlugin } from './SVGLoader/SVGLoader';
+export { default as SVGLoader, type SVGLoaderPlugin } from './SVGLoader/SVGLoader';
 export { default as Viewport } from './Viewport';
 export * from '~/math';
 export * from './components/lib';
@@ -56,7 +56,7 @@ export * from './util/lib';
 // @internal
 export { default as __easy_draw__version } from './version';
 
-export { Editor, EditorSettings, AbstractToolbar };
+export { Editor, type EditorSettings, AbstractToolbar };
 
 /**
  * Using the HTMLToolbar alias is deprecated. Use

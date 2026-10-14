@@ -46,7 +46,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "scripts": {
     "build": "NODE_ENV=production tsup && pnpm run build:css",
@@ -62,6 +63,8 @@
     "release": "bumpp -r && npm publish",
     "dev:tsup": "NODE_ENV=development tsup --watch",
     "dev:playground": "pnpm --dir ./playground run dev",
+    "dev:docs": "pnpm --dir ./docs run dev",
+    "build:docs": "pnpm --dir ./docs run build",
     "build:playground": "pnpm build && pnpm --dir ./playground run build",
     "preview": "pnpm --dir ./playground run preview",
     "dev:css": "postcss ./src/styles/styles.tailwind.css -o ./src/styles/assets/styles.css --watch",

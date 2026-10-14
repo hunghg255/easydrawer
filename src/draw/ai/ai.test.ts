@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateDiagram } from './EditorAI';
+import { assignSides, validateDiagram } from './EditorAI';
 import layoutGraph from './layoutGraph';
 import parseAIJSON from './parseJSON';
 import { AIError } from './types';
@@ -69,5 +69,36 @@ describe('layoutGraph', () => {
     const x = (id: string) => positions.get(id)!.x;
     expect(x('a')).toBeLessThan(x('b'));
     expect(x('b')).toBeLessThan(x('c'));
+  });
+});
+
+describe('assignSides', () => {
+  it('spreads branches and sends back edges around the side', () => {
+    const diagram = validateDiagram({
+      nodes: [
+        { id: 'input', label: 'Input', kind: 'io' },
+        { id: 'check', label: 'OK?', kind: 'decision' },
+        { id: 'error', label: 'Error' },
+        { id: 'done', label: 'Done' },
+      ],
+      edges: [
+        { from: 'input', to: 'check' },
+        { from: 'check', to: 'error', label: 'no' },
+        { from: 'check', to: 'done', label: 'yes' },
+        { from: 'error', to: 'input' },
+      ],
+    });
+    const positions = new Map([
+      ['input', { x: 0, y: 0 }],
+      ['check', { x: 0, y: 100 }],
+      ['error', { x: -100, y: 200 }],
+      ['done', { x: 100, y: 200 }],
+    ]);
+    const sides = assignSides(diagram, positions);
+    expect(sides[0]).toEqual({ start: 'bottom', end: 'top' });
+    expect(sides[1]).toEqual({ start: 'left', end: 'top' });
+    expect(sides[2]).toEqual({ start: 'right', end: 'top' });
+    // Back edge: around the left side.
+    expect(sides[3]).toEqual({ start: 'left', end: 'left' });
   });
 });

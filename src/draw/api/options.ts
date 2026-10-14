@@ -97,6 +97,8 @@ export interface ConnectorToolOptions {
   thickness?: number;
   /** Where to draw arrowheads. Default: `'end'`. */
   arrow?: 'end' | 'both' | 'none';
+  /** `'straight'` (default), or `'elbow'`: right-angle lines that go around other shapes. */
+  routing?: 'straight' | 'elbow';
 }
 
 /** Maps each tool name to its options type. */

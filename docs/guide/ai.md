@@ -70,7 +70,9 @@ const diagram = await editor.ai.generateDiagram(
 ```
 
 The diagram is drawn in the middle of the screen and selected, so it can be moved right away. Each node is a
-group (shape + text); arrows are [connectors](./tools#connector).
+group (shape + text); arrows are [connectors](./tools#connector) with `'elbow'` routing, laid out like a
+hand-made flowchart: branches of a decision leave from different sides, arrows going back go around the side,
+and no arrow crosses a shape.
 
 The model answers with JSON that you can also produce yourself and draw with `drawDiagram`:
 

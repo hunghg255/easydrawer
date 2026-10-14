@@ -210,7 +210,11 @@ function cancelAI() {
   aiAbort?.abort();
 }
 const stickyColor = ref(noteColors[0]);
-const connectorState = ref({ color: inkColors[0], arrow: 'end' as 'end' | 'both' | 'none' });
+const connectorState = ref({
+  color: inkColors[0],
+  arrow: 'end' as 'end' | 'both' | 'none',
+  routing: 'elbow' as 'straight' | 'elbow',
+});
 
 // Floating toolbar next to the selection
 const quickBar = ref<HTMLDivElement>();
@@ -267,6 +271,7 @@ onMounted(async () => {
       pen: penState.value.pen,
       highlighter: penState.value.highlighter,
       shape: { shape: 'rectangle', color: 'transparent', borderColor: '#1f2937', thickness: 2 },
+      connector: { routing: 'elbow' },
     },
     input: { stylusOnly: 'auto' },
     ai: { request: playgroundAIRequest },
@@ -387,7 +392,7 @@ function setStickyColor(color: string) {
   editor.value?.tools.configure('sticky', { color });
 }
 
-function updateConnector(options: Partial<{ color: string; arrow: 'end' | 'both' | 'none' }>) {
+function updateConnector(options: Partial<{ color: string; arrow: 'end' | 'both' | 'none'; routing: 'straight' | 'elbow' }>) {
   Object.assign(connectorState.value, options);
   editor.value?.tools.configure('connector', options);
 }
@@ -670,6 +675,14 @@ async function onImagesSelected(event: Event) {
             @click="updateConnector({ arrow: item.mode })"
           >
             {{ item.label }}
+          </button>
+        </div>
+        <div class="segmented">
+          <button :class="{ active: connectorState.routing === 'straight' }" @click="updateConnector({ routing: 'straight' })">
+            Straight
+          </button>
+          <button :class="{ active: connectorState.routing === 'elbow' }" @click="updateConnector({ routing: 'elbow' })">
+            Elbow
           </button>
         </div>
         <span class="label">Drag from one shape to another — the arrow follows them.</span>

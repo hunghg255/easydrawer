@@ -140,13 +140,18 @@ To edit a note from your own UI: `editor.tools.sticky.edit(note)`.
 | `color` | line color |
 | `thickness` | line width in pixels (default `2`) |
 | `arrow` | `'end'` (default), `'both'` or `'none'` |
+| `routing` | `'straight'` (default) or `'elbow'`: right-angle lines with rounded corners that go **around** other shapes |
 
 Drag from one shape (or note, text, image…) to another. Each end dropped on something stays attached to it: move
 the shape and the arrow follows, also after undo/redo and after saving and loading the SVG. Ends dropped on empty
 space stay where they are. While you drag a shape, its arrows follow it live.
 
+With `routing: 'elbow'`, the line picks the best side of each shape and finds its way around the shapes in
+between — also when a shape is moved into its way later. The side can be fixed per end with
+`new Connector({ point, targetId, side: 'bottom' }, …)`.
+
 ```ts
-editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both' });
+editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both', routing: 'elbow' });
 editor.tools.use('connector');
 ```
 

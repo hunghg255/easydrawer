@@ -5,6 +5,7 @@ import parseAIJSON from './parseJSON';
 import { AIError, type AIMessage, type AIRequestHandler } from './types';
 import type AbstractComponent from '../components/AbstractComponent';
 import Connector from '../components/Connector';
+import { type RouteSide } from '../components/util/routeOrthogonal';
 import ImageComponent from '../components/ImageComponent';
 import StickyNote from '../components/StickyNote';
 import Stroke from '../components/Stroke';
@@ -152,6 +153,57 @@ function wrapText (text: string, style: TextRenderingStyle, maxWidth: number): s
   return lines.slice(0, 4);
 }
 
+/**
+ * Chooses which side of their shapes the arrows of a laid-out diagram leave from and arrive at,
+ * like in a hand-made flowchart: forward arrows go from the bottom to the top (or right to left),
+ * the branches of a node with several arrows leave from different sides, and arrows going back
+ * leave and arrive on the side. @internal
+ */
+export function assignSides (diagram: Diagram, positions: Map<string, { x: number; y: number }>) {
+  const down = diagram.direction === 'down';
+  const along = (id: string) => (down ? positions.get(id)!.x : positions.get(id)!.y);
+  const across = (id: string) => (down ? positions.get(id)!.y : positions.get(id)!.x);
+  const exit: RouteSide = down ? 'bottom' : 'right';
+  const entry: RouteSide = down ? 'top' : 'left';
+  const low: RouteSide = down ? 'left' : 'top';
+  const high: RouteSide = down ? 'right' : 'bottom';
+  const mean = diagram.nodes.reduce((sum, n) => sum + along(n.id), 0) / diagram.nodes.length;
+
+  const result: Array<{ start?: RouteSide; end?: RouteSide }> = diagram.edges.map(() => ({}));
+  const usedExits = new Map<string, Set<RouteSide>>();
+  const useExit = (node: string, side: RouteSide) => {
+    const used = usedExits.get(node) ?? new Set();
+    usedExits.set(node, used);
+    if (used.has(side)) return undefined;
+    used.add(side);
+    return side;
+  };
+
+  // Forward arrows: branches spread over the sides, by where their targets are.
+  for (const node of diagram.nodes) {
+    const forward = diagram.edges
+      .map((edge, i) => ({ edge, i }))
+      .filter(({ edge }) => edge.from === node.id && across(edge.to) > across(edge.from));
+    for (const { edge, i } of forward) {
+      let side: RouteSide = exit;
+      if (forward.length > 1) {
+        const delta = along(edge.to) - along(edge.from);
+        side = delta < -1 ? low : delta > 1 ? high : exit;
+      }
+      result[i] = { start: useExit(node.id, side), end: entry };
+    }
+  }
+
+  // Arrows going back (or sideways): around the side.
+  for (const [i, edge] of diagram.edges.entries()) {
+    if (across(edge.to) > across(edge.from)) continue;
+    const side = along(edge.from) <= mean ? low : high;
+    result[i] = { start: useExit(edge.from, side), end: side };
+  }
+
+  return result;
+}
+
 /** The outline of a diagram node centered on (0, 0). */
 function nodePath (kind: DiagramNodeKind, w: number, h: number): Path {
   const x = -w / 2;
@@ -292,7 +344,7 @@ export default class EditorAI {
     const positions = layoutGraph(
       sized.map(({ node, width, height }) => ({ id: node.id, width, height })),
       diagram.edges,
-      { direction: diagram.direction, nodeGap: 50 * scale, layerGap: 70 * scale },
+      { direction: diagram.direction, nodeGap: 70 * scale, layerGap: 80 * scale },
     );
     const center = editor.viewport.visibleRect.center;
 
@@ -329,13 +381,14 @@ export default class EditorAI {
       }
     }
 
-    for (const edge of diagram.edges) {
+    const sides = assignSides(diagram, positions);
+    for (const [i, edge] of diagram.edges.entries()) {
       const from = shapeById.get(edge.from)!;
       const to = shapeById.get(edge.to)!;
       const connector = new Connector(
-        { point: from.getBBox().center, targetId: from.getId() },
-        { point: to.getBBox().center, targetId: to.getId() },
-        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label },
+        { point: from.getBBox().center, targetId: from.getId(), side: sides[i].start },
+        { point: to.getBBox().center, targetId: to.getId(), side: sides[i].end },
+        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label, routing: 'elbow' },
       );
       created.push(connector);
     }

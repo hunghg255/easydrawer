@@ -1,5 +1,11 @@
 import BackgroundComponent, { BackgroundType } from './BackgroundComponent';
-import Connector, { type ConnectorArrowMode, type ConnectorEnd, type ConnectorStyle } from './Connector';
+import Connector, {
+  type ConnectorArrowMode,
+  type ConnectorEnd,
+  type ConnectorRouting,
+  type ConnectorStyle,
+} from './Connector';
+import routeOrthogonal, { type RouteEnd, type RouteOptions, type RouteSide } from './util/routeOrthogonal';
 import ImageComponent from './ImageComponent';
 import type RestyleableComponent from './RestylableComponent';
 import {
@@ -38,5 +44,10 @@ export {
   type ConnectorArrowMode,
   type ConnectorEnd,
   type ConnectorStyle,
+  type ConnectorRouting,
+  routeOrthogonal,
+  type RouteEnd,
+  type RouteOptions,
+  type RouteSide,
   type StickyNoteOptions,
 };

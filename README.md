@@ -64,7 +64,7 @@ editor.tools.pen.getColor();
 | `select` | `mode` (`'rectangle'` · `'lasso'`) |
 | `laser` | `color`, `thickness` — a fading trail for presenting, never saved |
 | `sticky` | `color` — click to add a note and type, click a note to edit it |
-| `connector` | `color`, `thickness`, `arrow` (`'end'` · `'both'` · `'none'`) — drag from one shape to another; the arrow follows them when they move |
+| `connector` | `color`, `thickness`, `arrow` (`'end'` · `'both'` · `'none'`), `routing` (`'straight'` · `'elbow'`: right angles around other shapes) — drag from one shape to another; the arrow follows them when they move |
 
 ### Selection
 

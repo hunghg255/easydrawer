@@ -85,6 +85,7 @@ export function applyToolOptions (tool: BaseTool, options: ToolOptionsMap[ToolNa
     if (connectorOptions.color !== undefined) tool.setColor(toColor4(connectorOptions.color));
     if (connectorOptions.thickness !== undefined) tool.setThickness(connectorOptions.thickness);
     if (connectorOptions.arrow !== undefined) tool.setArrowMode(connectorOptions.arrow);
+    if (connectorOptions.routing !== undefined) tool.setRouting(connectorOptions.routing);
   }
 }
 

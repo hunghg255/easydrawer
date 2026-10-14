@@ -77,6 +77,7 @@ interface ConnectorToolOptions {
   color?: string | Color4;
   thickness?: number;             // pixels at the zoom used when drawing
   arrow?: 'end' | 'both' | 'none';
+  routing?: 'straight' | 'elbow';   // elbow: right angles, around other shapes
 }
 ```
 

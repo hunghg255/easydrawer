@@ -569,6 +569,14 @@ export default class Selection {
     const image = this.editor.image;
     const lookup = {
       lookupElement: (id: string) => moved.get(id) ?? image.lookupElement(id),
+      // For elbow routes: other components, with the selection where it's being dragged to.
+      getComponentsIntersecting: (region: Rect2) => [
+        ...image.getComponentsIntersecting(region).filter((c) => !moved.has(c.getId())),
+        ...this.selectedElems
+          .filter((elem) => !(elem instanceof Connector))
+          .map((elem) => moved.get(elem.getId()) ?? elem.transformedPreview(transform))
+          .filter((elem) => elem.getBBox().intersects(region)),
+      ],
     };
     const renderer = this.editor.display.getWetInkRenderer();
     for (const connector of connectors) {

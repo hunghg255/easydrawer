@@ -20,7 +20,7 @@ import type AbstractComponent from './components/AbstractComponent';
 import BackgroundComponent, { BackgroundType } from './components/BackgroundComponent';
 import makeAboutDialog, { type AboutDialogEntry } from './dialogs/makeAboutDialog';
 import EventDispatcher from './EventDispatcher';
-import EditorImage from './image/EditorImage';
+import EditorImage, { EditorImageEventType } from './image/EditorImage';
 import { editorImageToSVGSync, editorImageToSVGAsync } from './image/export/editorImageToSVG';
 import {
   type HTMLPointerEventName,
@@ -516,6 +516,9 @@ export class Editor {
     parent.appendChild(this.container);
 
     this.image = new EditorImage(this.display.width, this.display.height);
+    this.image.notifier.on(EditorImageEventType.ComponentUpdated, () => {
+      void this.queueRerender();
+    });
 
     this.viewport.updateScreenSize(Vec2.of(this.display.width, this.display.height));
 

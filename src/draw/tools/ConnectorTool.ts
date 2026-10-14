@@ -2,7 +2,7 @@ import { Color4, type IVec2, Rect2, Vec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import type AbstractComponent from '../components/AbstractComponent';
-import Connector, { type ConnectorArrowMode, type ConnectorStyle } from '../components/Connector';
+import Connector, { type ConnectorArrowMode, type ConnectorRouting, type ConnectorStyle } from '../components/Connector';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
 import { type PointerEvt } from '../inputEvents';
@@ -18,6 +18,7 @@ export default class ConnectorTool extends BaseTool {
     color: Color4.fromHex('#1f2937'),
     thickness: 2,
     arrow: 'end',
+    routing: 'straight',
   };
   private startPoint: IVec2 | null = null;
   private startTarget: AbstractComponent | null = null;
@@ -55,6 +56,16 @@ export default class ConnectorTool extends BaseTool {
 
   public setArrowMode(arrow: ConnectorArrowMode) {
     this.style = { ...this.style, arrow };
+    this.noteUpdated();
+  }
+
+  public getRouting(): ConnectorRouting {
+    return this.style.routing ?? 'straight';
+  }
+
+  /** `'elbow'`: horizontal and vertical segments that go around other components. */
+  public setRouting(routing: ConnectorRouting) {
+    this.style = { ...this.style, routing };
     this.noteUpdated();
   }
 

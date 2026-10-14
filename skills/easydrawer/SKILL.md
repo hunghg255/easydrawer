@@ -51,7 +51,7 @@ editor.tools.configure('text', { fontSize: 24, fontFamily: 'serif', color: '#333
 editor.tools.configure('select', { mode: 'lasso' });   // or 'rectangle'
 editor.tools.configure('laser', { color: 'red' });      // fading trail, never saved
 editor.tools.configure('sticky', { color: '#fde68a' }); // click to add a note, click a note to edit
-editor.tools.configure('connector', { arrow: 'end' });  // drag shape → shape; arrow follows them ('both' | 'none')
+editor.tools.configure('connector', { arrow: 'end', routing: 'elbow' }); // drag shape → shape; follows them; elbow = around other shapes
 const off = editor.tools.onChange((name) => {/* sync toolbar UI */});
 
 // Selection (what the 'select' tool has selected); all changes are undoable

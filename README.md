@@ -3,7 +3,7 @@
 A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, SVG/PNG export.
 Works with mouse, touch and styluses (Apple Pencil, Wacom, Surface Pen), with palm rejection on tablets.
 
-- [Documentation](https://easydrawer-docs.vercel.app/) — source in [`docs/`](./docs) (`pnpm dev:docs`), with a full playground page
+- [Documentation & playground](https://easydrawer.vercel.app/) — source in [`docs/`](./docs) (`pnpm dev`); the playground is at [`/playground`](https://easydrawer.vercel.app/playground)
 - [AI skill](./skills/easydrawer) — teaches AI coding assistants (Claude Code…) to use EasyDrawer: `cp -r node_modules/easydrawer/skills/easydrawer .claude/skills/`
 - [Deep wiki](https://deepwiki.com/hunghg255/easydrawer)
 
@@ -119,7 +119,7 @@ editor.tools.configure('pen', { style: brush });
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   ```
   and make your toolbar buttons at least 44×44 px on touch screens (`@media (pointer: coarse)`), as the
-  playground does.
+  [playground](./docs/.vitepress/theme/components/Playground.vue) does.
 
 ## Project structure
 
@@ -141,8 +141,7 @@ src/
     ├── toolbar/               # optional built-in toolbars/widgets
     ├── SVGLoader/             # SVG import
     └── localizations/         # translations
-playground/                    # React demo app (uses only the public API)
-docs/                          # VitePress docs site: guide, API, playground and AI skills pages
+docs/                          # VitePress site: guide, API, playground and AI skills pages (deployed to Vercel)
 skills/easydrawer/             # Agent Skill for AI coding assistants (shipped in the npm package)
 ```
 
@@ -150,8 +149,7 @@ skills/easydrawer/             # Agent Skill for AI coding assistants (shipped i
 
 ```bash
 pnpm install
-pnpm dev       # playground (uses the library source directly)
-pnpm dev:docs  # docs site (uses the library source directly)
+pnpm dev       # docs site + playground (uses the library source directly)
 pnpm test      # unit tests (vitest)
 pnpm typecheck
 pnpm lint

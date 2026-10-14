@@ -62,13 +62,9 @@
     "prepare": "git-scm-hooks",
     "changelog": "npx changeloggithub@latest --all true && git add CHANGELOG.md && git commit -m 'chore: update CHANGELOG.md'",
     "release": "bumpp -r && npm publish",
-    "dev:playground": "pnpm --dir ./playground run dev",
     "dev:docs": "pnpm --dir ./docs run dev",
     "build:docs": "pnpm --dir ./docs run build",
-    "build:playground": "pnpm --dir ./playground run build",
-    "typecheck:playground": "pnpm build && pnpm --dir ./playground run typecheck",
-    "preview": "pnpm --dir ./playground run preview",
-    "dev": "pnpm dev:playground"
+    "dev": "pnpm dev:docs"
   },
   "dependencies": {
     "bezier-js": "^6.1.4"

@@ -11,8 +11,8 @@ runs:
 
     - uses: pnpm/action-setup@v4
       name: Install pnpm
+      # The pnpm version comes from `packageManager` in package.json.
       with:
-        version: 9.3.0
         run_install: false
 
     - name: Get pnpm store directory

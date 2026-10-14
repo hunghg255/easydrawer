@@ -5,6 +5,9 @@ import { Color4 } from '~/math';
 
 import type BaseTool from './BaseTool';
 import Eraser from './Eraser';
+import LaserPointer from './LaserPointer';
+import NamedToolShortcuts from './NamedToolShortcuts';
+import PipetteTool from './PipetteTool';
 import FindTool from './FindTool';
 import { type InputEventListener } from './InputFilter/InputMapper';
 import type InputMapper from './InputFilter/InputMapper';
@@ -65,6 +68,8 @@ export default class ToolController implements InputEventListener {
       thickness: 2,
       factory: makeNaturalPenBuilder,
     });
+    // Hold the pen still at the end of a stroke to turn it into a line/circle/rectangle.
+    primaryPenTool.setStrokeAutocorrectEnabled(true);
 
     const highlighterTool = new Pen(editor, localization.penTool(2), {
       color: Color4.blackHighlight,
@@ -81,6 +86,8 @@ export default class ToolController implements InputEventListener {
     const eraser = new Eraser(editor, localization.eraserTool);
     const selectionTool = new SelectionTool(editor, localization.selectionTool);
     const textTool = new TextTool(editor, localization.textTool, localization);
+    const laserTool = new LaserPointer(editor, localization.laserPointerTool);
+    const eyedropperTool = new PipetteTool(editor, localization.pipetteTool);
 
     this.namedTools = {
       select: selectionTool,
@@ -89,6 +96,8 @@ export default class ToolController implements InputEventListener {
       highlighter: highlighterTool,
       eraser,
       shape: shapeTool,
+      laser: laserTool,
+      eyedropper: eyedropperTool,
     };
 
     // Order matters: it's the order used by toolbars.
@@ -99,13 +108,15 @@ export default class ToolController implements InputEventListener {
       highlighterTool,
       eraser,
       shapeTool,
+      laserTool,
+      eyedropperTool,
     ];
 
     const settings = editor.getCurrentSettings();
     this.stylusOnlySetting = settings.input?.stylusOnly ?? 'auto';
 
     const toolSettings = settings.tools ?? {};
-    for (const name of ['pen', 'highlighter', 'eraser', 'shape', 'text'] as const) {
+    for (const name of ['pen', 'highlighter', 'eraser', 'shape', 'text', 'select', 'laser'] as const) {
       const options = toolSettings[name];
       if (options) {
         applyToolOptions(this.namedTools[name]!, options);
@@ -120,6 +131,9 @@ export default class ToolController implements InputEventListener {
 
     this.tools = [
       ...primaryTools,
+
+      // Before keyboard panning, which also uses some letter keys.
+      new NamedToolShortcuts(editor),
 
       new UndoRedoShortcut(editor),
       new ToolbarShortcutHandler(editor),
@@ -145,6 +159,7 @@ export default class ToolController implements InputEventListener {
       primaryTools.forEach((tool) => tool.setEnabled(false));
     }
     this.updateStylusOnlyMode();
+    this.setUpEyedropper(eyedropperTool);
 
     editor.notifier.on(EditorEventType.ToolEnabled, (event) => {
       if (event.kind === EditorEventType.ToolEnabled) {
@@ -209,6 +224,31 @@ export default class ToolController implements InputEventListener {
       return null;
     }
     return tool;
+  }
+
+  // The eyedropper applies the picked color to the tool that was active before it,
+  // then switches back to that tool.
+  private setUpEyedropper(eyedropper: PipetteTool) {
+    let previousTool: BaseTool | null =
+      this.getPrimaryTools().find((tool) => tool.isEnabled() && tool !== eyedropper) ?? null;
+    for (const tool of this.getPrimaryTools()) {
+      tool.enabledValue().onUpdate((enabled) => {
+        if (enabled && tool !== eyedropper) {
+          previousTool = tool;
+        }
+      });
+    }
+
+    eyedropper.setDefaultColorListener(
+      () => {},
+      (color) => {
+        const target = previousTool;
+        if (color && target) {
+          applyToolOptions(target, { color });
+        }
+        target?.setEnabled(true);
+      },
+    );
   }
 
   /**

@@ -19,6 +19,7 @@ type ColorListener = (color: Color4 | null) => void;
 export default class PipetteTool extends BaseTool {
   private colorPreviewListener: ColorListener | null = null;
   private colorSelectListener: ColorListener | null = null;
+  private defaultListeners: [ColorListener, ColorListener] | null = null;
 
   public constructor(
     private editor: Editor,
@@ -59,9 +60,17 @@ export default class PipetteTool extends BaseTool {
     this.updateSelectingStatus();
   }
 
+  /** Listeners used when no other listener is set (e.g. after {@link clearColorListener}). */
+  public setDefaultColorListener(colorPreviewListener: ColorListener, colorSelectListener: ColorListener) {
+    this.defaultListeners = [colorPreviewListener, colorSelectListener];
+    if (!this.colorSelectListener) {
+      this.setColorListener(colorPreviewListener, colorSelectListener);
+    }
+  }
+
   public clearColorListener() {
-    this.colorPreviewListener = null;
-    this.colorSelectListener = null;
+    this.colorPreviewListener = this.defaultListeners?.[0] ?? null;
+    this.colorSelectListener = this.defaultListeners?.[1] ?? null;
 
     this.updateSelectingStatus();
   }

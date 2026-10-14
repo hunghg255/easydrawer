@@ -17,14 +17,27 @@ The default pen style, `'natural'`, aims to look and feel like a real pen.
 3. **Smoothing without lag.** Hand jitter is removed with a *symmetric* smoothing pass. Unlike the usual
    "follow the pointer with a delay" approach, it doesn't cut or hook corners, sharp corners stay sharp, and the
    tip of the stroke stays exactly under the pointer.
-4. **One outline per stroke.** The stroke is drawn as one filled shape with round caps and joins, so
+4. **Low latency.** Where the browser supports it, the stroke is drawn slightly ahead to where the pen is
+   predicted to go next (`getPredictedEvents()`), hiding a frame of lag. Predicted points are never saved.
+5. **One outline per stroke.** The stroke is drawn as one filled shape with round caps and joins, so
    semi-transparent colors look even, with no dark spots where the stroke overlaps itself.
+
+## Shape recognition
+
+Draw a rough line, circle or rectangle and **keep the pen still for half a second** before lifting it: the
+stroke snaps to a clean straight line, circle/ellipse or rectangle. Lift without pausing to keep it hand-drawn.
+
+```ts
+editor.tools.configure('pen', { autocorrect: false }); // turn it off
+```
 
 ## Styles
 
 | Style | Look |
 | --- | --- |
 | `'natural'` | Ink with pressure (default pen) |
+| `'pencil'` | Graphite grain, slightly uneven width, tapered ends |
+| `'calligraphy'` | Flat nib: thick or thin depending on the stroke direction |
 | `'marker'` | Smooth, constant width (default highlighter) |
 | `'flat-tip'` | Older pressure-sensitive pen |
 | `'round-tip'` | Constant-width line |
@@ -64,3 +77,7 @@ editor.tools.configure('pen', { style: brushPen, thickness: 6 });
 | `smoothing` | `0.5` | Jitter removal |
 | `taperStart` | `0` | Taper at the start, as a multiple of the width |
 | `taperEnd` | `0` | Taper at the end, as a multiple of the width |
+| `nibAngle` | `null` | Calligraphy: angle of a flat nib in radians (e.g. `-Math.PI / 4`) |
+| `roughness` | `0` | Pencil-like unevenness, `0`–`1` |
+| `opacity` | `1` | Multiplied into the color's alpha |
+| `texture` | none | `'pencil'`: graphite grain. Drawn with a grain pattern on screen and an SVG `feTurbulence` filter in exported SVG, so strokes stay vectors |

@@ -105,3 +105,34 @@ KeyboardShortcutManager.registerDefaultKeyboardShortcut(
 // Selection tool
 
 export * from './SelectionTool/keybindings';
+
+// Switch tools by name (see NamedToolShortcuts)
+export const namedToolShortcutIds = {
+  select: 'easydraw.tools.use.select',
+  pen: 'easydraw.tools.use.pen',
+  highlighter: 'easydraw.tools.use.highlighter',
+  eraser: 'easydraw.tools.use.eraser',
+  text: 'easydraw.tools.use.text',
+  shape: 'easydraw.tools.use.shape',
+  laser: 'easydraw.tools.use.laser',
+  eyedropper: 'easydraw.tools.use.eyedropper',
+} as const;
+
+const namedToolDefaultKeys: Record<keyof typeof namedToolShortcutIds, [string, string]> = {
+  select: ['KeyV', 'Select tool'],
+  pen: ['KeyP', 'Pen'],
+  highlighter: ['KeyM', 'Highlighter (marker)'],
+  eraser: ['KeyE', 'Eraser'],
+  text: ['KeyT', 'Text'],
+  shape: ['KeyS', 'Shapes'],
+  laser: ['KeyK', 'Laser pointer'],
+  eyedropper: ['KeyI', 'Eyedropper'],
+};
+
+for (const [name, [key, description]] of Object.entries(namedToolDefaultKeys)) {
+  KeyboardShortcutManager.registerDefaultKeyboardShortcut(
+    namedToolShortcutIds[name as keyof typeof namedToolShortcutIds],
+    [key],
+    description,
+  );
+}

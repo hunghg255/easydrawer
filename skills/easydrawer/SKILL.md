@@ -39,13 +39,16 @@ Rules:
 ## Core API (prefer this over low-level APIs)
 
 ```ts
-// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape'
+// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper'
+// Keyboard: V P M E T S K I switch tools (when the canvas has focus)
 editor.tools.use('eraser');              // activate; use(null) = pan/zoom only
 editor.tools.active;                     // current ToolName | null
 editor.tools.configure('pen', { color: 'red', thickness: 4, style: 'natural' });
 editor.tools.configure('shape', { shape: 'star', color: 'gold', borderColor: '#000', thickness: 2 });
 editor.tools.configure('eraser', { thickness: 20, mode: 'partial-stroke' });
 editor.tools.configure('text', { fontSize: 24, fontFamily: 'serif', color: '#333' });
+editor.tools.configure('select', { mode: 'lasso' });   // or 'rectangle'
+editor.tools.configure('laser', { color: 'red' });      // fading trail, never saved
 const off = editor.tools.onChange((name) => {/* sync toolbar UI */});
 
 // History & document
@@ -53,7 +56,12 @@ editor.undo(); editor.redo();
 editor.canUndo(); editor.canRedo();
 editor.clear();                                       // undoable, keeps background
 editor.setBackground({ type: 'dot', color: '#fffbea' });
-const offChange = editor.onChange(() => {/* autosave */});
+const offChange = editor.onChange(() => {/* custom saving */});
+const stopAutosave = await editor.autosave({ key: 'my-drawing' }); // localStorage, restores on start
+
+// Zoom
+editor.zoomIn(); editor.zoomOut(); editor.setZoom(1); editor.zoomToFit();
+const offZoom = editor.onZoomChange((zoom) => {/* update a "125%" label */});
 
 // Import / export
 const svg = editor.toSVGString();
@@ -69,13 +77,17 @@ Colors accept any CSS color string or a `Color4`. `configure` only changes the o
 - ❌ `editor.toolController.getPrimaryTools()[2]` — index-based, fragile. ✅ `editor.tools.pen` / `editor.tools.configure('pen', …)`.
 - ❌ Creating a hidden toolbar (`makeDropdownToolbar`) just to call widget methods for backgrounds. ✅ `editor.setBackground(...)`.
 - ❌ `editor.history.clearAllDraft()` to clear. ✅ `editor.clear()`.
+- ❌ Hand-written localStorage save/restore. ✅ `await editor.autosave({ key })`.
+- ❌ A custom color-picking overlay. ✅ `editor.tools.use('eyedropper')` (applies to the previous tool).
 - ❌ `Color4.fromHex(...)` just to set a color. ✅ pass the string.
 
 ## Pen styles
 
 `style`: `'natural'` (default pen: width from stylus pressure, or from speed for mouse/finger),
+`'pencil'`, `'calligraphy'` (flat nib),
 `'marker'` (default highlighter, constant width), `'flat-tip'`, `'round-tip'`, `'polyline'`,
-or a custom factory:
+or a custom factory. The pen snaps a stroke to a line/circle/rectangle when held still for ½ s at
+the end (`autocorrect`, on by default for the pen):
 
 ```ts
 import { naturalPenBuilderFactory } from 'easydrawer';

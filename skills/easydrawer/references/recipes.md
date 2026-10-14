@@ -86,16 +86,16 @@ Nuxt: wrap in `<ClientOnly>`.
 ## Autosave to localStorage
 
 ```ts
-const saved = localStorage.getItem('drawing');
-if (saved) {
-  await editor.loadFromSVG(saved);
-  editor.history.clearAllStack();
-}
+const stopAutosave = await editor.autosave({ key: 'drawing' });
+```
 
+Custom storage (e.g. a server):
+
+```ts
 let timer: ReturnType<typeof setTimeout>;
 editor.onChange(() => {
   clearTimeout(timer);
-  timer = setTimeout(() => localStorage.setItem('drawing', editor.toSVGString()), 500);
+  timer = setTimeout(() => api.save(editor.toSVGString()), 1000);
 });
 ```
 

@@ -3,7 +3,7 @@
 Named access to the built-in tools.
 
 ```ts
-type ToolName = 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape';
+type ToolName = 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper';
 ```
 
 ## Methods
@@ -34,7 +34,7 @@ Options by tool:
 interface PenToolOptions {          // 'pen' and 'highlighter'
   color?: string | Color4;
   thickness?: number;
-  style?: 'natural' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
+  style?: 'natural' | 'pencil' | 'calligraphy' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
   pressureSensitive?: boolean;
   stabilization?: boolean;
   autocorrect?: boolean;
@@ -59,6 +59,15 @@ interface TextToolOptions {
   fontSize?: number;
   fontFamily?: string;
 }
+
+interface SelectToolOptions {
+  mode?: 'rectangle' | 'lasso';
+}
+
+interface LaserToolOptions {
+  color?: string | Color4;
+  thickness?: number;             // screen pixels
+}
 ```
 
 ### `onChange(callback): () => void`
@@ -78,6 +87,8 @@ The tool object for `name`, or `null` if it was removed with `toolController`.
 | `shape` | `ShapeTool` |
 | `text` | `TextTool` |
 | `select` | `SelectionTool` |
+| `laser` | `LaserPointer` |
+| `eyedropper` | `PipetteTool` |
 
 ```ts
 editor.tools.pen.getColor().toHexString();

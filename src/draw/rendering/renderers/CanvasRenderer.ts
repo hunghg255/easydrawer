@@ -7,6 +7,7 @@ import type RenderablePathSpec from '../RenderablePathSpec';
 import { visualEquivalent } from '../RenderablePathSpec';
 import type RenderingStyle from '../RenderingStyle';
 import type TextRenderingStyle from '../TextRenderingStyle';
+import { getPencilPattern } from '../textures';
 
 /**
  * Renders onto a `CanvasRenderingContext2D`.
@@ -112,7 +113,16 @@ export default class CanvasRenderer extends AbstractRenderer {
 
     // If not a transparent fill
     if (style.fill.a > 0) {
-      this.ctx.fillStyle = style.fill.toHexString();
+      const pattern = style.texture === 'pencil' ? getPencilPattern(this.ctx, style.fill) : null;
+      if (pattern) {
+        // Anchor the grain to the drawing (not the screen), so it doesn't move while
+        // panning or zooming. One texel = one canvas unit.
+        const t = this.getCanvasToScreenTransform();
+        pattern.setTransform(new DOMMatrix([t.a1, t.b1, t.a2, t.b2, t.a3, t.b3]));
+        this.ctx.fillStyle = pattern;
+      } else {
+        this.ctx.fillStyle = style.fill.toHexString();
+      }
       this.ctx.fill();
     }
 

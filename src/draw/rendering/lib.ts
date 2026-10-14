@@ -4,7 +4,11 @@ export { default as SVGRenderer } from './renderers/SVGRenderer';
 export { default as CanvasRenderer } from './renderers/CanvasRenderer';
 export { default as Display, RenderingMode } from './Display';
 export { type default as TextRenderingStyle } from './TextRenderingStyle';
-export { type default as RenderingStyle, type StrokeStyle as StrokeRenerdingStyle } from './RenderingStyle';
+export {
+  type default as RenderingStyle,
+  type StrokeStyle as StrokeRenerdingStyle,
+  type FillTexture,
+} from './RenderingStyle';
 export {
   pathToRenderable,
   pathFromRenderable,

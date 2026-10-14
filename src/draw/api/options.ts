@@ -14,7 +14,15 @@ export function toColor4 (color: ColorInput): Color4 {
 }
 
 /** Names of the built-in tools. */
-export type ToolName = 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape';
+export type ToolName =
+  | 'select'
+  | 'text'
+  | 'pen'
+  | 'highlighter'
+  | 'eraser'
+  | 'shape'
+  | 'laser'
+  | 'eyedropper';
 
 export const toolNames: readonly ToolName[] = [
   'select',
@@ -23,6 +31,8 @@ export const toolNames: readonly ToolName[] = [
   'highlighter',
   'eraser',
   'shape',
+  'laser',
+  'eyedropper',
 ];
 
 export interface PenToolOptions {
@@ -61,9 +71,22 @@ export interface TextToolOptions {
   fontFamily?: string;
 }
 
+export interface SelectToolOptions {
+  /** `'rectangle'` (default) drags a box; `'lasso'` selects inside a freehand loop. */
+  mode?: 'rectangle' | 'lasso';
+}
+
+export interface LaserToolOptions {
+  color?: ColorInput;
+  /** Trail width in screen pixels. Default: `6`. */
+  thickness?: number;
+}
+
 /** Maps each tool name to its options type. */
 export interface ToolOptionsMap {
-  select: Record<string, never>;
+  select: SelectToolOptions;
+  laser: LaserToolOptions;
+  eyedropper: Record<string, never>;
   text: TextToolOptions;
   pen: PenToolOptions;
   highlighter: PenToolOptions;
@@ -81,6 +104,8 @@ export interface ToolsSettings {
   eraser?: EraserToolOptions;
   shape?: ShapeToolOptions;
   text?: TextToolOptions;
+  select?: SelectToolOptions;
+  laser?: LaserToolOptions;
 }
 
 export interface InputSettings {

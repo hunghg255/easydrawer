@@ -12,7 +12,7 @@ import { makeFreehandLineBuilder } from '../components/builders/FreehandLineBuil
 import { type ComponentBuilder, type ComponentBuilderFactory } from '../components/builders/types';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
-import { type KeyPressEvent, type PointerEvt } from '../inputEvents';
+import { type KeyPressEvent, type PointerEvt, type PointerMoveEvt } from '../inputEvents';
 import type Pointer from '../Pointer';
 import { PointerDevice } from '../Pointer';
 import { EditorEventType, type StrokeDataPoint } from '../types';
@@ -131,11 +131,13 @@ export default class Pen extends BaseTool {
       const visibleRect = this.editor.viewport.visibleRect;
       this.autocorrectedShape.render(wetInkRenderer, visibleRect);
     } else {
-      this.builder?.preview(wetInkRenderer);
+      this.builder?.preview(wetInkRenderer, this.predictedPoints);
     }
   }
 
   private previewFrameRequested = false;
+  // Where the browser predicts the pointer will go next. Only drawn, never stored.
+  private predictedPoints: StrokeDataPoint[] = [];
 
   // Like `previewStroke`, but renders at most once per animation frame. Styluses can
   // send several points per frame (e.g. 240Hz on iPad).
@@ -222,10 +224,15 @@ export default class Pen extends BaseTool {
     return this.eventCanCancelStroke(event);
   }
 
-  public override onPointerMove({ current }: PointerEvt): void {
+  public override onPointerMove(event: PointerMoveEvt): void {
+    const { current } = event;
     if (!this.builder) return;
     if (current.device !== this.currentDeviceType) return;
     if (current.id !== this.currentPointerId) return;
+
+    this.predictedPoints = (event.predicted ?? [])
+      .filter((pointer) => pointer.id === current.id)
+      .map((pointer) => this.toStrokePoint(pointer));
 
     const isStationary = this.stationaryDetector?.onPointerMove(current);
 
@@ -267,6 +274,7 @@ export default class Pen extends BaseTool {
 
   public override onGestureCancel() {
     this.builder = null;
+    this.predictedPoints = [];
     this.editor.clearWetInk();
     this.stationaryDetector?.destroy();
     this.stationaryDetector = null;
@@ -314,7 +322,11 @@ export default class Pen extends BaseTool {
       }
 
       const stroke = this.autocorrectedShape ?? this.builder.build();
-      this.previewStroke();
+
+      // The wet ink is copied to the canvas as-is ("flattened"), so draw the final
+      // stroke there: the live preview can differ (predicted points, no end taper).
+      this.editor.clearWetInk();
+      stroke.render(this.editor.display.getWetInkRenderer(), this.editor.viewport.visibleRect);
 
       if (stroke.getBBox().area > 0) {
         if (stroke === this.autocorrectedShape) {
@@ -332,6 +344,7 @@ export default class Pen extends BaseTool {
     }
     this.builder = null;
     this.lastPoint = null;
+    this.predictedPoints = [];
     this.autocorrectedShape = null;
     this.lastAutocorrectedShape = null;
     this.editor.clearWetInk();

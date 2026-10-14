@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { Color4, Vec2 } from '~/math';
 
-import NaturalPenBuilder, { defaultNaturalPenOptions } from './NaturalPenBuilder';
+import NaturalPenBuilder, {
+  defaultCalligraphyOptions,
+  defaultNaturalPenOptions,
+  defaultPencilOptions,
+  makeNaturalPenBuilder,
+} from './NaturalPenBuilder';
 import { type StrokeDataPoint } from '../../types';
 import Viewport from '../../Viewport';
 
@@ -64,5 +69,93 @@ describe('NaturalPenBuilder', () => {
 
     const bbox = builder.build().getBBox();
     expect(isFinite(bbox.area)).toBe(true);
+  });
+
+  it('should keep sharp corners for sparse points (e.g. autocorrected rectangles)', () => {
+    const corners = [[0, 0], [300, 0], [300, 150], [0, 150], [0, 0]];
+    const builder = new NaturalPenBuilder(point(0, 0, 0, 0.5), makeViewport(), defaultNaturalPenOptions);
+    corners.slice(1).forEach(([x, y], i) => builder.addPoint(point(x, y, (i + 1) * 100, 0.5)));
+
+    // The outline must still reach the corners (smoothing would shrink it).
+    const bbox = builder.build().getBBox();
+    expect(bbox.x).toBeLessThan(0);
+    expect(bbox.y).toBeLessThan(0);
+    expect(bbox.x + bbox.w).toBeGreaterThan(300);
+    expect(bbox.y + bbox.h).toBeGreaterThan(150);
+  });
+});
+
+describe('shape recognition', () => {
+  const drawAndCorrect = async (points: Array<[number, number]>) => {
+    const builder = makeNaturalPenBuilder(point(...points[0], 0, 0.5), makeViewport());
+    points.slice(1).forEach(([x, y], i) => builder.addPoint(point(x, y, (i + 1) * 10, 0.5)));
+    return builder.autocorrectShape!();
+  };
+
+  it('should snap a wobbly circle to a circle', async () => {
+    const points: Array<[number, number]> = [];
+    for (let i = 0; i <= 60; i++) {
+      const angle = (i / 60) * Math.PI * 2;
+      const radius = 100 + Math.sin(i * 1.7) * 6;
+      points.push([250 + radius * Math.cos(angle), 250 + radius * Math.sin(angle)]);
+    }
+
+    const shape = await drawAndCorrect(points);
+    expect(shape).not.toBeNull();
+    const bbox = shape!.getBBox();
+    expect(bbox.center.distanceTo(Vec2.of(250, 250))).toBeLessThan(10);
+    expect(Math.abs(bbox.w - bbox.h)).toBeLessThan(10);
+  });
+
+  it('should snap a wobbly line to a straight line', async () => {
+    const points: Array<[number, number]> = [];
+    for (let i = 0; i <= 40; i++) {
+      points.push([50 + i * 8, 100 + Math.sin(i) * 4]);
+    }
+
+    const shape = await drawAndCorrect(points);
+    expect(shape).not.toBeNull();
+    expect(shape!.getBBox().h).toBeLessThan(10);
+  });
+
+  it('should not snap a scribble', async () => {
+    const points: Array<[number, number]> = [];
+    for (let i = 0; i <= 60; i++) {
+      points.push([50 + i * 5, 100 + Math.sin(i / 2) * 60]);
+    }
+
+    expect(await drawAndCorrect(points)).toBeNull();
+  });
+});
+
+describe('pen styles', () => {
+  // Bounding box width of a straight stroke drawn in `direction`.
+  const strokeExtent = (options: typeof defaultNaturalPenOptions, direction: [number, number]) => {
+    const builder = new NaturalPenBuilder(point(100, 100, 0, 0.5), makeViewport(), options);
+    for (let i = 1; i <= 30; i++) {
+      builder.addPoint(point(100 + direction[0] * i * 5, 100 + direction[1] * i * 5, i * 10, 0.5));
+    }
+    return builder.build().getBBox().w;
+  };
+
+  it('calligraphy strokes should be thick across the nib and thin along it', () => {
+    // The default nib is at -45°: (1, -1) runs along it, (1, 1) across it.
+    const alongNib = strokeExtent(defaultCalligraphyOptions, [1, -1]);
+    const acrossNib = strokeExtent(defaultCalligraphyOptions, [1, 1]);
+    expect(acrossNib - alongNib).toBeGreaterThan(2);
+
+    // A round tip doesn't care about direction.
+    const roundA = strokeExtent(defaultNaturalPenOptions, [1, -1]);
+    const roundB = strokeExtent(defaultNaturalPenOptions, [1, 1]);
+    expect(Math.abs(roundA - roundB)).toBeLessThan(0.5);
+  });
+
+  it('pencil strokes should be lighter than the color', () => {
+    const builder = new NaturalPenBuilder(point(0, 0, 0, 0.5), makeViewport(), defaultPencilOptions);
+    builder.addPoint(point(50, 0, 10, 0.5));
+    const stroke = builder.build();
+    expect(stroke.getStyle().color!.a).toBeLessThan(Color4.red.a);
+    // Graphite grain
+    expect(stroke.getParts()[0].style.texture).toBe('pencil');
   });
 });

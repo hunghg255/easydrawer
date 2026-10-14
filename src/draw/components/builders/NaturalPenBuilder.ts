@@ -3,6 +3,7 @@ import { type IVec2, Vec2, Rect2, type Color4, type PathCommand, PathCommandType
 import makeShapeFitAutocorrect from './autocorrect/makeShapeFitAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import type RenderablePathSpec from '../../rendering/RenderablePathSpec';
+import { type FillTexture } from '../../rendering/RenderingStyle';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
 import Viewport from '../../Viewport';
@@ -39,6 +40,21 @@ export interface NaturalPenOptions {
 
   /** Length of the tapered end of the stroke, as a multiple of the stroke width. 0 disables. */
   taperEnd: number;
+
+  /**
+   * Calligraphy: angle (radians) of a flat nib. Strokes are widest perpendicular to the
+   * nib and thinnest along it. `null` for a round tip.
+   */
+  nibAngle?: number | null;
+
+  /** Pencil-like unevenness of the width, from 0 (smooth) to 1. */
+  roughness?: number;
+
+  /** Opacity multiplied into the color's alpha, from 0 to 1. */
+  opacity?: number;
+
+  /** A texture for the ink, e.g. `'pencil'` for graphite grain. */
+  texture?: FillTexture;
 }
 
 export const defaultNaturalPenOptions: Readonly<NaturalPenOptions> = {
@@ -57,6 +73,26 @@ export const defaultHighlighterOptions: Readonly<NaturalPenOptions> = {
   smoothing: 0.65,
   taperStart: 0,
   taperEnd: 0,
+};
+
+export const defaultPencilOptions: Readonly<NaturalPenOptions> = {
+  ...defaultNaturalPenOptions,
+  thinning: 0.75,
+  simulatedThinning: 0.3,
+  smoothing: 0.35,
+  taperStart: 1.5,
+  taperEnd: 2,
+  roughness: 0.45,
+  opacity: 0.9,
+  texture: 'pencil',
+};
+
+export const defaultCalligraphyOptions: Readonly<NaturalPenOptions> = {
+  ...defaultNaturalPenOptions,
+  thinning: 0.35,
+  simulatedThinning: 0.15,
+  smoothing: 0.55,
+  nibAngle: -Math.PI / 4,
 };
 
 /**
@@ -82,6 +118,13 @@ export function naturalPenBuilderFactory (options: Partial<NaturalPenOptions> = 
  * filled outline, so semi-transparent colors render evenly.
  */
 export const makeNaturalPenBuilder: ComponentBuilderFactory = naturalPenBuilderFactory();
+
+/** A pencil: lighter, slightly uneven strokes with tapered ends. */
+export const makePencilBuilder: ComponentBuilderFactory = naturalPenBuilderFactory(defaultPencilOptions);
+
+/** A calligraphy pen with a flat nib: width depends on the stroke's direction. */
+export const makeCalligraphyBuilder: ComponentBuilderFactory =
+  naturalPenBuilderFactory(defaultCalligraphyOptions);
 
 /** A smooth, constant-width marker suitable for highlighters. */
 export const makeHighlighterBuilder: ComponentBuilderFactory =
@@ -117,6 +160,7 @@ export default class NaturalPenBuilder implements ComponentBuilder {
   private readonly pixelSize: number;
   private readonly color: Color4;
   private maxRadius: number;
+  private readonly fillColor: Color4;
   private bbox: Rect2;
 
   public constructor(
@@ -128,6 +172,8 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     this.baseRadius = Math.max((startPoint.baseWidth ?? startPoint.width) / 2, 1e-6);
     this.pixelSize = viewport.getSizeOfPixelOnCanvas();
     this.color = startPoint.color;
+    const opacity = Math.min(Math.max(options.opacity ?? 1, 0), 1);
+    this.fillColor = opacity < 1 ? this.color.withAlpha(this.color.a * opacity) : this.color;
 
     this.pressure = this.hasRealPressure
       ? startPoint.pressure!
@@ -204,23 +250,24 @@ export default class NaturalPenBuilder implements ComponentBuilder {
 
   // Returns the smoothed center line of the stroke. It ends at the latest input point so
   // that the stroke follows the pointer without lag.
-  private getCenterLine(): InkPoint[] {
+  private getCenterLine(predicted: StrokeDataPoint[] = []): InkPoint[] {
     const points = this.points.slice();
-    const last = points[points.length - 1];
-    const tip = this.lastInput.pos;
-    const tipDist = Math.hypot(tip.x - last.x, tip.y - last.y);
+    const tipRadius = this.radiusFor(this.pressure);
+    const minTipDist = Math.min(this.pixelSize, this.baseRadius / 4);
 
-    if (tipDist > Math.min(this.pixelSize, this.baseRadius / 4)) {
-      points.push({
-        x: tip.x,
-        y: tip.y,
-        r: this.radiusFor(this.pressure),
-        dist: last.dist + tipDist,
-      });
+    for (const { pos } of [this.lastInput, ...predicted]) {
+      const last = points[points.length - 1];
+      const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
+      if (dist > minTipDist && isFinite(dist)) {
+        points.push({ x: pos.x, y: pos.y, r: tipRadius, dist: last.dist + dist });
+      }
     }
 
     const smoothing = Math.min(Math.max(this.options.smoothing, 0), 1);
-    return smoothCenterLine(points, Math.round(smoothing * 6));
+    // Only jitter-sized segments are smoothed. Long segments (fast strokes, generated
+    // shapes like autocorrected rectangles) are kept exactly.
+    const maxSmoothedSegment = Math.max(this.baseRadius * 8, this.pixelSize * 24);
+    return smoothCenterLine(points, Math.round(smoothing * 6), maxSmoothedSegment);
   }
 
   private applyTapers(points: InkPoint[], taperEnd: boolean): number[] {
@@ -244,8 +291,36 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     });
   }
 
-  private computeOutline(isFinal: boolean): IVec2[] {
-    const points = simplifyCenterLine(this.getCenterLine(), this.pixelSize * 0.25);
+  // Calligraphy and pencil effects: adjust each point's radius in place.
+  private applyNibAndRoughness(
+    points: InkPoint[],
+    radii: number[],
+    segmentDirs: Array<[number, number]>,
+  ) {
+    const { nibAngle, roughness } = this.options;
+    const hasNib = nibAngle !== null && nibAngle !== undefined;
+    if (!hasNib && !roughness) return;
+
+    for (const [i, point] of points.entries()) {
+      if (hasNib) {
+        const dirIn = segmentDirs[Math.max(i - 1, 0)];
+        const dirOut = segmentDirs[Math.min(i, segmentDirs.length - 1)];
+        const angle = Math.atan2(dirIn[1] + dirOut[1], dirIn[0] + dirOut[0]);
+        // Widest when moving perpendicular to the nib
+        const across = Math.abs(Math.sin(angle - nibAngle));
+        radii[i] *= 0.25 + 1.15 * across;
+      }
+
+      if (roughness) {
+        // Noise along the stroke's length, so it doesn't change while drawing.
+        const noise = valueNoise(point.dist / Math.max(this.baseRadius * 1.5, this.pixelSize * 2));
+        radii[i] *= 1 + roughness * 0.9 * (noise - 0.5);
+      }
+    }
+  }
+
+  private computeOutline(isFinal: boolean, predicted?: StrokeDataPoint[]): IVec2[] {
+    const points = simplifyCenterLine(this.getCenterLine(predicted), this.pixelSize * 0.25);
     const radii = this.applyTapers(points, isFinal);
     const count = points.length;
 
@@ -263,6 +338,8 @@ export default class NaturalPenBuilder implements ComponentBuilder {
       const len = Math.hypot(dx, dy) || 1;
       segmentDirs.push([dx / len, dy / len]);
     }
+
+    this.applyNibAndRoughness(points, radii, segmentDirs);
 
     const left: IVec2[] = [];
     const right: IVec2[] = [];
@@ -343,7 +420,24 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     return Viewport.roundPoint(point, Math.min(this.pixelSize, this.baseRadius) / 4);
   }
 
-  private outlineToPath(outline: IVec2[]): RenderablePathSpec {
+  private outlineToPath(sparseOutline: IVec2[]): RenderablePathSpec {
+    // The outline is drawn as a smooth curve through the midpoints of its edges. Long
+    // edges (straight lines, rectangles) would turn their corners into large arcs: add
+    // points close to both ends of each long edge so corners stay tight.
+    const cornerRadius = Math.max(this.baseRadius, this.pixelSize);
+    const longEdge = Math.max(this.baseRadius * 12, this.pixelSize * 30);
+    const outline: IVec2[] = [];
+    for (let i = 0; i < sparseOutline.length; i++) {
+      const current = sparseOutline[i];
+      const next = sparseOutline[(i + 1) % sparseOutline.length];
+      const length = current.distanceTo(next);
+      outline.push(current);
+      if (length > longEdge) {
+        outline.push(current.lerp(next, cornerRadius / length));
+        outline.push(next.lerp(current, cornerRadius / length));
+      }
+    }
+
     const count = outline.length;
     const midpoint = (i: number) => outline[i % count].lerp(outline[(i + 1) % count], 0.5);
 
@@ -361,17 +455,19 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     return {
       startPoint: this.roundPoint(midpoint(0)),
       commands,
-      style: { fill: this.color },
+      style: this.options.texture
+        ? { fill: this.fillColor, texture: this.options.texture }
+        : { fill: this.fillColor },
     };
   }
 
-  private toRenderable(isFinal: boolean) {
-    return this.outlineToPath(this.computeOutline(isFinal));
+  private toRenderable(isFinal: boolean, predicted?: StrokeDataPoint[]) {
+    return this.outlineToPath(this.computeOutline(isFinal, predicted));
   }
 
-  public preview(renderer: AbstractRenderer) {
+  public preview(renderer: AbstractRenderer, predictedPoints?: StrokeDataPoint[]) {
     renderer.startObject(this.viewport.visibleRect);
-    renderer.drawPath(this.toRenderable(false));
+    renderer.drawPath(this.toRenderable(false, predictedPoints));
     renderer.endObject();
   }
 
@@ -410,9 +506,21 @@ function arcThrough(
   return arcPoints(cx, cy, r, fromAngle, sweep, segments);
 }
 
+// Smooth 1D value noise in [0, 1].
+function valueNoise(x: number): number {
+  const hash = (n: number) => {
+    const value = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  const i = Math.floor(x);
+  const t = x - i;
+  const smoothT = t * t * (3 - 2 * t);
+  return hash(i) * (1 - smoothT) + hash(i + 1) * smoothT;
+}
+
 // Symmetric (lag-free) Laplacian smoothing. The end points and sharp corners don't move,
 // so corners stay crisp.
-function smoothCenterLine(points: InkPoint[], iterations: number): InkPoint[] {
+function smoothCenterLine(points: InkPoint[], iterations: number, maxSegmentLength: number): InkPoint[] {
   const count = points.length;
   if (count < 3 || iterations <= 0) {
     return points;
@@ -424,8 +532,11 @@ function smoothCenterLine(points: InkPoint[], iterations: number): InkPoint[] {
     const ay = points[i].y - points[i - 1].y;
     const bx = points[i + 1].x - points[i].x;
     const by = points[i + 1].y - points[i].y;
-    const cosTurn = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by) || 1);
-    isCorner[i] = cosTurn < -0.2 ? 1 : 0;
+    const lengthA = Math.hypot(ax, ay);
+    const lengthB = Math.hypot(bx, by);
+    const cosTurn = (ax * bx + ay * by) / (lengthA * lengthB || 1);
+    const isLongSegment = lengthA > maxSegmentLength || lengthB > maxSegmentLength;
+    isCorner[i] = cosTurn < -0.2 || isLongSegment ? 1 : 0;
   }
 
   let xs = points.map((p) => p.x);

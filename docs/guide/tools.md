@@ -9,7 +9,9 @@ The editor has six built-in tools, addressed by name:
 | `'eraser'` | Erases whole strokes or parts of strokes |
 | `'shape'` | Draws shapes (rectangle, circle, star, arrow…) |
 | `'text'` | Adds and edits text |
-| `'select'` | Selects, moves, resizes, rotates, duplicates and deletes |
+| `'select'` | Selects (rectangle or lasso), moves, resizes, rotates, duplicates and deletes |
+| `'laser'` | Laser pointer for presenting: a glowing trail that fades away and is never saved |
+| `'eyedropper'` | Picks a color from the drawing and gives it to the previous tool, then switches back |
 
 Panning and zooming (two fingers, mouse wheel, right-click drag, keyboard) are always available.
 
@@ -52,10 +54,10 @@ new Editor(element, {
 | --- | --- | --- |
 | `color` | `string \| Color4` | black / translucent black |
 | `thickness` | `number` (px at 100% zoom) | `2` / `24` |
-| `style` | `'natural' \| 'marker' \| 'flat-tip' \| 'round-tip' \| 'polyline'` or a [custom factory](./natural-ink#custom-brushes) | `'natural'` / `'marker'` |
+| `style` | `'natural' \| 'pencil' \| 'calligraphy' \| 'marker' \| 'flat-tip' \| 'round-tip' \| 'polyline'` or a [custom factory](./natural-ink#custom-brushes) | `'natural'` / `'marker'` |
 | `pressureSensitive` | `boolean` | `true` |
 | `stabilization` | `boolean` — extra inertia-based smoothing | `false` |
-| `autocorrect` | `boolean` — hold the pen still at the end of a stroke to turn it into a line/rectangle | `false` |
+| `autocorrect` | `boolean` — hold the pen still for ½ s at the end of a stroke to turn it into a straight line, circle/ellipse or rectangle | `true` (pen) / `false` (highlighter) |
 
 ### Shape
 
@@ -94,6 +96,57 @@ A stylus with an eraser end (Surface Pen, Wacom) erases automatically.
 | `color` | text color |
 | `fontSize` | `number` |
 | `fontFamily` | CSS font family |
+
+### Select
+
+| Option | Type |
+| --- | --- |
+| `mode` | `'rectangle'` (default) or `'lasso'` (draw a loop around what to select) |
+
+```ts
+editor.tools.configure('select', { mode: 'lasso' });
+```
+
+### Laser pointer
+
+| Option | Type |
+| --- | --- |
+| `color` | trail color (default red) |
+| `thickness` | trail width in screen pixels (default `6`) |
+
+The laser pointer also works when the editor is read-only (`editor.setReadOnly(true)`), which makes it
+handy for presenting a drawing.
+
+<ClientOnly>
+  <DrawingDemo hint="Laser pointer: draw, and watch the trail fade" :settings="{ tools: { initial: 'laser' } }" />
+</ClientOnly>
+
+## Keyboard shortcuts
+
+When the drawing area has focus:
+
+| Key | Tool | | Key | Action |
+| --- | --- | --- | --- | --- |
+| `V` | Select | | `1`–`9` | Tools in order |
+| `P` | Pen | | `Ctrl/⌘+Z` / `Ctrl/⌘+Shift+Z` | Undo / redo |
+| `M` | Highlighter | | `Ctrl/⌘+A` | Select all |
+| `E` | Eraser | | `−` / `=` | Thinner / thicker |
+| `T` | Text | | Arrows | Pan |
+| `S` | Shapes | | `Ctrl/⌘` + wheel | Zoom |
+| `K` | Laser pointer | | | |
+| `I` | Eyedropper | | | |
+
+Change them with `keyboardShortcutOverrides` (IDs: `easydraw.tools.use.pen`, `easydraw.tools.use.eraser`, …):
+
+```ts
+import { Editor, KeyBinding } from 'easydrawer';
+
+new Editor(element, {
+  keyboardShortcutOverrides: {
+    'easydraw.tools.use.pen': [KeyBinding.fromString('KeyB')],
+  },
+});
+```
 
 ## Advanced: tool objects
 

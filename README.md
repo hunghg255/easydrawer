@@ -33,7 +33,8 @@ const editor = new Editor(document.getElementById('drawing')!, {
 
 ### Tools
 
-Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape'`.
+Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper'`.
+Keyboard: `V` select, `P` pen, `M` highlighter, `E` eraser, `T` text, `S` shapes, `K` laser, `I` eyedropper.
 
 ```ts
 editor.tools.use('highlighter'); // switch tool
@@ -45,6 +46,7 @@ editor.tools.configure('pen', { color: 'red', thickness: 4, style: 'natural' });
 editor.tools.configure('eraser', { thickness: 20, mode: 'partial-stroke' });
 editor.tools.configure('shape', { shape: 'star', color: 'gold' });
 editor.tools.configure('text', { fontSize: 24, fontFamily: 'serif' });
+editor.tools.configure('select', { mode: 'lasso' });
 
 // React to tool changes (e.g. to highlight your own toolbar buttons)
 const unsubscribe = editor.tools.onChange((name) => console.log('active:', name));
@@ -55,10 +57,12 @@ editor.tools.pen.getColor();
 
 | Tool | Options |
 | --- | --- |
-| `pen`, `highlighter` | `color`, `thickness`, `style` (`'natural'` · `'marker'` · `'flat-tip'` · `'round-tip'` · `'polyline'` or a custom factory), `pressureSensitive`, `stabilization`, `autocorrect` |
+| `pen`, `highlighter` | `color`, `thickness`, `style` (`'natural'` · `'pencil'` · `'calligraphy'` · `'marker'` · `'flat-tip'` · `'round-tip'` · `'polyline'` or a custom factory), `pressureSensitive`, `stabilization`, `autocorrect` |
 | `shape` | `shape` (`square` · `rectangle` · `circle` · `triangle` · `hexagon` · `diamond` · `arrow` · `line` · `heart` · `star` · `cloud` · `parallelogram`), `color` (fill), `borderColor`, `thickness` (border width) |
 | `eraser` | `thickness`, `mode` (`'full-stroke'` · `'partial-stroke'`) |
 | `text` | `color`, `fontSize`, `fontFamily` |
+| `select` | `mode` (`'rectangle'` · `'lasso'`) |
+| `laser` | `color`, `thickness` — a fading trail for presenting, never saved |
 
 ### Document
 
@@ -77,6 +81,10 @@ await editor.loadFromSVG(svg);
 await editor.uploadImages([...fileInput.files]);
 
 const stop = editor.onChange(() => save(editor.toSVGString()));
+const stopAutosave = await editor.autosave({ key: 'my-drawing' }); // localStorage
+
+editor.zoomIn(); editor.zoomOut(); editor.setZoom(1); editor.zoomToFit();
+editor.onZoomChange((zoom) => console.log(`${Math.round(zoom * 100)}%`));
 ```
 
 ## Natural ink

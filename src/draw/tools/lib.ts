@@ -9,6 +9,7 @@ export { default as ToolSwitcherShortcut } from './ToolSwitcherShortcut';
 export { default as PanZoomTool, PanZoomMode } from './PanZoom';
 
 export { default as PenTool, type PenStyle } from './Pen';
+export { default as LaserPointerTool, type LaserPointerStyle } from './LaserPointer';
 export { default as ShapeTool, type ShapeStyle } from './ShapeTool';
 export { default as TextTool } from './TextTool';
 export { default as SelectionTool, SelectionMode } from './SelectionTool/SelectionTool';

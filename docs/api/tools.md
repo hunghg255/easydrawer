@@ -3,7 +3,7 @@
 Named access to the built-in tools.
 
 ```ts
-type ToolName = 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser';
+type ToolName = 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper';
 ```
 
 ## Methods
@@ -34,7 +34,7 @@ Options by tool:
 interface PenToolOptions {          // 'pen' and 'highlighter'
   color?: string | Color4;
   thickness?: number;
-  style?: 'natural' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
+  style?: 'natural' | 'pencil' | 'calligraphy' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
   pressureSensitive?: boolean;
   stabilization?: boolean;
   autocorrect?: boolean;
@@ -88,6 +88,7 @@ The tool object for `name`, or `null` if it was removed with `toolController`.
 | `text` | `TextTool` |
 | `select` | `SelectionTool` |
 | `laser` | `LaserPointer` |
+| `eyedropper` | `PipetteTool` |
 
 ```ts
 editor.tools.pen.getColor().toHexString();

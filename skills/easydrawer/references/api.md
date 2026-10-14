@@ -25,7 +25,7 @@
 interface PenToolOptions {            // 'pen', 'highlighter'
   color?: string | Color4;
   thickness?: number;                 // px at 100% zoom, medium pressure
-  style?: 'natural' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
+  style?: 'natural' | 'pencil' | 'calligraphy' | 'marker' | 'flat-tip' | 'round-tip' | 'polyline' | ComponentBuilderFactory;
   pressureSensitive?: boolean;        // default true
   stabilization?: boolean;            // extra inertia smoothing, default false
   autocorrect?: boolean;              // hold still at end → line/rectangle, default false
@@ -70,6 +70,7 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `toDataURL(format?)` | Export raster image |
 | `loadFromSVG(svg)` | Import SVG (async) |
 | `uploadImages(files: File[])` | Insert images (async) |
+| `autosave({ key?, delay?, storage? })` | Restore + keep saving (async, returns stop function) |
 | `setReadOnly(bool)` | View-only mode (pan/zoom and the laser pointer still work) |
 | `getZoom()`, `setZoom(z, center?)`, `zoomIn()`, `zoomOut()`, `zoomToFit()` | Zoom |
 | `onZoomChange(cb)` | Zoom changes; returns unsubscribe |

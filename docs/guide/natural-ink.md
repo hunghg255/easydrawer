@@ -36,6 +36,8 @@ editor.tools.configure('pen', { autocorrect: false }); // turn it off
 | Style | Look |
 | --- | --- |
 | `'natural'` | Ink with pressure (default pen) |
+| `'pencil'` | Lighter, slightly uneven strokes with tapered ends |
+| `'calligraphy'` | Flat nib: thick or thin depending on the stroke direction |
 | `'marker'` | Smooth, constant width (default highlighter) |
 | `'flat-tip'` | Older pressure-sensitive pen |
 | `'round-tip'` | Constant-width line |
@@ -75,3 +77,6 @@ editor.tools.configure('pen', { style: brushPen, thickness: 6 });
 | `smoothing` | `0.5` | Jitter removal |
 | `taperStart` | `0` | Taper at the start, as a multiple of the width |
 | `taperEnd` | `0` | Taper at the end, as a multiple of the width |
+| `nibAngle` | `null` | Calligraphy: angle of a flat nib in radians (e.g. `-Math.PI / 4`) |
+| `roughness` | `0` | Pencil-like unevenness, `0`–`1` |
+| `opacity` | `1` | Multiplied into the color's alpha |

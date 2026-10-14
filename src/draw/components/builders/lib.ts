@@ -8,7 +8,11 @@ export { makeFilledRectangleBuilder, makeOutlinedRectangleBuilder } from './Rect
 export {
   makeNaturalPenBuilder,
   makeHighlighterBuilder,
+  makePencilBuilder,
+  makeCalligraphyBuilder,
   naturalPenBuilderFactory,
+  defaultPencilOptions,
+  defaultCalligraphyOptions,
   defaultNaturalPenOptions,
   defaultHighlighterOptions,
   type NaturalPenOptions,

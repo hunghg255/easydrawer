@@ -15,6 +15,7 @@ import type Editor from '../Editor';
 import type BaseTool from '../tools/BaseTool';
 import Eraser, { EraserMode } from '../tools/Eraser';
 import LaserPointer from '../tools/LaserPointer';
+import type PipetteTool from '../tools/PipetteTool';
 import Pen from '../tools/Pen';
 import SelectionTool from '../tools/SelectionTool/SelectionTool';
 import { SelectionMode } from '../tools/SelectionTool/types';
@@ -207,4 +208,5 @@ export interface ToolTypeMap {
   eraser: Eraser;
   shape: ShapeTool;
   laser: LaserPointer;
+  eyedropper: PipetteTool;
 }

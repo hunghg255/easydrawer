@@ -68,6 +68,7 @@ Pinch, Ctrl/⌘ + wheel and keyboard shortcuts also zoom.
 | `toDataURL(format?)` | `string` | The drawing as an image data URL (`'image/png'`, `'image/jpeg'`, `'image/webp'`) |
 | `loadFromSVG(svg)` | `Promise<void>` | Load a drawing from SVG markup |
 | `uploadImages(files)` | `Promise<void>` | Insert image files into the drawing |
+| `autosave(options?)` | `Promise<() => void>` | Restore from and keep saving to `localStorage`; returns a function that stops |
 
 ## Events
 
@@ -86,7 +87,8 @@ stop(); // remove the listener
 
 | Member | Description |
 | --- | --- |
-| `setReadOnly(readOnly)` | Disable editing (panning and zooming still work) |
+| `setReadOnly(readOnly)` | Disable editing (panning, zooming and the laser pointer still work) |
+| `isReadOnly()` | Whether the editor is read-only |
 | `focus()` | Focus the drawing area (for keyboard shortcuts) |
 | `remove()` | Remove the editor from the page and release its resources |
 | `getRootElement()` | The editor's container element |

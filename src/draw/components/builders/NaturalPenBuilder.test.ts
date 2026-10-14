@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { Color4, Vec2 } from '~/math';
 
-import NaturalPenBuilder, { defaultNaturalPenOptions, makeNaturalPenBuilder } from './NaturalPenBuilder';
+import NaturalPenBuilder, {
+  defaultCalligraphyOptions,
+  defaultNaturalPenOptions,
+  defaultPencilOptions,
+  makeNaturalPenBuilder,
+} from './NaturalPenBuilder';
 import { type StrokeDataPoint } from '../../types';
 import Viewport from '../../Viewport';
 
@@ -120,5 +125,35 @@ describe('shape recognition', () => {
     }
 
     expect(await drawAndCorrect(points)).toBeNull();
+  });
+});
+
+describe('pen styles', () => {
+  // Bounding box width of a straight stroke drawn in `direction`.
+  const strokeExtent = (options: typeof defaultNaturalPenOptions, direction: [number, number]) => {
+    const builder = new NaturalPenBuilder(point(100, 100, 0, 0.5), makeViewport(), options);
+    for (let i = 1; i <= 30; i++) {
+      builder.addPoint(point(100 + direction[0] * i * 5, 100 + direction[1] * i * 5, i * 10, 0.5));
+    }
+    return builder.build().getBBox().w;
+  };
+
+  it('calligraphy strokes should be thick across the nib and thin along it', () => {
+    // The default nib is at -45°: (1, -1) runs along it, (1, 1) across it.
+    const alongNib = strokeExtent(defaultCalligraphyOptions, [1, -1]);
+    const acrossNib = strokeExtent(defaultCalligraphyOptions, [1, 1]);
+    expect(acrossNib - alongNib).toBeGreaterThan(2);
+
+    // A round tip doesn't care about direction.
+    const roundA = strokeExtent(defaultNaturalPenOptions, [1, -1]);
+    const roundB = strokeExtent(defaultNaturalPenOptions, [1, 1]);
+    expect(Math.abs(roundA - roundB)).toBeLessThan(0.5);
+  });
+
+  it('pencil strokes should be lighter than the color', () => {
+    const builder = new NaturalPenBuilder(point(0, 0, 0, 0.5), makeViewport(), defaultPencilOptions);
+    builder.addPoint(point(50, 0, 10, 0.5));
+    const color = builder.build().getStyle().color!;
+    expect(color.a).toBeLessThan(Color4.red.a);
   });
 });

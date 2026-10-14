@@ -39,6 +39,18 @@ export interface NaturalPenOptions {
 
   /** Length of the tapered end of the stroke, as a multiple of the stroke width. 0 disables. */
   taperEnd: number;
+
+  /**
+   * Calligraphy: angle (radians) of a flat nib. Strokes are widest perpendicular to the
+   * nib and thinnest along it. `null` for a round tip.
+   */
+  nibAngle?: number | null;
+
+  /** Pencil-like unevenness of the width, from 0 (smooth) to 1. */
+  roughness?: number;
+
+  /** Opacity multiplied into the color's alpha, from 0 to 1. */
+  opacity?: number;
 }
 
 export const defaultNaturalPenOptions: Readonly<NaturalPenOptions> = {
@@ -57,6 +69,25 @@ export const defaultHighlighterOptions: Readonly<NaturalPenOptions> = {
   smoothing: 0.65,
   taperStart: 0,
   taperEnd: 0,
+};
+
+export const defaultPencilOptions: Readonly<NaturalPenOptions> = {
+  ...defaultNaturalPenOptions,
+  thinning: 0.75,
+  simulatedThinning: 0.3,
+  smoothing: 0.35,
+  taperStart: 1.5,
+  taperEnd: 2,
+  roughness: 0.45,
+  opacity: 0.85,
+};
+
+export const defaultCalligraphyOptions: Readonly<NaturalPenOptions> = {
+  ...defaultNaturalPenOptions,
+  thinning: 0.35,
+  simulatedThinning: 0.15,
+  smoothing: 0.55,
+  nibAngle: -Math.PI / 4,
 };
 
 /**
@@ -82,6 +113,13 @@ export function naturalPenBuilderFactory (options: Partial<NaturalPenOptions> = 
  * filled outline, so semi-transparent colors render evenly.
  */
 export const makeNaturalPenBuilder: ComponentBuilderFactory = naturalPenBuilderFactory();
+
+/** A pencil: lighter, slightly uneven strokes with tapered ends. */
+export const makePencilBuilder: ComponentBuilderFactory = naturalPenBuilderFactory(defaultPencilOptions);
+
+/** A calligraphy pen with a flat nib: width depends on the stroke's direction. */
+export const makeCalligraphyBuilder: ComponentBuilderFactory =
+  naturalPenBuilderFactory(defaultCalligraphyOptions);
 
 /** A smooth, constant-width marker suitable for highlighters. */
 export const makeHighlighterBuilder: ComponentBuilderFactory =
@@ -117,6 +155,7 @@ export default class NaturalPenBuilder implements ComponentBuilder {
   private readonly pixelSize: number;
   private readonly color: Color4;
   private maxRadius: number;
+  private readonly fillColor: Color4;
   private bbox: Rect2;
 
   public constructor(
@@ -128,6 +167,8 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     this.baseRadius = Math.max((startPoint.baseWidth ?? startPoint.width) / 2, 1e-6);
     this.pixelSize = viewport.getSizeOfPixelOnCanvas();
     this.color = startPoint.color;
+    const opacity = Math.min(Math.max(options.opacity ?? 1, 0), 1);
+    this.fillColor = opacity < 1 ? this.color.withAlpha(this.color.a * opacity) : this.color;
 
     this.pressure = this.hasRealPressure
       ? startPoint.pressure!
@@ -245,6 +286,34 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     });
   }
 
+  // Calligraphy and pencil effects: adjust each point's radius in place.
+  private applyNibAndRoughness(
+    points: InkPoint[],
+    radii: number[],
+    segmentDirs: Array<[number, number]>,
+  ) {
+    const { nibAngle, roughness } = this.options;
+    const hasNib = nibAngle !== null && nibAngle !== undefined;
+    if (!hasNib && !roughness) return;
+
+    for (const [i, point] of points.entries()) {
+      if (hasNib) {
+        const dirIn = segmentDirs[Math.max(i - 1, 0)];
+        const dirOut = segmentDirs[Math.min(i, segmentDirs.length - 1)];
+        const angle = Math.atan2(dirIn[1] + dirOut[1], dirIn[0] + dirOut[0]);
+        // Widest when moving perpendicular to the nib
+        const across = Math.abs(Math.sin(angle - nibAngle));
+        radii[i] *= 0.25 + 1.15 * across;
+      }
+
+      if (roughness) {
+        // Noise along the stroke's length, so it doesn't change while drawing.
+        const noise = valueNoise(point.dist / Math.max(this.baseRadius * 1.5, this.pixelSize * 2));
+        radii[i] *= 1 + roughness * 0.9 * (noise - 0.5);
+      }
+    }
+  }
+
   private computeOutline(isFinal: boolean, predicted?: StrokeDataPoint[]): IVec2[] {
     const points = simplifyCenterLine(this.getCenterLine(predicted), this.pixelSize * 0.25);
     const radii = this.applyTapers(points, isFinal);
@@ -264,6 +333,8 @@ export default class NaturalPenBuilder implements ComponentBuilder {
       const len = Math.hypot(dx, dy) || 1;
       segmentDirs.push([dx / len, dy / len]);
     }
+
+    this.applyNibAndRoughness(points, radii, segmentDirs);
 
     const left: IVec2[] = [];
     const right: IVec2[] = [];
@@ -379,7 +450,7 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     return {
       startPoint: this.roundPoint(midpoint(0)),
       commands,
-      style: { fill: this.color },
+      style: { fill: this.fillColor },
     };
   }
 
@@ -426,6 +497,18 @@ function arcThrough(
   const sweep = Math.cos(midAngleCcw - throughAngle) >= 0 ? ccwSweep : cwSweep;
   const segments = Math.max(2, Math.ceil((Math.abs(sweep) / Math.PI) * capSegments));
   return arcPoints(cx, cy, r, fromAngle, sweep, segments);
+}
+
+// Smooth 1D value noise in [0, 1].
+function valueNoise(x: number): number {
+  const hash = (n: number) => {
+    const value = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return value - Math.floor(value);
+  };
+  const i = Math.floor(x);
+  const t = x - i;
+  const smoothT = t * t * (3 - 2 * t);
+  return hash(i) * (1 - smoothT) + hash(i + 1) * smoothT;
 }
 
 // Symmetric (lag-free) Laplacian smoothing. The end points and sharp corners don't move,

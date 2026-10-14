@@ -41,7 +41,16 @@ if (svg) {
 
 ## Autosave
 
-`onChange` is called after every change (draw, erase, undo, redo…):
+The simplest way: restore the last drawing (if any) and keep saving it to `localStorage`.
+
+```ts
+const stopAutosave = await editor.autosave({ key: 'my-drawing' });
+```
+
+Options: `key` (default `'easydrawer'`), `delay` in ms (default `400`), and `storage` (any object with
+`getItem`/`setItem`, e.g. `sessionStorage`).
+
+To save somewhere else, use `onChange`, which is called after every change (draw, erase, undo, redo…):
 
 ```ts
 let timeout: ReturnType<typeof setTimeout>;

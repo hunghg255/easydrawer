@@ -6,7 +6,12 @@ import { makeFreehandLineBuilder } from './FreehandLineBuilder';
 import { makeHeartBuilder } from './HeartBuilder';
 import { makeFilledHexagonalBuilder } from './HexagonalBuilder';
 import { makeLineBuilder } from './LineBuilder';
-import { makeHighlighterBuilder, makeNaturalPenBuilder } from './NaturalPenBuilder';
+import {
+  makeCalligraphyBuilder,
+  makeHighlighterBuilder,
+  makeNaturalPenBuilder,
+  makePencilBuilder,
+} from './NaturalPenBuilder';
 import { makeParallelogramBuilder } from './ParallelogramBuilder';
 import { makePolylineBuilder } from './PolylineBuilder';
 import { makePressureSensitiveFreehandLineBuilder } from './PressureSensitiveFreehandLineBuilder';
@@ -22,6 +27,10 @@ export const penStyles = {
   natural: makeNaturalPenBuilder,
   /** Smooth, constant-width marker. The default for the highlighter. */
   marker: makeHighlighterBuilder,
+  /** Pencil: lighter, slightly uneven strokes with tapered ends. */
+  pencil: makePencilBuilder,
+  /** Calligraphy pen with a flat nib: width depends on the direction of the stroke. */
+  calligraphy: makeCalligraphyBuilder,
   /** Flat-tip pen with pressure. */
   'flat-tip': makePressureSensitiveFreehandLineBuilder,
   /** Round-tip pen with constant width. */

@@ -1192,8 +1192,9 @@ export class Editor {
     return this.readOnly;
   }
 
-  public isReadOnly() {
-    return this.readOnly;
+  /** Whether the editor is read-only (see {@link setReadOnly}). */
+  public isReadOnly(): boolean {
+    return this.readOnly.get();
   }
 
   /**
@@ -2166,6 +2167,69 @@ export class Editor {
       }
     });
     return () => listener.remove();
+  }
+
+  /**
+   * Saves the drawing to `localStorage` (or `options.storage`) after every change, and
+   * restores it now if a saved drawing exists.
+   *
+   * @example
+   * ```ts
+   * const stop = await editor.autosave({ key: 'my-drawing' });
+   * // Later, to stop saving:
+   * stop();
+   * ```
+   *
+   * @returns a function that stops autosaving.
+   */
+  public async autosave(
+    options: { key?: string; delay?: number; storage?: Pick<Storage, 'getItem' | 'setItem'> } = {},
+  ): Promise<() => void> {
+    const key = options.key ?? 'easydrawer';
+    const delay = options.delay ?? 400;
+
+    let storage = options.storage;
+    try {
+      storage ??= window.localStorage;
+    } catch {
+      // Storage can be unavailable (e.g. some private browsing modes).
+    }
+    if (!storage) {
+      return () => {};
+    }
+
+    try {
+      const saved = storage.getItem(key);
+      if (saved) {
+        await this.loadFromSVG(saved);
+        this.history.clearAllStack();
+      }
+    } catch (error) {
+      console.warn('easydrawer: could not restore the autosaved drawing', error);
+    }
+
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const save = () => {
+      timeout = null;
+      try {
+        storage!.setItem(key, this.toSVGString());
+      } catch (error) {
+        console.warn('easydrawer: could not autosave the drawing', error);
+      }
+    };
+
+    const stopListening = this.onChange(() => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(save, delay);
+    });
+
+    return () => {
+      stopListening();
+      if (timeout) {
+        clearTimeout(timeout);
+        save();
+      }
+    };
   }
 
   /** Returns the drawing as an SVG string. */

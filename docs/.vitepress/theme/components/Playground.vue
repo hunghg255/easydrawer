@@ -18,6 +18,7 @@ const icons: Record<string, string> = {
   eraser: 'm7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21 M22 21H7 M5 11l9 9',
   shape: 'M3 3h18v18H3z',
   laser: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M4.9 19.1 7 17 M17 7l2.1-2.1',
+  eyedropper: 'm2 22 1-1h3l9-9 M3 21v-3l9-9 M15 6l3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z',
   fit: 'M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7',
   undo: 'M3 7v6h6 M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13',
   redo: 'M21 7v6h-6 M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7',
@@ -38,6 +39,28 @@ const tools: Array<{ name: ToolName; title: string }> = [
   { name: 'eraser', title: 'Eraser' },
   { name: 'shape', title: 'Shapes' },
   { name: 'laser', title: 'Laser pointer' },
+  { name: 'eyedropper', title: 'Eyedropper' },
+];
+
+const shortcuts: Array<[string, string]> = [
+  ['V', 'Select'],
+  ['P', 'Pen'],
+  ['M', 'Highlighter'],
+  ['E', 'Eraser'],
+  ['T', 'Text'],
+  ['S', 'Shapes'],
+  ['K', 'Laser pointer'],
+  ['I', 'Eyedropper'],
+  ['1 – 9', 'Tools in toolbar order'],
+  ['Ctrl/⌘ + Z', 'Undo'],
+  ['Ctrl/⌘ + Shift + Z', 'Redo'],
+  ['Ctrl/⌘ + A', 'Select all'],
+  ['Delete', 'Delete selection'],
+  ['− / =', 'Thinner / thicker pen'],
+  ['Ctrl/⌘ + wheel, pinch', 'Zoom'],
+  ['Arrows, two fingers', 'Pan'],
+  ['Hold still at the end of a stroke', 'Snap to line / circle / rectangle'],
+  ['?', 'Show/hide this help'],
 ];
 
 const shapeNames: ShapeTypeName[] = [
@@ -46,6 +69,8 @@ const shapeNames: ShapeTypeName[] = [
 ];
 const penStyles: Array<{ style: PenStyleName; label: string }> = [
   { style: 'natural', label: 'Ink' },
+  { style: 'pencil', label: 'Pencil' },
+  { style: 'calligraphy', label: 'Brush' },
   { style: 'flat-tip', label: 'Flat' },
   { style: 'round-tip', label: 'Round' },
   { style: 'marker', label: 'Marker' },
@@ -71,6 +96,27 @@ const background = ref<BackgroundTypeName>('none');
 const stylusOnly = ref<boolean | 'auto'>('auto');
 const zoom = ref(1);
 const selectMode = ref<'rectangle' | 'lasso'>('rectangle');
+const showHelp = ref(false);
+
+// Recently used colors, remembered between visits (when storage is available).
+const recentColorsKey = 'easydrawer-playground-recent-colors';
+const recentColors = ref<string[]>([]);
+function loadRecentColors() {
+  try {
+    recentColors.value = JSON.parse(localStorage.getItem(recentColorsKey) ?? '[]');
+  } catch {
+    recentColors.value = [];
+  }
+}
+function rememberColor(color: string) {
+  if ([...inkColors, ...highlightColors].includes(color)) return;
+  recentColors.value = [color, ...recentColors.value.filter((c) => c !== color)].slice(0, 6);
+  try {
+    localStorage.setItem(recentColorsKey, JSON.stringify(recentColors.value));
+  } catch {
+    // Not important: the list just won't be remembered.
+  }
+}
 
 const penState = ref({
   pen: { color: inkColors[0], thickness: 3, style: 'natural' as PenStyleName },
@@ -87,7 +133,7 @@ const currentPen = computed(() => {
 const cleanups: Array<() => void> = [];
 
 onMounted(async () => {
-  const { Editor } = await import('easydrawer');
+  const { Editor, Color4 } = await import('easydrawer');
 
   const instance = new Editor(container.value!, {
     tools: {
@@ -100,8 +146,36 @@ onMounted(async () => {
   });
   editor.value = instance;
 
+  loadRecentColors();
+
+  // Restore the previous drawing and keep saving it.
+  cleanups.push(await instance.autosave({ key: 'easydrawer-playground' }));
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+    if (event.key === '?') {
+      showHelp.value = !showHelp.value;
+    } else if (event.key === 'Escape') {
+      showHelp.value = false;
+    }
+  };
+  window.addEventListener('keydown', onKeyDown);
+  cleanups.push(() => window.removeEventListener('keydown', onKeyDown));
+
   cleanups.push(
-    instance.tools.onChange((name) => (activeTool.value = name)),
+    instance.tools.onChange((name) => {
+      activeTool.value = name;
+      // The eyedropper may have changed the pen colors.
+      for (const tool of ['pen', 'highlighter'] as const) {
+        const current = instance.tools[tool].getColor();
+        if (!Color4.fromString(penState.value[tool].color).eq(current)) {
+          const color = current.toHexString();
+          penState.value[tool].color = color;
+          rememberColor(color);
+        }
+      }
+    }),
     instance.onChange(() => {
       canUndo.value = instance.canUndo();
       canRedo.value = instance.canRedo();
@@ -125,6 +199,7 @@ function updatePen(options: Partial<{ color: string; thickness: number; style: P
 
   Object.assign(penState.value[tool], options);
   editor.value?.tools.configure(tool, options);
+  if (options.color) rememberColor(options.color);
 }
 
 function updateShape(options: Partial<{ shape: ShapeTypeName; color: string; borderColor: string; thickness: number }>) {
@@ -252,6 +327,23 @@ async function onImagesSelected(event: Event) {
           :aria-label="color"
           @click="updatePen({ color })"
         />
+        <button
+          v-for="color in recentColors"
+          :key="`recent-${color}`"
+          class="swatch"
+          :class="{ active: currentPen.color === color }"
+          :style="{ background: color }"
+          :aria-label="`Recent color ${color}`"
+          @click="updatePen({ color })"
+        />
+        <button
+          class="tool"
+          title="Pick a color from the drawing (I)"
+          aria-label="Pick a color from the drawing"
+          @click="editor?.tools.use('eyedropper')"
+        >
+          <svg viewBox="0 0 24 24"><path :d="icons.eyedropper" /></svg>
+        </button>
         <input
           type="color"
           class="color-input"
@@ -363,6 +455,23 @@ async function onImagesSelected(event: Event) {
         <svg viewBox="0 0 24 24"><path :d="icons.fit" /></svg>
       </button>
     </div>
+
+    <div v-if="showHelp" class="help" role="dialog" aria-label="Keyboard shortcuts" @click.self="showHelp = false">
+      <div class="help-card">
+        <div class="help-header">
+          <b>Keyboard shortcuts</b>
+          <button class="tool" aria-label="Close" @click="showHelp = false">✕</button>
+        </div>
+        <dl>
+          <template v-for="[keys, action] in shortcuts" :key="keys">
+            <dt><kbd>{{ keys }}</kbd></dt>
+            <dd>{{ action }}</dd>
+          </template>
+        </dl>
+      </div>
+    </div>
+
+    <button class="help-button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" @click="showHelp = !showHelp">?</button>
 
     <button class="stylus-mode" title="Palm rejection" @click="cycleStylusOnly">
       Fingers:
@@ -548,6 +657,75 @@ async function onImagesSelected(event: Event) {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
   touch-action: manipulation;
+}
+
+.help {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.help-card {
+  width: min(460px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
+}
+
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.help dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.help dt {
+  text-align: end;
+}
+
+.help dd {
+  margin: 0;
+  color: #4b5563;
+}
+
+.help kbd {
+  padding: 2px 6px;
+  border: 1px solid #d1d5db;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #f9fafb;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.help-button {
+  position: absolute;
+  right: 12px;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 44px);
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  font-weight: 600;
 }
 
 .stylus-mode {

@@ -66,6 +66,7 @@
     "dev:docs": "pnpm --dir ./docs run dev",
     "build:docs": "pnpm --dir ./docs run build",
     "build:playground": "pnpm --dir ./playground run build",
+    "typecheck:playground": "pnpm build && pnpm --dir ./playground run typecheck",
     "preview": "pnpm --dir ./playground run preview",
     "dev": "pnpm dev:playground"
   },

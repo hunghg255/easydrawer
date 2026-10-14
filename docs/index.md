@@ -1,0 +1,54 @@
+---
+layout: home
+
+hero:
+  name: EasyDrawer
+  text: Drawing that feels like ink
+  tagline: A drawing & whiteboard library for the web. Pressure-sensitive ink, shapes, text and images — with Apple Pencil and palm rejection built in.
+  actions:
+    - theme: brand
+      text: Get started
+      link: /guide/getting-started
+    - theme: alt
+      text: Open the playground
+      link: /playground
+    - theme: alt
+      text: AI Skills
+      link: /skills
+    - theme: alt
+      text: GitHub
+      link: https://github.com/hunghg255/easydrawer
+
+features:
+  - icon: ✒️
+    title: Natural ink
+    details: Width follows stylus pressure — or drawing speed for mouse and fingers. Smooth curves, crisp corners, no lag.
+  - icon: 📱
+    title: Made for tablets
+    details: Reads every Apple Pencil sample (240 Hz), palm rejection, pinch-zoom, no page bounce or long-press menus.
+  - icon: 🧩
+    title: Simple API
+    details: "editor.tools.use('pen'), configure tools with plain objects and CSS colors, undo/redo/clear in one call."
+  - icon: 🖼️
+    title: Shapes, text & images
+    details: 12 shapes, text, highlighter, eraser, selection, image insertion and grid/dot backgrounds.
+  - icon: 💾
+    title: SVG in, SVG out
+    details: Save drawings as SVG or PNG and load them back for editing.
+  - icon: 🪶
+    title: Framework-free
+    details: Plain TypeScript, works with React, Vue, Svelte or no framework at all.
+---
+
+## Try it
+
+<ClientOnly>
+  <DrawingDemo :settings="{ tools: { pen: { thickness: 3 } } }" />
+</ClientOnly>
+
+```ts
+import { Editor } from 'easydrawer';
+import 'easydrawer/styles.css';
+
+const editor = new Editor(document.getElementById('drawing')!);
+```

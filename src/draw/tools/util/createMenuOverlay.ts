@@ -102,7 +102,7 @@ async function createMenuOverlay <KeyType>(editor: Editor,
     // - https://developer.mozilla.org/en-US/docs/Web/Accessibility/ARIA/Roles/menu_role and
     // - https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/
     contentElement.addEventListener('keydown', (event) => {
-      const focusedIndex = optionElements.indexOf(document.activeElement);
+      const focusedIndex = optionElements.indexOf(document.activeElement as HTMLElement);
       if (focusedIndex === -1) return;
       let newFocusedIndex = focusedIndex;
 

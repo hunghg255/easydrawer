@@ -39,7 +39,7 @@ const localization: EditorLocalization = {
   arrowPen: 'Flecha',
   linePen: 'Línea',
   outlinedRectanglePen: 'Rectángulo delineado',
-  filledRectanglePen: 'Rectángulo sin borde',
+  filledRectangle: 'Rectángulo sin borde',
   lockRotation: 'Bloquea rotación',
   paste: 'Pegar',
   selectionMenu__paste: 'Pegar',

@@ -10,6 +10,7 @@ import { makeArrowBuilder } from '../../components/builders/ArrowBuilder';
 import { makeCircleBuilder } from '../../components/builders/CircleBuilder';
 import { makeFreehandLineBuilder } from '../../components/builders/FreehandLineBuilder';
 import { makeLineBuilder } from '../../components/builders/LineBuilder';
+import { makeHighlighterBuilder, makeNaturalPenBuilder } from '../../components/builders/NaturalPenBuilder';
 import { makePolylineBuilder } from '../../components/builders/PolylineBuilder';
 import { makePressureSensitiveFreehandLineBuilder } from '../../components/builders/PressureSensitiveFreehandLineBuilder';
 import {
@@ -63,7 +64,7 @@ export default class PenToolWidget extends BaseToolWidget {
     super(editor, tool, tool.description, localization);
 
     // Pen types that correspond to
-    this.shapelikeIDs = ['pressure-sensitive-pen', 'freehand-pen'];
+    this.shapelikeIDs = ['natural-pen', 'marker-pen', 'pressure-sensitive-pen', 'freehand-pen'];
 
     // Additional client-specified pens.
     const additionalPens = editor.getCurrentSettings().pens?.additionalPenTypes ?? [];
@@ -72,6 +73,18 @@ export default class PenToolWidget extends BaseToolWidget {
     // Default pen types
     this.penTypes = [
       // Non-shape pens
+      {
+        name: this.localizationTable.naturalPen,
+        id: 'natural-pen',
+
+        factory: makeNaturalPenBuilder,
+      },
+      {
+        name: this.localizationTable.markerPen,
+        id: 'marker-pen',
+
+        factory: makeHighlighterBuilder,
+      },
       {
         name: this.localizationTable.flatTipPen,
         id: 'pressure-sensitive-pen',

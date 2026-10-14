@@ -1,6 +1,6 @@
 import { type IVec2, Vec2 } from '~/math';
 
-import type Viewport from './Viewport';
+import Viewport from './Viewport';
 
 export enum PointerDevice {
   Pen,
@@ -136,7 +136,11 @@ export default class Pointer {
     }
 
     const timeStamp = evt.timeStamp;
-    const canvasPos = viewport.roundPoint(viewport.screenToCanvas(screenPos));
+    // Keep sub-pixel precision: rounding to whole pixels makes strokes jagged.
+    const canvasPos = Viewport.roundPoint(
+      viewport.screenToCanvas(screenPos),
+      viewport.getSizeOfPixelOnCanvas() / 10,
+    );
 
     if (device === PointerDevice.PrimaryButtonMouse) {
       if (evt.buttons & 0x2) {

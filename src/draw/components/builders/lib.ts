@@ -5,3 +5,11 @@ export { makeCircleBuilder } from './CircleBuilder';
 export { makeArrowBuilder } from './ArrowBuilder';
 export { makeLineBuilder } from './LineBuilder';
 export { makeFilledRectangleBuilder, makeOutlinedRectangleBuilder } from './RectangleBuilder';
+export {
+  makeNaturalPenBuilder,
+  makeHighlighterBuilder,
+  naturalPenBuilderFactory,
+  defaultNaturalPenOptions,
+  defaultHighlighterOptions,
+  type NaturalPenOptions,
+} from './NaturalPenBuilder';

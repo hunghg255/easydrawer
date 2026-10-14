@@ -23,16 +23,16 @@
 export { LineSegment2 } from './shapes/LineSegment2';
 export {
   Path,
-  IntersectionResult as PathIntersectionResult,
-  CurveIndexRecord as PathCurveIndex,
+  type IntersectionResult as PathIntersectionResult,
+  type CurveIndexRecord as PathCurveIndex,
   stepCurveIndexBy as stepPathIndexBy,
   compareCurveIndices as comparePathIndices,
   PathCommandType,
-  PathCommand,
-  LinePathCommand,
-  MoveToPathCommand,
-  QuadraticBezierPathCommand,
-  CubicBezierPathCommand,
+  type PathCommand,
+  type LinePathCommand,
+  type MoveToPathCommand,
+  type QuadraticBezierPathCommand,
+  type CubicBezierPathCommand,
 } from './shapes/Path';
 export { Rect2 } from './shapes/Rect2';
 export { Triangle } from './shapes/Triangle';
@@ -40,7 +40,7 @@ export { Parameterized2DShape } from './shapes/Parameterized2DShape';
 export { QuadraticBezier } from './shapes/QuadraticBezier';
 export { Abstract2DShape } from './shapes/Abstract2DShape';
 
-export { Mat33, Mat33Array } from './Mat33';
+export { Mat33, type Mat33Array } from './Mat33';
 export {  Vec2, Vec3 } from './Vector';
 export type { IVec3, IVec2 } from './Vector';
 export { Color4 } from './Color4';

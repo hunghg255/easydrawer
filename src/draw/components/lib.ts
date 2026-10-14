@@ -1,10 +1,10 @@
 import BackgroundComponent, { BackgroundType } from './BackgroundComponent';
 import ImageComponent from './ImageComponent';
-import RestyleableComponent from './RestylableComponent';
+import type RestyleableComponent from './RestylableComponent';
 import {
   createRestyleComponentCommand,
   isRestylableComponent,
-  ComponentStyle as RestyleableComponentStyle,
+  type ComponentStyle as RestyleableComponentStyle,
 } from './RestylableComponent';
 import Stroke from './Stroke';
 import TextComponent from './TextComponent';
@@ -12,17 +12,17 @@ import TextComponent from './TextComponent';
 export * from './builders/types';
 
 export * from './builders/lib';
-export { default as StrokeSmoother, Curve as StrokeSmootherCurve } from './util/StrokeSmoother';
+export { default as StrokeSmoother, type Curve as StrokeSmootherCurve } from './util/StrokeSmoother';
 
 export * from './AbstractComponent';
 export { default as AbstractComponent } from './AbstractComponent';
 
 export {
   Stroke,
-  RestyleableComponent,
+  type RestyleableComponent,
   createRestyleComponentCommand,
   isRestylableComponent,
-  RestyleableComponentStyle,
+  type RestyleableComponentStyle,
   TextComponent,
 
   /** @deprecated use {@link TextComponent} */

@@ -1,41 +1,19 @@
 .wrapper {
-  background-color: white;
-  border-radius: 10px;
-  cursor: pointer;
   position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 1000;
-  padding: 10px;
-  gap: 10px;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 100;
-  border: 1px solid #eeeeee;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-}
-
-.tool {
-  outline: none;
-  border: none;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+  padding: 8px;
   background-color: white;
-  border-radius: 5px;
-  padding: 5px;
-  cursor: pointer;
-  transition: all 0.3s;
-  color: rgb(89, 83, 83);
-}
-
-.tool svg {
-  width: 20px;
-  height: 20px;
-}
-
-.tool:hover {
-  background-color: #f5f5f5;
-}
-
-.active {
-  background-color: #eeeeee;
+  border: 1px solid #eeeeee;
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .pen {
@@ -43,22 +21,154 @@
   gap: 4px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tool {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  outline: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: rgb(89, 83, 83);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.tool svg {
+  width: 20px;
+  height: 20px;
+}
+
+.tool:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .tool:not(:disabled):hover {
+    background-color: #f5f5f5;
+  }
+}
+
+.active,
+.active:hover {
+  background-color: #e8eefc;
+  color: #1d4ed8;
 }
 
 .line {
   height: 20px;
   width: 1px;
   background-color: rgb(188, 185, 185);
-  margin: 0 6px;
-  transform: rotate(18deg);
+  margin: 0 4px;
 }
 
 .options {
-  margin-top: 10px;
-  padding: 10px 0 0;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed #eeeeee;
   display: flex;
-  gap: 4px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: center;
+}
+
+.label {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.swatches {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #d1d5db;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%);
+  touch-action: manipulation;
+}
+
+.swatchActive {
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.slider {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.slider input {
+  width: 140px;
+}
+
+.segmented {
+  display: flex;
+  border-radius: 8px;
+  background: #f3f4f6;
+  padding: 2px;
+}
+
+.segmented button {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.shapeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+}
+
+/* Tablets & phones: bigger touch targets (Apple recommends at least 44pt). */
+@media (pointer: coarse) {
+  .tool {
+    width: 44px;
+    height: 44px;
+  }
+
+  .tool svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .swatch {
+    width: 36px;
+    height: 36px;
+  }
+
+  .segmented button {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+
+  .slider input {
+    width: 180px;
+    height: 32px;
+  }
 }

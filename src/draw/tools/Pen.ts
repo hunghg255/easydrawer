@@ -91,9 +91,21 @@ export default class Pen extends BaseTool {
       pressure = defaultPressure;
     }
 
+    // Only styluses report meaningful pressure. Mice report a constant value and
+    // touch screens usually report 0 or 1.
+    const rawPressure = pointer.pressure;
+    const hasRealPressure =
+      this.getPressureSensitivityEnabled() &&
+      (pointer.device === PointerDevice.Pen || pointer.device === PointerDevice.Eraser) &&
+      rawPressure !== null &&
+      isFinite(rawPressure) &&
+      rawPressure > 0;
+
     return {
       pos,
       width: pressure * this.getPressureMultiplier(),
+      baseWidth: this.getPressureMultiplier(),
+      pressure: hasRealPressure ? Math.min(rawPressure, 1) : undefined,
       color: this.style.color,
       time: pointer.timeStamp,
     };
@@ -123,6 +135,24 @@ export default class Pen extends BaseTool {
     }
   }
 
+  private previewFrameRequested = false;
+
+  // Like `previewStroke`, but renders at most once per animation frame. Styluses can
+  // send several points per frame (e.g. 240Hz on iPad).
+  protected schedulePreview() {
+    if (this.previewFrameRequested) {
+      return;
+    }
+
+    this.previewFrameRequested = true;
+    requestAnimationFrame(() => {
+      this.previewFrameRequested = false;
+      if (this.builder) {
+        this.previewStroke();
+      }
+    });
+  }
+
   // Throws if no stroke builder exists.
   protected addPointToStroke(point: StrokeDataPoint) {
     if (!this.builder) {
@@ -130,7 +160,7 @@ export default class Pen extends BaseTool {
     }
     this.builder.addPoint(point);
     this.lastPoint = point;
-    this.previewStroke();
+    this.schedulePreview();
   }
 
   public override onPointerDown(event: PointerEvt): boolean {
@@ -226,6 +256,7 @@ export default class Pen extends BaseTool {
     const strokePoint = {
       ...currentPoint,
       width: this.lastPoint?.width ?? currentPoint.width,
+      pressure: this.lastPoint ? this.lastPoint.pressure : currentPoint.pressure,
     };
 
     this.addPointToStroke(strokePoint);

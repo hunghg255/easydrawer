@@ -176,4 +176,13 @@ export interface StrokeDataPoint {
   time: number;
   color: Color4;
   borderColor?: Color4;
+
+  /**
+   * Pressure in [0, 1] reported by the input device. Only set when the device
+   * reports real pressure (e.g. a stylus); builders may simulate pressure otherwise.
+   */
+  pressure?: number;
+
+  /** Nominal stroke width (in canvas units) before pressure is applied. */
+  baseWidth?: number;
 }

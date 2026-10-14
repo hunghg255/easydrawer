@@ -44,7 +44,7 @@ const localization: EditorLocalization = {
   arrowPen: 'Pfeil',
   linePen: 'Linie',
   outlinedRectanglePen: 'Umrissenes Rechteck',
-  filledRectanglePen: 'Ausgefülltes Rechteck',
+  filledRectangle: 'Ausgefülltes Rechteck',
 
   lockRotation: 'Sperre Rotation',
   paste: 'Einfügen',

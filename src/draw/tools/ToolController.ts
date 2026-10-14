@@ -1,4 +1,4 @@
-import { makePressureSensitiveFreehandLineBuilder, SelectionTool, TextTool } from '~/draw/lib';
+import { SelectionTool, TextTool } from '~/draw/lib';
 import PanZoom, { PanZoomMode } from '~/draw/tools/PanZoom';
 import ShapeTool from '~/draw/tools/ShapeTool';
 import { Color4 } from '~/math';
@@ -17,8 +17,12 @@ import ToolbarShortcutHandler from './ToolbarShortcutHandler';
 import ToolEnabledGroup from './ToolEnabledGroup';
 import ToolSwitcherShortcut from './ToolSwitcherShortcut';
 import UndoRedoShortcut from './UndoRedoShortcut';
+import { applyToolOptions } from '../api/EditorTools';
+import { type ToolName } from '../api/options';
+import { makeHighlighterBuilder, makeNaturalPenBuilder } from '../components/builders/NaturalPenBuilder';
 import type Editor from '../Editor';
 import { type InputEvt, InputEvtType } from '../inputEvents';
+import { PointerDevice } from '../Pointer';
 import { EditorEventType } from '../types';
 import type ReactiveValue from '../util/ReactiveValue';
 
@@ -30,6 +34,11 @@ export default class ToolController implements InputEventListener {
   // Form a pipeline that allows filtering/mapping input events.
   private inputPipeline: InputPipeline;
   private isEditorReadOnly: ReactiveValue<boolean>;
+
+  private namedTools: Partial<Record<ToolName, BaseTool>> = {};
+  private touchPanTool: PanZoom | null = null;
+  private stylusOnlySetting: boolean | 'auto';
+  private stylusDetected = false;
 
   /** @internal */
   public constructor(editor: Editor, localization: ToolLocalization) {
@@ -53,7 +62,14 @@ export default class ToolController implements InputEventListener {
     );
     const primaryPenTool = new Pen(editor, localization.penTool(1), {
       color: Color4.black,
-      thickness: 1.5,
+      thickness: 2,
+      factory: makeNaturalPenBuilder,
+    });
+
+    const highlighterTool = new Pen(editor, localization.penTool(2), {
+      color: Color4.blackHighlight,
+      thickness: 24,
+      factory: makeHighlighterBuilder,
     });
 
     const shapeTool = new ShapeTool(editor, localization.penTool(3), {
@@ -63,29 +79,38 @@ export default class ToolController implements InputEventListener {
     });
 
     const eraser = new Eraser(editor, localization.eraserTool);
+    const selectionTool = new SelectionTool(editor, localization.selectionTool);
+    const textTool = new TextTool(editor, localization.textTool, localization);
 
-    const primaryTools = [
-      new SelectionTool(editor, localization.selectionTool),
-
-      new TextTool(editor, localization.textTool, localization),
-
-      primaryPenTool,
-
-      // Highlighter-like pen with width=40
-      new Pen(editor, localization.penTool(2), {
-        color: Color4.blackHighlight,
-        thickness: 40,
-        factory: makePressureSensitiveFreehandLineBuilder,
-      }),
-
+    this.namedTools = {
+      select: selectionTool,
+      text: textTool,
+      pen: primaryPenTool,
+      highlighter: highlighterTool,
       eraser,
-      shapeTool
+      shape: shapeTool,
+    };
+
+    // Order matters: it's the order used by toolbars.
+    const primaryTools = [
+      selectionTool,
+      textTool,
+      primaryPenTool,
+      highlighterTool,
+      eraser,
+      shapeTool,
     ];
 
-    // Accessibility tools
-    // const soundExplorer = new SoundUITool(editor, localization.soundExplorer);
-    // soundExplorer.setEnabled(false);
-    shapeTool.setEnabled(false);
+    const settings = editor.getCurrentSettings();
+    this.stylusOnlySetting = settings.input?.stylusOnly ?? 'auto';
+
+    const toolSettings = settings.tools ?? {};
+    for (const name of ['pen', 'highlighter', 'eraser', 'shape', 'text'] as const) {
+      const options = toolSettings[name];
+      if (options) {
+        applyToolOptions(this.namedTools[name]!, options);
+      }
+    }
 
     const zoomTool = [
       panZoomTool,
@@ -94,9 +119,6 @@ export default class ToolController implements InputEventListener {
     ];
 
     this.tools = [
-      // new ScrollbarTool(editor),
-      // new PipetteTool(editor, localization.pipetteTool),
-      // soundExplorer,
       ...primaryTools,
 
       new UndoRedoShortcut(editor),
@@ -114,7 +136,15 @@ export default class ToolController implements InputEventListener {
 
     primaryTools.forEach((tool) => tool.setToolGroup(primaryToolGroup));
     panZoomTool.setEnabled(true);
-    primaryPenTool.setEnabled(true);
+    this.touchPanTool = panZoomTool;
+
+    const initialTool = toolSettings.initial === undefined ? 'pen' : toolSettings.initial;
+    if (initialTool) {
+      this.namedTools[initialTool]?.setEnabled(true);
+    } else {
+      primaryTools.forEach((tool) => tool.setEnabled(false));
+    }
+    this.updateStylusOnlyMode();
 
     editor.notifier.on(EditorEventType.ToolEnabled, (event) => {
       if (event.kind === EditorEventType.ToolEnabled) {
@@ -167,6 +197,39 @@ export default class ToolController implements InputEventListener {
     return this.tools.filter((tool) => {
       return tool.getToolGroup() === this.primaryToolGroup;
     });
+  }
+
+  /**
+   * Returns the built-in tool with the given name, or `null` if it has been removed.
+   * See also {@link Editor.tools}.
+   */
+  public getToolByName(name: ToolName): BaseTool | null {
+    const tool = this.namedTools[name];
+    if (!tool || !this.tools.includes(tool)) {
+      return null;
+    }
+    return tool;
+  }
+
+  /**
+   * Palm rejection: when `true`, touch input never reaches drawing tools and is
+   * used for panning/zooming instead. `'auto'` enables this once a stylus is used.
+   */
+  public setStylusOnly(stylusOnly: boolean | 'auto') {
+    this.stylusOnlySetting = stylusOnly;
+    this.updateStylusOnlyMode();
+  }
+
+  /** Whether touch input is currently reserved for panning/zooming. */
+  public isStylusOnly(): boolean {
+    if (this.stylusOnlySetting === 'auto') {
+      return this.stylusDetected;
+    }
+    return this.stylusOnlySetting;
+  }
+
+  private updateStylusOnlyMode() {
+    this.touchPanTool?.setModeEnabled(PanZoomMode.OneFingerTouchGestures, this.isStylusOnly());
   }
 
   public setToolEnabled(tool: BaseTool) {
@@ -259,6 +322,15 @@ export default class ToolController implements InputEventListener {
 
     let handled = false;
     if (event.kind === InputEvtType.PointerDownEvt) {
+      const device = event.current.device;
+      if (!this.stylusDetected && (device === PointerDevice.Pen || device === PointerDevice.Eraser)) {
+        this.stylusDetected = true;
+        this.updateStylusOnlyMode();
+      }
+
+      // With palm rejection, touches only pan/zoom.
+      const isRejectedTouch = device === PointerDevice.Touch && this.isStylusOnly();
+
       let canOnlySendToActiveTool = false;
       if (this.activeTool && !this.activeTool.eventCanBeDeliveredToNonActiveTool(event)) {
         canOnlySendToActiveTool = true;
@@ -266,6 +338,10 @@ export default class ToolController implements InputEventListener {
 
       for (const tool of this.tools) {
         if (canOnlySendToActiveTool && tool !== this.activeTool) {
+          continue;
+        }
+
+        if (isRejectedTouch && tool.getToolGroup() === this.primaryToolGroup) {
           continue;
         }
 

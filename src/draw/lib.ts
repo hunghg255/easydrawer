@@ -44,6 +44,21 @@ export { default as UndoRedoHistory } from './UndoRedoHistory';
 // Simplified API: named tools and plain-object options
 export { default as EditorTools, type ToolTypeMap } from './api/EditorTools';
 export { default as EditorSelection } from './api/EditorSelection';
+
+// AI features (editor.ai)
+export {
+  default as EditorAI,
+  type AIColorName,
+  type Diagram,
+  type DiagramEdge,
+  type DiagramNode,
+  type DiagramNodeKind,
+  type NoteGroup,
+} from './ai/EditorAI';
+export { AIError, type AIMessage, type AIRequest, type AIRequestHandler, type AISettings } from './ai/types';
+export { openAICompatibleRequest, type OpenAICompatibleOptions } from './ai/openAICompatible';
+export { default as layoutGraph, type LayoutEdge, type LayoutNode, type LayoutOptions } from './ai/layoutGraph';
+export { default as parseAIJSON } from './ai/parseJSON';
 export * from './api/options';
 export {
   penStyles,

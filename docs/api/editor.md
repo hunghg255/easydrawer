@@ -14,6 +14,7 @@ Creates an editor inside `parentElement`. See [Settings](./settings) for the opt
 | --- | --- |
 | `tools` | Named access to the built-in tools. See [editor.tools](./tools). |
 | `selection` | What is selected with the select tool. See [below](#selection). |
+| `ai` | AI features: `generateDiagram(prompt)`, `drawDiagram(diagram)`, `organizeNotes()`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
 
 ## Selection
 

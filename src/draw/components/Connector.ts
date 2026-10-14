@@ -1,15 +1,17 @@
-import { Color4, LineSegment2, type Mat33, Path, Rect2, Vec2, type IVec2 } from '~/math';
+import { Color4, LineSegment2, Mat33, Path, Rect2, Vec2, type IVec2 } from '~/math';
 
 import AbstractComponent, { componentSVGAttribute } from './AbstractComponent';
 import { type ImageComponentLocalization } from './localization';
 import type RestyleableComponent from './RestylableComponent';
 import { type ComponentStyle, createRestyleComponentCommand } from './RestylableComponent';
+import TextComponent from './TextComponent';
 import type SerializableCommand from '../commands/SerializableCommand';
 import type Editor from '../Editor';
 import type EditorImage from '../image/EditorImage';
 import { EditorImageEventType } from '../image/EditorImage';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../rendering/renderers/AbstractRenderer';
+import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 
 const componentKind = 'connector';
 
@@ -32,6 +34,8 @@ export interface ConnectorStyle {
   /** Line width, in canvas units. */
   thickness: number;
   arrow: ConnectorArrowMode;
+  /** Text shown in the middle of the line (e.g. "yes"/"no"). */
+  label?: string;
 }
 
 /**
@@ -92,7 +96,41 @@ export default class Connector extends AbstractComponent implements RestyleableC
 
   private recomputeBBox() {
     const margin = this.arrowSize + this.style.thickness;
-    this.contentBBox = Rect2.bboxOf([this.start.point, this.end.point]).grownBy(margin);
+    let bbox = Rect2.bboxOf([this.start.point, this.end.point]).grownBy(margin);
+    const labelRect = this.labelRect();
+    if (labelRect) {
+      bbox = bbox.union(labelRect);
+    }
+    this.contentBBox = bbox;
+  }
+
+  private get labelStyle(): TextRenderingStyle {
+    return {
+      size: Math.max(12, this.style.thickness * 6),
+      fontFamily: 'sans-serif',
+      renderingStyle: { fill: this.style.color },
+    };
+  }
+
+  // The label's background rectangle, centered on the line.
+  private labelRect(): Rect2 | null {
+    const label = this.style.label;
+    if (!label) return null;
+
+    const style = this.labelStyle;
+    const width = TextComponent.measureTextWidth(label, style);
+    const padding = style.size * 0.35;
+    const center = Vec2.ofXY(this.start.point).lerp(Vec2.ofXY(this.end.point), 0.5);
+    return new Rect2(
+      center.x - width / 2 - padding,
+      center.y - style.size / 2 - padding,
+      width + padding * 2,
+      style.size + padding * 2,
+    );
+  }
+
+  public getLabel(): string {
+    return this.style.label ?? '';
   }
 
   // Returns the component an end is attached to, if it's in the image.
@@ -252,6 +290,22 @@ export default class Connector extends AbstractComponent implements RestyleableC
       if (hasStartArrow) drawArrowhead(start, unit.times(-1));
     }
 
+    const labelRect = this.labelRect();
+    if (labelRect) {
+      // A background behind the text hides the line.
+      canvas.fillRect(labelRect, Color4.ofRGBA(1, 1, 1, 0.92));
+      const style = this.labelStyle;
+      const padding = style.size * 0.35;
+      // pushTransform also draws the paths above, so they stay below the text.
+      canvas.pushTransform(Mat33.identity);
+      canvas.drawText(
+        this.style.label!,
+        Mat33.translation(Vec2.of(labelRect.x + padding, labelRect.y + padding + style.size * 0.8)),
+        style,
+      );
+      canvas.popTransform();
+    }
+
     canvas.endObject(this.getLoadSaveData());
   }
 
@@ -332,6 +386,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
       color: this.style.color.toHexString(),
       thickness: this.style.thickness,
       arrow: this.style.arrow,
+      ...(this.style.label ? { label: this.style.label } : {}),
     };
   }
 
@@ -358,6 +413,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
       color: typeof json.color === 'string' ? Color4.fromString(json.color) : Color4.black,
       thickness: isFinite(thickness) && thickness > 0 ? thickness : 2,
       arrow,
+      label: typeof json.label === 'string' ? json.label : undefined,
     });
   }
 }

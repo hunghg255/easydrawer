@@ -68,6 +68,13 @@ editor.selection.align('left');                        // 'center' | 'right' | '
 editor.selection.distribute('horizontal');             // or 'vertical'
 // Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
 
+// AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
+await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
+await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.organizeNotes();                       // sticky notes → themed colored columns
+editor.ai.describeScene(); await editor.ai.requestJSON(messages); // build custom AI features
+// Server helper: openAICompatibleRequest({ url, model, apiKey }) for OpenAI/OpenRouter/Groq/Ollama…
+
 // History & document
 editor.undo(); editor.redo();
 editor.canUndo(); editor.canRedo();

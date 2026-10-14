@@ -25,6 +25,7 @@ export default defineConfig({
           items: [
             { text: 'Getting started', link: '/guide/getting-started' },
             { text: 'Tools', link: '/guide/tools' },
+            { text: 'AI features', link: '/guide/ai' },
             { text: 'Natural ink', link: '/guide/natural-ink' },
             { text: 'Tablets & stylus', link: '/guide/tablets' },
             { text: 'Saving & loading', link: '/guide/saving' },

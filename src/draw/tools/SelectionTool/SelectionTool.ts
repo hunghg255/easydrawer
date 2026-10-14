@@ -82,6 +82,17 @@ export default class SelectionTool extends BaseTool {
   ) {
     super(editor.notifier, description);
 
+    // Undo/redo can remove selected items: remove them from the selection too.
+    const onHistoryChange = () => {
+      const selected = this.selectionBox?.getSelectedObjects() ?? [];
+      const removed = selected.filter((item) => editor.image.lookupElement(item.getId()) !== item);
+      if (removed.length > 0) {
+        this.setSelection(selected.filter((item) => !removed.includes(item)));
+      }
+    };
+    editor.notifier.on(EditorEventType.CommandUndone, onHistoryChange);
+    editor.notifier.on(EditorEventType.CommandDone, onHistoryChange);
+
     this.modeValue = MutableReactiveValue.fromInitialValue(SelectionMode.Rectangle);
     this.modeValue.onUpdate(() => {
       this.editor.notifier.dispatch(EditorEventType.ToolUpdated, {

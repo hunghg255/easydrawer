@@ -116,9 +116,10 @@ export default class StickyNoteTool extends BaseTool {
     this.input = input;
     this.overlayTransform.set(note.getTransform());
     this.overlay.replaceChildren(input);
+    // After the pointer event that opened the editor (which focuses the drawing area).
     setTimeout(() => {
       resize();
-      input.focus();
+      if (this.input === input) input.focus();
     }, 0);
   }
 

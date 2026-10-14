@@ -37,6 +37,7 @@ const icons: Record<string, string> = {
   duplicate: 'M8 8h12v12H8z M4 16V4h12',
   lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
   unlock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 7.75-1.4',
+  ai: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 3v4 M17 5h4 M5 17v4 M3 19h4',
   group: 'M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h7v5H7z M10 12h7v5h-7z',
   ungroup: 'M4 5h8v6H4z M12 13h8v6h-8z',
   align: 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
@@ -137,6 +138,77 @@ const stylusOnly = ref<boolean | 'auto'>('auto');
 const zoom = ref(1);
 const selectMode = ref<'rectangle' | 'lasso'>('rectangle');
 const showHelp = ref(false);
+
+// AI panel
+const showAI = ref(false);
+const aiPrompt = ref('');
+const aiBusy = ref<'diagram' | 'organize' | null>(null);
+const aiMessage = ref<{ kind: 'error' | 'info'; text: string } | null>(null);
+const aiExamples = [
+  'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
+  'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
+  'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
+];
+let aiAbort: AbortController | null = null;
+
+// Shown after the AI changed the drawing (the panel closes so the result is visible).
+const aiToast = ref('');
+let aiToastTimeout: ReturnType<typeof setTimeout> | undefined;
+function showAIToast(text: string) {
+  aiToast.value = text;
+  clearTimeout(aiToastTimeout);
+  aiToastTimeout = setTimeout(() => (aiToast.value = ''), 5000);
+}
+
+// The playground's server function (api/ai.js) forwards requests to OpenRouter.
+async function playgroundAIRequest({ messages, signal }: { messages: unknown[]; signal?: AbortSignal }) {
+  const response = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages }),
+    signal,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || typeof data?.content !== 'string') {
+    throw new Error(data?.error ?? `AI is not available here (${response.status}).`);
+  }
+  return data.content as string;
+}
+
+async function runAI(action: 'diagram' | 'organize') {
+  const instance = editor.value;
+  if (!instance || aiBusy.value) return;
+
+  aiAbort = new AbortController();
+  aiBusy.value = action;
+  aiMessage.value = null;
+  try {
+    if (action === 'diagram') {
+      if (!aiPrompt.value.trim()) {
+        aiMessage.value = { kind: 'info', text: 'Describe the diagram first, or pick an example.' };
+        return;
+      }
+      const diagram = await instance.ai.generateDiagram(aiPrompt.value, { signal: aiAbort.signal });
+      showAI.value = false;
+      showAIToast(`✨ Added ${diagram.nodes.length} shapes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+    } else {
+      const groups = await instance.ai.organizeNotes({ signal: aiAbort.signal });
+      showAI.value = false;
+      showAIToast(`🗂️ Sorted into ${groups.length} groups: ${groups.map((g) => g.title).join(', ')}.`);
+    }
+  } catch (error) {
+    if ((error as Error)?.name !== 'AbortError') {
+      aiMessage.value = { kind: 'error', text: (error as Error)?.message ?? String(error) };
+    }
+  } finally {
+    aiBusy.value = null;
+    aiAbort = null;
+  }
+}
+
+function cancelAI() {
+  aiAbort?.abort();
+}
 const stickyColor = ref(noteColors[0]);
 const connectorState = ref({ color: inkColors[0], arrow: 'end' as 'end' | 'both' | 'none' });
 
@@ -197,6 +269,7 @@ onMounted(async () => {
       shape: { shape: 'rectangle', color: 'transparent', borderColor: '#1f2937', thickness: 2 },
     },
     input: { stylusOnly: 'auto' },
+    ai: { request: playgroundAIRequest },
   });
   editor.value = instance;
 
@@ -439,6 +512,52 @@ async function onImagesSelected(event: Event) {
         </button>
         <button class="tool text" title="Save SVG" @click="saveSvg">SVG</button>
         <button class="tool text" title="Save PNG" @click="savePng">PNG</button>
+
+        <span class="sep" />
+
+        <button
+          class="tool text ai-button"
+          :class="{ active: showAI }"
+          title="AI: generate diagrams, organize notes"
+          aria-label="AI"
+          @click="showAI = !showAI"
+        >
+          <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
+          AI
+        </button>
+      </div>
+
+      <div v-if="showAI" class="row options ai-panel">
+        <form class="ai-form" @submit.prevent="runAI('diagram')">
+          <textarea
+            v-model="aiPrompt"
+            rows="2"
+            placeholder="Describe a diagram: a process, a flowchart, an architecture…"
+            :disabled="!!aiBusy"
+            @keydown.enter.exact.prevent="runAI('diagram')"
+          />
+          <div class="ai-actions">
+            <button type="submit" class="ai-primary" :disabled="!!aiBusy">
+              {{ aiBusy === 'diagram' ? 'Drawing…' : '✨ Generate diagram' }}
+            </button>
+            <button
+              type="button"
+              :disabled="!!aiBusy"
+              title="Group the sticky notes (selected, or all) by theme"
+              @click="runAI('organize')"
+            >
+              {{ aiBusy === 'organize' ? 'Organizing…' : '🗂️ Organize sticky notes' }}
+            </button>
+            <button v-if="aiBusy" type="button" @click="cancelAI">Cancel</button>
+          </div>
+        </form>
+        <div class="ai-examples">
+          <span class="label">Try:</span>
+          <button v-for="example in aiExamples" :key="example" type="button" :disabled="!!aiBusy" @click="aiPrompt = example">
+            {{ example.length > 42 ? `${example.slice(0, 40)}…` : example }}
+          </button>
+        </div>
+        <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
       </div>
 
       <div v-if="currentPen" class="row options">
@@ -703,6 +822,8 @@ async function onImagesSelected(event: Event) {
       </div>
     </div>
 
+    <div v-if="aiToast" class="ai-toast" role="status">{{ aiToast }}</div>
+
     <div class="zoom-controls">
       <button class="tool" title="Zoom out" aria-label="Zoom out" @click="editor?.zoomOut()">−</button>
       <button class="zoom-value" title="Reset to 100%" @click="editor?.setZoom(1)">
@@ -889,6 +1010,94 @@ async function onImagesSelected(event: Event) {
   font-size: 13px;
   text-transform: capitalize;
   touch-action: manipulation;
+}
+
+.ai-button svg {
+  margin-right: 4px;
+}
+
+.ai-panel {
+  flex-direction: column;
+  align-items: stretch;
+  width: min(560px, calc(100vw - 48px));
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ai-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.ai-actions,
+.ai-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ai-actions button,
+.ai-examples button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  font-size: 13px;
+  touch-action: manipulation;
+}
+
+.ai-actions .ai-primary {
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+}
+
+.ai-actions button:disabled,
+.ai-examples button:disabled {
+  opacity: 0.6;
+}
+
+.ai-examples button {
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+}
+
+.ai-toast {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 8px);
+  transform: translateX(-50%);
+  z-index: 16;
+  max-width: calc(100% - 32px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
+}
+
+.ai-message {
+  margin: 0;
+  font-size: 13px;
+  color: #374151;
+}
+
+.ai-message.error {
+  color: #b91c1c;
 }
 
 .quick-bar {

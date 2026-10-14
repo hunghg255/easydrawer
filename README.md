@@ -106,6 +106,20 @@ editor.zoomIn(); editor.zoomOut(); editor.setZoom(1); editor.zoomToFit();
 editor.onZoomChange((zoom) => console.log(`${Math.round(zoom * 100)}%`));
 ```
 
+## AI features
+
+Give the editor a function that calls a language model (through your own server, which keeps the API key),
+then generate diagrams from text and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
+
+```ts
+const editor = new Editor(element, {
+  ai: { request: ({ messages }) => fetch('/api/ai', { method: 'POST', body: JSON.stringify({ messages }) }).then((r) => r.json()).then((d) => d.content) },
+});
+
+await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
+await editor.ai.organizeNotes(); // sort sticky notes into themed columns
+```
+
 ## Natural ink
 
 The default pen (`style: 'natural'`) is designed to feel like real ink:

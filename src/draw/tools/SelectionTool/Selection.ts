@@ -111,6 +111,8 @@ export default class Selection {
       {
         action: HandleAction.Rotate,
         side: Vec2.of(0.5, 0),
+        // Above the selection, so that it doesn't cover the selected content.
+        offset: Vec2.of(0, -32),
         icon: this.editor.icons.makeRotateIcon(),
       },
       this,

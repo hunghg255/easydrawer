@@ -27,6 +27,9 @@ export interface HandlePresentation {
   // An icon to optionally display within the handle
   icon?: Element;
 
+  // Offset (in screen pixels, in the selection's own rotated frame) from `side`.
+  offset?: IVec2;
+
   // Determines the handle's shape/style
   action: HandleAction;
 }
@@ -115,6 +118,7 @@ export default class SelectionHandle implements SelectionBoxChild {
     const size = Vec2.of(handleSize, handleSize);
     const topLeft = parentRect.size
       .scale(this.parentSide)
+      .plus(this.presentation.offset ?? Vec2.zero)
     // Center
       .minus(size.times(1 / 2));
 
@@ -124,9 +128,14 @@ export default class SelectionHandle implements SelectionBoxChild {
   /** @returns this handle's bounding box relative to the canvas. */
   private getBBoxCanvasCoords() {
     const parentRect = this.parent.region;
-    const size = Vec2.of(handleSize, handleSize).times(1 / this.viewport.getScaleFactor());
+    const toCanvas = 1 / this.viewport.getScaleFactor();
+    const size = Vec2.of(handleSize, handleSize).times(toCanvas);
+    const offset = (this.presentation.offset ?? Vec2.zero).times(toCanvas);
 
-    const topLeftFromParent = parentRect.size.scale(this.parentSide).minus(size.times(0.5));
+    const topLeftFromParent = parentRect.size
+      .scale(this.parentSide)
+      .plus(offset)
+      .minus(size.times(0.5));
 
     return new Rect2(topLeftFromParent.x, topLeftFromParent.y, size.x, size.y).translatedBy(
       parentRect.topLeft,

@@ -170,6 +170,30 @@ export function validateDiagram (json: any): Diagram {
   return { direction: json?.direction === 'right' ? 'right' : 'down', nodes, edges };
 }
 
+/**
+ * The two ends of a hand-drawn arrow or line (from the points of its path): the points
+ * furthest apart. The head is the end with the most points around it (the arrowhead). @internal
+ */
+export function arrowEnds (points: IVec2[]): [tail: IVec2, head: IVec2] {
+  const sample = points.length > 200 ? points.filter((_, i) => i % Math.ceil(points.length / 200) === 0) : points;
+  let a = sample[0];
+  let b = sample[sample.length - 1];
+  let longest = -1;
+  for (const p of sample) {
+    for (const q of sample) {
+      const d = Vec2.ofXY(p).distanceTo(q);
+      if (d > longest) {
+        longest = d;
+        a = p;
+        b = q;
+      }
+    }
+  }
+  const radius = longest * 0.25;
+  const near = (end: IVec2) => sample.filter((p) => Vec2.ofXY(p).distanceTo(end) < radius).length;
+  return near(a) > near(b) ? [b, a] : [a, b];
+}
+
 /** Wraps `text` into lines at most `maxWidth` wide. */
 function wrapText (text: string, style: TextRenderingStyle, maxWidth: number): string[] {
   const lines: string[] = [];
@@ -354,12 +378,13 @@ export default class EditorAI {
    * screen.
    */
   public async drawDiagram(diagram: Diagram, options: { center?: IVec2 } = {}) {
-    const created = this.buildDiagram(diagram, options.center ?? this.editor.viewport.visibleRect.center);
+    // Next to what is already drawn, rather than on top of it.
+    const created = this.buildDiagram(diagram, options.center ?? this.editor.viewport.visibleRect.center, new Set());
     await this.addAndShow(created);
   }
 
   // Creates the components of a diagram centered on `center` (not added to the image).
-  private buildDiagram(diagram: Diagram, center: IVec2): AbstractComponent[] {
+  private buildDiagram(diagram: Diagram, preferredCenter: IVec2, ignore: Set<AbstractComponent>): AbstractComponent[] {
     const editor = this.editor;
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const textStyle: TextRenderingStyle = {
@@ -389,6 +414,13 @@ export default class EditorAI {
       diagram.edges,
       { direction: diagram.direction, nodeGap: 70 * scale, layerGap: 80 * scale },
     );
+    const layoutBox = Rect2.union(
+      ...sized.map(({ node, width, height }) => {
+        const p = positions.get(node.id)!;
+        return new Rect2(p.x - width / 2, p.y - height / 2, width, height);
+      }),
+    );
+    const center = this.findFreeSpot(layoutBox, preferredCenter, ignore);
     const created: AbstractComponent[] = [];
     const shapeById = new Map<string, Stroke>();
     for (const { node, lines, width, height } of sized) {
@@ -443,6 +475,42 @@ export default class EditorAI {
     return created;
   }
 
+  /**
+   * Where to put something of size `box` (relative to its center) so that it doesn't
+   * cover what is already drawn (except `ignore`): `preferred` if possible, otherwise the
+   * closest free spot around it.
+   */
+  private findFreeSpot(box: Rect2, preferred: IVec2, ignore: Set<AbstractComponent>): IVec2 {
+    const image = this.editor.image;
+    const margin = 40 * this.editor.viewport.getSizeOfPixelOnCanvas();
+    const isFree = (center: IVec2) => {
+      const area = box.translatedBy(Vec2.ofXY(center)).grownBy(margin);
+      return !image.getComponentsIntersecting(area).some((c) => !ignore.has(c) && c.isSelectable());
+    };
+    if (isFree(preferred)) return preferred;
+
+    // Try positions on rings around the preferred one, closest first.
+    const step = Vec2.of((box.w + margin) / 2, (box.h + margin) / 2);
+    for (let ring = 1; ring <= 8; ring++) {
+      const candidates: IVec2[] = [];
+      for (let i = -ring; i <= ring; i++) {
+        for (let j = -ring; j <= ring; j++) {
+          if (Math.max(Math.abs(i), Math.abs(j)) !== ring) continue;
+          candidates.push(Vec2.ofXY(preferred).plus(Vec2.of(i * step.x, j * step.y)));
+        }
+      }
+      candidates.sort((a, b) => a.distanceTo(preferred) - b.distanceTo(preferred));
+      const free = candidates.find(isFree);
+      if (free) return free;
+    }
+
+    // Right of everything.
+    const all = image.getAllComponents().filter((c) => !ignore.has(c));
+    if (all.length === 0) return preferred;
+    const content = Rect2.union(...all.map((c) => c.getBBox()));
+    return Vec2.of(content.x + content.w + margin + box.w / 2, Vec2.ofXY(preferred).y);
+  }
+
   // Adds new components in one undoable step, selects them and makes sure they're visible.
   private async addAndShow(
     components: AbstractComponent[],
@@ -464,8 +532,9 @@ export default class EditorAI {
   }
 
   /**
-   * Reads a diagram drawn by {@link drawDiagram} from `components` (by default the selection,
-   * or everything): its nodes and the connectors between them.
+   * Reads a diagram from `components` (by default the selection, or everything): diagrams
+   * drawn by {@link drawDiagram}, and hand-made ones — shapes with text inside, sticky notes,
+   * connectors, and arrows/lines drawn between two shapes.
    *
    * @returns the diagram, and the components it is made of, or `null` if there is none.
    */
@@ -474,46 +543,127 @@ export default class EditorAI {
     const all = image.getAllComponents();
     let candidates = components ?? this.editor.selection.items;
     if (candidates.length === 0) candidates = all;
+    const candidateSet = new Set(candidates);
 
-    const shapes = candidates.filter((c) => c instanceof Stroke && c.getMetadata().diagramNode);
-    if (shapes.length === 0) return null;
+    const connectors = all.filter((c): c is Connector => c instanceof Connector);
+    const connectedIds = new Set(connectors.flatMap((c) => [c.getStart().targetId, c.getEnd().targetId]));
+    const strokes = candidates.filter((c): c is Stroke => c instanceof Stroke);
+    const texts = candidates.filter((c): c is TextComponent => c instanceof TextComponent);
 
-    const parts = new Set<AbstractComponent>(shapes);
-    const shortIds = new Map<string, string>();
-    const nodes: DiagramNode[] = shapes.map((shape, i) => {
-      const meta = shape.getMetadata();
-      const id = `n${i + 1}`;
-      shortIds.set(shape.getId(), id);
+    // Texts inside a shape (same group, or drawn on top of it) are its label.
+    const labelsOf = new Map<Stroke, TextComponent[]>();
+    const usedTexts = new Set<TextComponent>();
+    for (const stroke of strokes) {
+      const groupId = stroke.getGroupId();
+      const box = stroke.getBBox();
+      const inside = (groupId ? all : texts).filter(
+        (c): c is TextComponent =>
+          c instanceof TextComponent &&
+          !usedTexts.has(c) &&
+          ((groupId !== null && c.getGroupId() === groupId) || box.containsPoint(c.getBBox().center)),
+      );
+      inside.sort((a, b) => a.getBBox().y - b.getBBox().y || a.getBBox().x - b.getBBox().x);
+      labelsOf.set(stroke, inside);
+      for (const text of inside) usedTexts.add(text);
+    }
 
-      // The node's text: texts in the same group, top to bottom.
-      const groupId = shape.getGroupId();
-      const texts = groupId
-        ? all.filter((c): c is TextComponent => c instanceof TextComponent && c.getGroupId() === groupId)
-        : [];
-      texts.sort((a, b) => a.getBBox().y - b.getBBox().y);
-      for (const text of texts) parts.add(text);
+    // Nodes: shapes made by drawDiagram, shapes with text or attached connectors, notes, and
+    // texts with attached connectors. Other strokes may be hand-drawn arrows (see below).
+    type NodeSource = { component: AbstractComponent; label: string; meta: Readonly<Record<string, string>> };
+    const sources: NodeSource[] = [];
+    const nodeOf = new Map<AbstractComponent, number>();
+    const addNode = (component: AbstractComponent, label: string) => {
+      nodeOf.set(component, sources.length);
+      sources.push({ component, label, meta: component.getMetadata() });
+    };
+    for (const stroke of strokes) {
+      const labels = labelsOf.get(stroke)!;
+      if (stroke.getMetadata().diagramNode || labels.length > 0 || connectedIds.has(stroke.getId())) {
+        addNode(stroke, labels.map((t) => t.getText()).join(' '));
+        for (const label of labels) nodeOf.set(label, nodeOf.get(stroke)!);
+      }
+    }
+    for (const component of candidates) {
+      if (component instanceof StickyNote) {
+        addNode(component, component.getText());
+      } else if (component instanceof TextComponent && !usedTexts.has(component) && connectedIds.has(component.getId())) {
+        addNode(component, component.getText());
+      }
+    }
+    if (sources.length === 0) return null;
 
-      return {
-        id,
-        label: texts.map((t) => t.getText()).join(' ') || '…',
-        kind: oneOf(meta.kind, nodeKinds, 'process'),
-        color: meta.color ? oneOf(meta.color, colorNames, 'blue') : undefined,
-      };
-    });
-
+    const parts = new Set<AbstractComponent>(nodeOf.keys());
     const edges: DiagramEdge[] = [];
-    for (const component of all) {
-      if (!(component instanceof Connector)) continue;
-      const from = shortIds.get(component.getStart().targetId ?? '');
-      const to = shortIds.get(component.getEnd().targetId ?? '');
-      if (from && to) {
-        edges.push({ from, to, label: component.getLabel() || undefined });
-        parts.add(component);
+    const edgeKeys = new Set<string>();
+    const addEdge = (from: number | undefined, to: number | undefined, label?: string) => {
+      if (from === undefined || to === undefined || from === to) return false;
+      const key = `${from}>${to}`;
+      if (edgeKeys.has(key)) return true;
+      edgeKeys.add(key);
+      edges.push({ from: `n${from + 1}`, to: `n${to + 1}`, label: label || undefined });
+      return true;
+    };
+
+    for (const connector of connectors) {
+      const from = image.lookupElement(connector.getStart().targetId ?? '');
+      const to = image.lookupElement(connector.getEnd().targetId ?? '');
+      if (from && to && addEdge(nodeOf.get(from), nodeOf.get(to), connector.getLabel())) {
+        parts.add(connector);
       }
     }
 
-    const direction = shapes[0].getMetadata().direction === 'right' ? 'right' : 'down';
-    return { diagram: { direction, nodes, edges }, parts: [...parts] };
+    // Hand-drawn arrows and lines: strokes whose two ends touch two different nodes.
+    const nodeBoxes = sources.map((s) => s.component.getBBox());
+    const tolerance = 24 * this.editor.viewport.getSizeOfPixelOnCanvas();
+    const nodeNear = (point: IVec2) => {
+      let best = -1;
+      let bestDistance = tolerance;
+      for (const [i, box] of nodeBoxes.entries()) {
+        const distance = box.containsPoint(point) ? 0 : box.signedDistance(point);
+        if (distance < bestDistance) {
+          best = i;
+          bestDistance = distance;
+        }
+      }
+      return best === -1 ? undefined : best;
+    };
+    for (const stroke of strokes) {
+      if (nodeOf.has(stroke)) continue;
+      const points = stroke.getParts().flatMap((part) => [part.startPoint, ...part.commands.map((c) => ('endPoint' in c ? c.endPoint : c.point))]);
+      if (points.length < 2) continue;
+      const [tail, head] = arrowEnds(points);
+      if (addEdge(nodeNear(tail), nodeNear(head))) {
+        parts.add(stroke);
+      }
+    }
+
+    const nodes: DiagramNode[] = sources.map(({ label, meta }, i) => ({
+      id: `n${i + 1}`,
+      label: shortText(label, 80) || '…',
+      kind: oneOf(meta.kind, nodeKinds, label.trim().endsWith('?') ? 'decision' : 'process'),
+      color: meta.color ? oneOf(meta.color, colorNames, 'blue') : undefined,
+    }));
+
+    // Direction: from the metadata, or from how the nodes are laid out.
+    let direction: Diagram['direction'] = sources[0].meta.direction === 'right' ? 'right' : 'down';
+    if (!sources[0].meta.direction && edges.length > 0) {
+      let dx = 0;
+      let dy = 0;
+      for (const edge of edges) {
+        const a = nodeBoxes[Number(edge.from.slice(1)) - 1].center;
+        const b = nodeBoxes[Number(edge.to.slice(1)) - 1].center;
+        dx += Math.abs(b.x - a.x);
+        dy += Math.abs(b.y - a.y);
+      }
+      direction = dx > dy ? 'right' : 'down';
+    }
+
+    // Keep everything that was selected with the diagram (e.g. decorations) out of `parts`:
+    // only what the diagram is made of is replaced.
+    return {
+      diagram: { direction, nodes, edges },
+      parts: [...parts].filter((part) => candidateSet.has(part) || part instanceof Connector || part instanceof TextComponent),
+    };
   }
 
   /**
@@ -524,7 +674,7 @@ export default class EditorAI {
   public async editDiagram(instruction: string, options: AIOptions = {}): Promise<Diagram> {
     const current = this.readDiagram();
     if (!current) {
-      throw new AIError('Select a diagram made with "Generate diagram" first.');
+      throw new AIError('Select a diagram first (shapes with text, notes, and the arrows between them).');
     }
 
     const json = await this.requestJSON(
@@ -540,9 +690,24 @@ export default class EditorAI {
     const diagram = validateDiagram(json);
 
     const center = Rect2.union(...current.parts.map((c) => c.getBBox())).center;
-    const created = this.buildDiagram(diagram, center);
+    // In the same place (if it still fits there, around what isn't part of the diagram).
+    const created = this.buildDiagram(diagram, center, new Set(current.parts));
     await this.addAndShow(created, [], [], [new Erase(current.parts)]);
     return diagram;
+  }
+
+  /**
+   * Changes what is selected as described by `instruction`: a selected diagram is edited
+   * with {@link editDiagram} ("add a step…", "remove…", "rename…"); anything else goes
+   * through {@link runCommand}.
+   */
+  public async editSelection(instruction: string, options: AIOptions = {}): Promise<AICommandResult> {
+    const items = this.editor.selection.items;
+    if (items.length > 0 && this.readDiagram(items)) {
+      const diagram = await this.editDiagram(instruction, options);
+      return { message: `Updated the diagram (${diagram.nodes.length} shapes).`, actions: ['editDiagram'] };
+    }
+    return this.runCommand(instruction, options);
   }
 
   /**

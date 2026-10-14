@@ -142,7 +142,19 @@ const showHelp = ref(false);
 // AI panel
 const showAI = ref(false);
 const aiPrompt = ref('');
-type AIAction = 'diagram' | 'edit' | 'brainstorm' | 'organize' | 'command';
+type AIAction = 'diagram' | 'edit' | 'brainstorm' | 'organize' | 'command' | 'selection';
+
+// ✨ in the floating toolbar: change the selection with AI.
+const showQuickAI = ref(false);
+const quickAIText = ref('');
+const quickAIInput = ref<HTMLInputElement>();
+function toggleQuickAI() {
+  showQuickAI.value = !showQuickAI.value;
+  void nextTick(() => {
+    updateQuickBar();
+    quickAIInput.value?.focus();
+  });
+}
 const aiBusy = ref<AIAction | null>(null);
 const selectionHasDiagram = ref(false);
 const selectionHasTopic = ref(false);
@@ -224,6 +236,13 @@ async function runAI(action: AIAction) {
       const diagram = await instance.ai.editDiagram(aiPrompt.value, { signal: aiAbort.signal });
       showAI.value = false;
       showAIToast(`✏️ Updated the diagram (${diagram.nodes.length} shapes) — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'selection') {
+      const request = quickAIText.value.trim();
+      if (!request) return;
+      const result = await instance.ai.editSelection(request, { signal: aiAbort.signal });
+      quickAIText.value = '';
+      showQuickAI.value = false;
+      showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
     } else if (action === 'brainstorm') {
       const notes = await instance.ai.brainstorm({ signal: aiAbort.signal });
       showAI.value = false;
@@ -243,7 +262,7 @@ async function runAI(action: AIAction) {
   } catch (error) {
     if ((error as Error)?.name !== 'AbortError') {
       const text = (error as Error)?.message ?? String(error);
-      if (action === 'command') {
+      if (action === 'command' || action === 'selection') {
         showAIToast(`⚠️ ${text}`, 8000);
       } else {
         aiMessage.value = { kind: 'error', text };
@@ -376,11 +395,14 @@ onMounted(async () => {
     instance.selection.onChange((items) => {
       selectionCount.value = items.length;
       selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
-      selectionHasDiagram.value = items.some((item) => !!item.getMetadata().diagramNode);
+      selectionHasDiagram.value = items.length > 0 && instance.ai.readDiagram(items) !== null;
       selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
       selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
       selectionHasGroups.value = instance.selection.hasGroups;
-      if (items.length === 0) showAlign.value = false;
+      if (items.length === 0) {
+        showAlign.value = false;
+        showQuickAI.value = false;
+      }
       lockedCount.value = instance.selection.lockedCount;
       // After Vue has updated the toolbar's buttons (its width depends on them).
       void nextTick(updateQuickBar);
@@ -844,6 +866,15 @@ async function onImagesSelected(event: Event) {
         @click="editor?.selection.setColor(color)"
       />
       <span class="sep" />
+      <button
+        class="tool ai-quick"
+        :class="{ active: showQuickAI }"
+        title="Change the selection with AI"
+        aria-label="Change the selection with AI"
+        @click="toggleQuickAI"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
+      </button>
       <button v-if="selectionCount === 1 && selectionHasNote" class="tool" title="Edit text" aria-label="Edit text" @click="editNote">
         <svg viewBox="0 0 24 24"><path :d="icons.text" /></svg>
       </button>
@@ -890,6 +921,17 @@ async function onImagesSelected(event: Event) {
       <button class="tool danger" title="Delete" aria-label="Delete" @click="editor?.selection.delete()">
         <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg>
       </button>
+      <form v-if="showQuickAI" class="quick-row quick-ai" @submit.prevent="runAI('selection')">
+        <input
+          ref="quickAIInput"
+          v-model="quickAIText"
+          :placeholder="selectionHasDiagram ? 'Add, change or remove steps… e.g. “add a payment step”' : 'What should AI do with the selection?'"
+          :disabled="aiBusy === 'selection'"
+          @keydown.esc="showQuickAI = false"
+        >
+        <button v-if="aiBusy === 'selection'" type="button" @click="cancelAI">Cancel</button>
+        <button v-else type="submit">Go</button>
+      </form>
       <div v-if="showAlign && selectionUnits > 1" class="quick-row">
         <button
           v-for="item in alignments"
@@ -1337,6 +1379,30 @@ async function onImagesSelected(event: Event) {
   margin-top: 4px;
   padding-top: 4px;
   border-top: 1px dashed #e5e7eb;
+}
+
+.quick-ai input {
+  flex: 1;
+  min-width: 260px;
+  padding: 6px 8px;
+  border: 1px solid #c7d2fe;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.quick-ai button {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.quick-bar .ai-quick {
+  color: #4f46e5;
 }
 
 .quick-bar.hidden {

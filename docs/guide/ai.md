@@ -106,8 +106,16 @@ await editor.ai.editDiagram('Add a step to send a confirmation email after the p
 ```
 
 The AI gets the current diagram (`editor.ai.readDiagram()`) and returns the updated one, which replaces it in
-the same place — one undo step. Diagram shapes remember their node kind and color in their metadata
-(`component.getMetadata()`), saved in the SVG.
+the same place — one undo step. This works with diagrams made by the AI **and hand-made ones**: shapes with text
+inside (or grouped with them), sticky notes, connectors, and arrows or lines drawn between two shapes. Diagram
+shapes made by the AI remember their node kind and color in their metadata (`component.getMetadata()`), saved in
+the SVG.
+
+`editor.ai.editSelection(instruction)` does the right thing for the selection: it edits a selected diagram, and
+runs anything else as a [command](#commands). In the playground, it's the ✨ button of the floating toolbar next
+to the selection.
+
+New diagrams are placed next to what is already drawn, never on top of it.
 
 ## Brainstorm
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { assignSides, validateDiagram } from './EditorAI';
+import { Vec2 } from '~/math';
+
+import { arrowEnds, assignSides, validateDiagram } from './EditorAI';
 import layoutGraph from './layoutGraph';
 import parseAIJSON from './parseJSON';
 import { AIError } from './types';
@@ -100,5 +102,15 @@ describe('assignSides', () => {
     expect(sides[2]).toEqual({ start: 'right', end: 'top' });
     // Back edge: around the left side.
     expect(sides[3]).toEqual({ start: 'left', end: 'left' });
+  });
+});
+
+describe('arrowEnds', () => {
+  it('finds the head of an arrow by its arrowhead', () => {
+    // A line from (0, 0) to (100, 0), with an arrowhead at (100, 0), path starting at the head.
+    const points = [Vec2.of(100, 0), Vec2.of(90, -6), Vec2.of(90, 6), Vec2.of(100, 0), Vec2.of(0, 0)];
+    const [tail, head] = arrowEnds(points);
+    expect(tail).toMatchObject({ x: 0, y: 0 });
+    expect(head).toMatchObject({ x: 100, y: 0 });
   });
 });

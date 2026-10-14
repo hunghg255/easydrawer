@@ -117,7 +117,8 @@ const editor = new Editor(element, {
 });
 
 await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
-await editor.ai.editDiagram('Add a confirmation email after the payment'); // the selected diagram
+await editor.ai.editDiagram('Add a confirmation email after the payment'); // the selected diagram, even hand-drawn
+await editor.ai.editSelection('remove the error step'); // diagram edit, or a command for anything else
 await editor.ai.brainstorm();    // ideas around the selected sticky note
 await editor.ai.organizeNotes(); // sort sticky notes into themed columns
 await editor.ai.runCommand('Color the notes about marketing in blue'); // anything, in plain language

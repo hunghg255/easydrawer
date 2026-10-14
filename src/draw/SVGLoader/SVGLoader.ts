@@ -2,7 +2,11 @@
 import { Color4, Mat33, Path, Rect2, Vec2 } from '~/math';
 
 import determineFontSize from './utils/determineFontSize';
-import type AbstractComponent from '../components/AbstractComponent';
+import AbstractComponent, {
+  componentSVGAttribute,
+  idSVGAttribute,
+  lockedSVGAttribute,
+} from '../components/AbstractComponent';
 import BackgroundComponent, {
   BackgroundType,
   backgroundTypeToClassNameMap,
@@ -212,7 +216,11 @@ export default class SVGLoader implements ImageLoader {
     }
 
     for (const attr of node.getAttributeNames()) {
-      if (supportedAttrs.has(attr) || (attr === 'style' && supportedStyleAttrs)) {
+      if (
+        supportedAttrs.has(attr) ||
+        (attr === 'style' && supportedStyleAttrs) ||
+        attr.startsWith('data-easydrawer-')
+      ) {
         continue;
       }
 
@@ -532,6 +540,7 @@ export default class SVGLoader implements ImageLoader {
     }
   }
 
+  private lastSerializedComponent: string | null = null;
   private containerGroupIDs: string[] = [];
   private encounteredIDs: string[] = [];
   private async startGroup(node: SVGGElement) {
@@ -570,10 +579,32 @@ export default class SVGLoader implements ImageLoader {
     this.containerGroupIDs.pop();
   }
 
+  // Maps `data-easydrawer-id`s in the SVG to the IDs of the loaded components.
+  private idMap = new Map<string, string>();
+  private componentsWithReferences: AbstractComponent[] = [];
+  private currentNode: Element | null = null;
+
   private async addComponent(component: AbstractComponent) {
     // Attach the stack of container IDs
     if (this.containerGroupIDs.length > 0) {
       component.attachLoadSaveData(svgLoaderAttributeContainerID, [...this.containerGroupIDs]);
+    }
+
+    const node = this.currentNode;
+    if (node && node.getAttribute) {
+      if (node.getAttribute(lockedSVGAttribute) === 'true') {
+        component.setLockedDirectly(true);
+      }
+
+      const savedId = node.getAttribute(idSVGAttribute);
+      if (savedId) {
+        this.idMap.set(savedId, component.getId());
+        component.keepIdInSVG = true;
+      }
+    }
+
+    if (component.remapReferences) {
+      this.componentsWithReferences.push(component);
     }
 
     await this.onAddComponent?.(component);
@@ -699,11 +730,38 @@ export default class SVGLoader implements ImageLoader {
       }
     };
 
+    // Components saved by easydrawer as JSON (sticky notes, connectors…). A component can be
+    // made of several SVG elements: only the first one is loaded.
+    const visitSerialized = async () => {
+      const json = node.getAttribute?.(componentSVGAttribute);
+      if (!json) {
+        this.lastSerializedComponent = null;
+        return false;
+      }
+
+      if (json !== this.lastSerializedComponent) {
+        this.lastSerializedComponent = json;
+        try {
+          // Clone: new ID and z-index, like other loaded components.
+          const component = AbstractComponent.deserialize(json).clone();
+          await this.addComponent(component);
+        } catch (error) {
+          console.warn('Unable to load component', node, error);
+          return false;
+        }
+      }
+      return true;
+    };
+
+    this.currentNode = node;
     if (await visitPlugin()) {
+      visitChildren = false;
+    } else if (await visitSerialized()) {
       visitChildren = false;
     } else {
       await visitBuiltIn();
     }
+    this.currentNode = null;
 
     if (visitChildren) {
       for (const child of node.children) {
@@ -741,6 +799,10 @@ export default class SVGLoader implements ImageLoader {
 
     this.rootViewBox = null;
     await this.visit(this.source);
+
+    for (const component of this.componentsWithReferences) {
+      component.remapReferences!(this.idMap);
+    }
 
     const viewBox = this.rootViewBox;
 

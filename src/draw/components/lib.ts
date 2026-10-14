@@ -1,4 +1,5 @@
 import BackgroundComponent, { BackgroundType } from './BackgroundComponent';
+import Connector, { type ConnectorArrowMode, type ConnectorEnd, type ConnectorStyle } from './Connector';
 import ImageComponent from './ImageComponent';
 import type RestyleableComponent from './RestylableComponent';
 import {
@@ -6,6 +7,7 @@ import {
   isRestylableComponent,
   type ComponentStyle as RestyleableComponentStyle,
 } from './RestylableComponent';
+import StickyNote, { type StickyNoteOptions } from './StickyNote';
 import Stroke from './Stroke';
 import TextComponent from './TextComponent';
 
@@ -31,4 +33,10 @@ export {
   BackgroundComponent,
   BackgroundType as BackgroundComponentBackgroundType,
   ImageComponent,
+  StickyNote,
+  Connector,
+  type ConnectorArrowMode,
+  type ConnectorEnd,
+  type ConnectorStyle,
+  type StickyNoteOptions,
 };

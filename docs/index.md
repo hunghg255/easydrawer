@@ -30,8 +30,8 @@ features:
     title: Simple API
     details: "editor.tools.use('pen'), configure tools with plain objects and CSS colors, undo/redo/clear in one call."
   - icon: 🖼️
-    title: Shapes, text & images
-    details: 12 shapes, text, highlighter, eraser, selection, image insertion and grid/dot backgrounds.
+    title: Shapes, notes & arrows
+    details: 12 shapes, text, sticky notes, arrows that stay attached to shapes, selection with lock and layering, images and grid/dot backgrounds.
   - icon: 💾
     title: SVG in, SVG out
     details: Save drawings as SVG or PNG and load them back for editing.

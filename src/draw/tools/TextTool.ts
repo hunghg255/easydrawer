@@ -280,7 +280,9 @@ export default class TextTool extends BaseTool {
         canvasPos.plus(halfTestRegionSize),
       );
       const targetNodes = this.editor.image.getComponentsIntersecting(testRegion);
-      let targetTextNodes = targetNodes.filter((node) => node instanceof TextComponent);
+      let targetTextNodes = targetNodes.filter(
+        (node): node is TextComponent => node instanceof TextComponent && !node.isLocked(),
+      );
 
       // Don't try to edit text nodes that contain the viewport (this allows us
       // to zoom in on text nodes and add text on top of them.)

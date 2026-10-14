@@ -116,6 +116,8 @@ export const namedToolShortcutIds = {
   shape: 'easydraw.tools.use.shape',
   laser: 'easydraw.tools.use.laser',
   eyedropper: 'easydraw.tools.use.eyedropper',
+  sticky: 'easydraw.tools.use.sticky',
+  connector: 'easydraw.tools.use.connector',
 } as const;
 
 const namedToolDefaultKeys: Record<keyof typeof namedToolShortcutIds, [string, string]> = {
@@ -127,6 +129,8 @@ const namedToolDefaultKeys: Record<keyof typeof namedToolShortcutIds, [string, s
   shape: ['KeyS', 'Shapes'],
   laser: ['KeyK', 'Laser pointer'],
   eyedropper: ['KeyI', 'Eyedropper'],
+  sticky: ['KeyN', 'Sticky note'],
+  connector: ['KeyC', 'Connector (arrow)'],
 };
 
 for (const [name, [key, description]] of Object.entries(namedToolDefaultKeys)) {

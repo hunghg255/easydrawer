@@ -17,6 +17,12 @@ export type LoadSaveDataTable = Record<string, Array<LoadSaveData>>;
 export type DeserializeCallback = (data: string) => AbstractComponent;
 type ComponentId = string;
 
+/** Key of the {@link LoadSaveDataTable} entry with `data-easydrawer-*` SVG attributes. */
+export const easydrawerSVGAttributesKey = 'easydrawerSVGAttrs';
+export const lockedSVGAttribute = 'data-easydrawer-locked';
+export const idSVGAttribute = 'data-easydrawer-id';
+export const componentSVGAttribute = 'data-easydrawer-component';
+
 export enum ComponentSizingMode {
   /** The default. The compnent gets its size from its bounding box. */
   BoundingBox,
@@ -128,8 +134,100 @@ export default abstract class AbstractComponent {
 
   /** See {@link attachLoadSaveData} */
   public getLoadSaveData(): LoadSaveDataTable {
-    return this.loadSaveData;
+    const attrs = this.getEasydrawerSVGAttributes();
+    if (attrs.length === 0) {
+      return this.loadSaveData;
+    }
+    return { ...this.loadSaveData, [easydrawerSVGAttributesKey]: attrs };
   }
+
+  /**
+   * `data-easydrawer-*` attributes written to this component's SVG elements (lock state,
+   * IDs used by connectors…). Subclasses may add their own.
+   */
+  protected getEasydrawerSVGAttributes(): Array<[string, string]> {
+    const result: Array<[string, string]> = [];
+    if (this.locked) {
+      result.push([lockedSVGAttribute, 'true']);
+    }
+    if (this.keepIdInSVG) {
+      result.push([idSVGAttribute, this.id]);
+    }
+    return result;
+  }
+
+  private locked = false;
+
+  /**
+   * @internal Set when another component (e.g. a connector) refers to this one by ID, so
+   * the reference can be restored after saving to SVG.
+   */
+  public keepIdInSVG = false;
+
+  /** Locked components can't be selected, moved or erased until they're unlocked. */
+  public isLocked(): boolean {
+    return this.locked;
+  }
+
+  /**
+   * Sets the lock state without creating a command. Prefer {@link setLocked}, which can be
+   * undone. @internal
+   */
+  public setLockedDirectly(locked: boolean) {
+    this.locked = locked;
+  }
+
+  /** Returns a command that locks or unlocks this component. */
+  public setLocked(locked: boolean): SerializableCommand {
+    return new AbstractComponent.SetLockedCommand(this.getId(), locked, this);
+  }
+
+  /** @returns true if this component can be selected, erased or edited right now. */
+  public isEditable(): boolean {
+    return this.isSelectable() && !this.locked;
+  }
+
+  private static setLockedCommandId = 'set-component-locked';
+  private static SetLockedCommand = class extends UnresolvedSerializableCommand {
+    public constructor(
+      componentID: string,
+      private targetLocked: boolean,
+      component?: AbstractComponent,
+    ) {
+      super(AbstractComponent.setLockedCommandId, componentID, component);
+    }
+
+    private setLocked(editor: Editor, locked: boolean) {
+      this.resolveComponent(editor.image);
+      this.component!.locked = locked;
+      editor.image.queueRerenderOf(this.component!);
+      editor.queueRerender();
+    }
+
+    public apply(editor: Editor) {
+      this.setLocked(editor, this.targetLocked);
+    }
+
+    public unapply(editor: Editor) {
+      this.setLocked(editor, !this.targetLocked);
+    }
+
+    public description(_editor: Editor, localizationTable: EditorLocalization) {
+      return this.targetLocked ? localizationTable.lockedElements(1) : localizationTable.unlockedElements(1);
+    }
+
+    protected serializeToJSON() {
+      return { id: this.componentID, locked: this.targetLocked };
+    }
+
+    static {
+      SerializableCommand.register(AbstractComponent.setLockedCommandId, (json: any, editor: Editor) => {
+        assertIsString(json.id);
+        const elem = editor.image.lookupElement(json.id) ?? undefined;
+        return new AbstractComponent.SetLockedCommand(json.id, !!json.locked, elem);
+      });
+    }
+  };
 
   public getZIndex(): number {
     return this.zIndex;
@@ -452,6 +550,12 @@ export default abstract class AbstractComponent {
 	 */
   public withRegionErased?(shape: Path, viewport: Viewport): AbstractComponent[];
 
+  /**
+   * **Optional method**: for components that refer to other components by ID (e.g. connectors).
+   * Called after loading an image, when components get new IDs: `idMap` maps old IDs to new ones.
+   */
+  public remapReferences?(idMap: Map<string, string>): void;
+
   // Return null iff this object cannot be safely serialized/deserialized.
   protected abstract serializeToJSON(): any[] | Record<string, any> | number | string | null;
 
@@ -473,6 +577,7 @@ export default abstract class AbstractComponent {
       id: this.id,
       loadSaveData: this.loadSaveData,
       data,
+      ...(this.locked ? { locked: true } : {}),
     };
   }
 
@@ -512,6 +617,7 @@ export default abstract class AbstractComponent {
 
     const instance = this.deserializationCallbacks[json.name]!(json.data);
     instance.id = json.id;
+    instance.locked = json.locked === true;
 
     if (isFinite(json.zIndex)) {
       instance.zIndex = json.zIndex;

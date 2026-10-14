@@ -43,6 +43,7 @@ export { default as UndoRedoHistory } from './UndoRedoHistory';
 
 // Simplified API: named tools and plain-object options
 export { default as EditorTools, type ToolTypeMap } from './api/EditorTools';
+export { default as EditorSelection } from './api/EditorSelection';
 export * from './api/options';
 export {
   penStyles,

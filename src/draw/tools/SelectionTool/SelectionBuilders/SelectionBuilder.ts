@@ -24,7 +24,7 @@ export default abstract class SelectionBuilder {
 
     const filterComponents = (components: AbstractComponent[]) => {
       return components.filter((component) => {
-        return component.isSelectable();
+        return component.isEditable();
       });
     };
 

@@ -140,6 +140,8 @@ export default class EditorImage {
 
     if (parent) {
       parent.remove();
+      // Re-added below: keep the component count unchanged.
+      this.componentCount--;
       this.addComponentDirectly(elem);
     }
   }

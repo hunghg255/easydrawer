@@ -41,6 +41,12 @@ interface EraserToolOptions { thickness?: number; mode?: 'full-stroke' | 'partia
 interface TextToolOptions { color?: string | Color4; fontSize?: number; fontFamily?: string }
 interface SelectToolOptions { mode?: 'rectangle' | 'lasso' }
 interface LaserToolOptions { color?: string | Color4; thickness?: number }   // 'laser'
+interface StickyToolOptions { color?: string | Color4 }                       // 'sticky': note color
+interface ConnectorToolOptions {                                              // 'connector'
+  color?: string | Color4;
+  thickness?: number;
+  arrow?: 'end' | 'both' | 'none';
+}
 ```
 
 ## `editor.tools`
@@ -52,10 +58,28 @@ interface LaserToolOptions { color?: string | Color4; thickness?: number }   // 
 | `configure(name, options)` | Partial update of a tool's options |
 | `onChange(cb)` | Active tool changes; returns unsubscribe |
 | `get(name)` | Tool object or `null` |
-| `pen`, `highlighter` (`PenTool`), `eraser` (`EraserTool`), `shape` (`ShapeTool`), `text` (`TextTool`), `select` (`SelectionTool`), `laser` (`LaserPointer`) | Tool objects |
+| `pen`, `highlighter` (`PenTool`), `eraser` (`EraserTool`), `shape` (`ShapeTool`), `text` (`TextTool`), `select` (`SelectionTool`), `laser` (`LaserPointer`), `sticky` (`StickyNoteTool`), `connector` (`ConnectorTool`) | Tool objects |
 
 Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStrokeFactory()`,
-`select.getSelectedObjects()`, `select.setSelection(components)`, `select.clearSelection()`.
+`sticky.edit(note)` (open the text editor on a `StickyNote`).
+
+## `editor.selection`
+
+| Member | Description |
+| --- | --- |
+| `items`, `isEmpty` | Selected components (bottom to top) |
+| `set(components)`, `selectAll()`, `clear()` | Change the selection (switches to the select tool; skips locked components) |
+| `getScreenRect()` | `Rect2` in CSS px relative to the editor container, or `null` |
+| `onChange(cb)` | Selection or its on-screen position may have changed; returns unsubscribe |
+| `setColor(color)` | Recolor (undoable) |
+| `bringToFront()`, `sendToBack()` | Layering (undoable) |
+| `duplicate(offset = 24)` | Copy with offset, selects the copies |
+| `delete()` | Erase the selection |
+| `lock()`, `unlockAll()`, `lockedCount` | Locked components can't be selected, moved or erased; saved in SVG |
+
+Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
+`StickyNote` (`getText()`, `setText(text)` → command, `StickyNote.centeredAt(point, { text, color })`),
+`Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`).
 
 ## `Editor` methods
 
@@ -84,7 +108,8 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 
 ## Exports
 
-`Editor`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `penStyles`, `shapeTypes`,
+`Editor`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
+`penStyles`, `shapeTypes`,
 `naturalPenBuilderFactory`, `makeNaturalPenBuilder`, `makeHighlighterBuilder`, `EditorEventType`,
 types `ToolName`, `PenStyleName`, `ShapeTypeName`, `BackgroundTypeName`, `ColorInput`,
 `PenToolOptions`, `ShapeToolOptions`, `EraserToolOptions`, `TextToolOptions`, `EditorSettings`.

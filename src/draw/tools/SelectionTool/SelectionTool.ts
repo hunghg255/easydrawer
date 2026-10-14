@@ -640,7 +640,7 @@ export default class SelectionTool extends BaseTool {
   // Select the given `objects`. Any non-selectable objects in `objects` are ignored.
   public setSelection(objects: AbstractComponent[]) {
     // Only select selectable objects.
-    objects = objects.filter((obj) => obj.isSelectable());
+    objects = objects.filter((obj) => obj.isEditable());
 
     // Sort by z-index
     objects.sort((a, b) => a.getZIndex() - b.getZIndex());

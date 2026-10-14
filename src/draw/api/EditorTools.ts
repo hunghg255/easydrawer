@@ -7,12 +7,15 @@ import {
   type TextToolOptions,
   type SelectToolOptions,
   type LaserToolOptions,
+  type StickyToolOptions,
+  type ConnectorToolOptions,
   toColor4,
   toolNames,
 } from './options';
 import { penStyles, shapeTypes } from '../components/builders/presets';
 import type Editor from '../Editor';
 import type BaseTool from '../tools/BaseTool';
+import ConnectorTool from '../tools/ConnectorTool';
 import Eraser, { EraserMode } from '../tools/Eraser';
 import LaserPointer from '../tools/LaserPointer';
 import type PipetteTool from '../tools/PipetteTool';
@@ -20,6 +23,7 @@ import Pen from '../tools/Pen';
 import SelectionTool from '../tools/SelectionTool/SelectionTool';
 import { SelectionMode } from '../tools/SelectionTool/types';
 import ShapeTool from '../tools/ShapeTool';
+import StickyNoteTool from '../tools/StickyNoteTool';
 import TextTool from '../tools/TextTool';
 import { EditorEventType } from '../types';
 
@@ -73,6 +77,14 @@ export function applyToolOptions (tool: BaseTool, options: ToolOptionsMap[ToolNa
     if (textOptions.color !== undefined) tool.setColor(toColor4(textOptions.color));
     if (textOptions.fontSize !== undefined) tool.setFontSize(textOptions.fontSize);
     if (textOptions.fontFamily !== undefined) tool.setFontFamily(textOptions.fontFamily);
+  } else if (tool instanceof StickyNoteTool) {
+    const stickyOptions = options as StickyToolOptions;
+    if (stickyOptions.color !== undefined) tool.setColor(toColor4(stickyOptions.color));
+  } else if (tool instanceof ConnectorTool) {
+    const connectorOptions = options as ConnectorToolOptions;
+    if (connectorOptions.color !== undefined) tool.setColor(toColor4(connectorOptions.color));
+    if (connectorOptions.thickness !== undefined) tool.setThickness(connectorOptions.thickness);
+    if (connectorOptions.arrow !== undefined) tool.setArrowMode(connectorOptions.arrow);
   }
 }
 
@@ -129,6 +141,12 @@ export default class EditorTools {
   }
   public get select(): SelectionTool {
     return this.require('select'); 
+  }
+  public get sticky(): StickyNoteTool {
+    return this.require('sticky');
+  }
+  public get connector(): ConnectorTool {
+    return this.require('connector');
   }
 
   /**
@@ -209,4 +227,6 @@ export interface ToolTypeMap {
   shape: ShapeTool;
   laser: LaserPointer;
   eyedropper: PipetteTool;
+  sticky: StickyNoteTool;
+  connector: ConnectorTool;
 }

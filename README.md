@@ -33,8 +33,8 @@ const editor = new Editor(document.getElementById('drawing')!, {
 
 ### Tools
 
-Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper'`.
-Keyboard: `V` select, `P` pen, `M` highlighter, `E` eraser, `T` text, `S` shapes, `K` laser, `I` eyedropper.
+Tools are addressed by name: `'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser' | 'eyedropper' | 'sticky' | 'connector'`.
+Keyboard: `V` select, `P` pen, `M` highlighter, `E` eraser, `T` text, `S` shapes, `K` laser, `I` eyedropper, `N` sticky note, `C` connector.
 
 ```ts
 editor.tools.use('highlighter'); // switch tool
@@ -63,6 +63,22 @@ editor.tools.pen.getColor();
 | `text` | `color`, `fontSize`, `fontFamily` |
 | `select` | `mode` (`'rectangle'` · `'lasso'`) |
 | `laser` | `color`, `thickness` — a fading trail for presenting, never saved |
+| `sticky` | `color` — click to add a note and type, click a note to edit it |
+| `connector` | `color`, `thickness`, `arrow` (`'end'` · `'both'` · `'none'`) — drag from one shape to another; the arrow follows them when they move |
+
+### Selection
+
+```ts
+editor.selection.items;                  // what the select tool has selected
+editor.selection.onChange(() => {        // e.g. to place a floating toolbar
+  const rect = editor.selection.getScreenRect();
+});
+editor.selection.setColor('#dc2626');
+editor.selection.bringToFront();         // sendToBack()
+editor.selection.duplicate();            // delete()
+editor.selection.lock();                 // locked objects can't be selected, moved or erased
+editor.selection.unlockAll();
+```
 
 ### Document
 

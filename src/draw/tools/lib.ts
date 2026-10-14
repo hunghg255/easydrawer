@@ -12,6 +12,8 @@ export { default as PenTool, type PenStyle } from './Pen';
 export { default as LaserPointerTool, type LaserPointerStyle } from './LaserPointer';
 export { default as ShapeTool, type ShapeStyle } from './ShapeTool';
 export { default as TextTool } from './TextTool';
+export { default as StickyNoteTool } from './StickyNoteTool';
+export { default as ConnectorTool } from './ConnectorTool';
 export { default as SelectionTool, SelectionMode } from './SelectionTool/SelectionTool';
 export { default as SelectAllShortcutHandler } from './SelectionTool/SelectAllShortcutHandler';
 export { default as EraserTool, EraserMode } from './Eraser';

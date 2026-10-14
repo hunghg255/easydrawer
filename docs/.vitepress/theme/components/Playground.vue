@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 
 import type {
   BackgroundTypeName,
   Editor,
   PenStyleName,
   ShapeTypeName,
+  StickyNote,
   ToolName,
 } from 'easydrawer';
 
@@ -29,6 +30,13 @@ const icons: Record<string, string> = {
   grid: 'M3 3h18v18H3z M3 9h18 M3 15h18 M9 3v18 M15 3v18',
   dot: 'M6 6h.01 M12 6h.01 M18 6h.01 M6 12h.01 M12 12h.01 M18 12h.01 M6 18h.01 M12 18h.01 M18 18h.01',
   solid: 'M3 3h18v18H3z M3 21 21 3',
+  sticky: 'M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z M15 3v6h6',
+  connector: 'M5 19 19 5 M9 5h10v10',
+  front: 'M12 19V5 M5 12l7-7 7 7',
+  back: 'M12 5v14 M19 12l-7 7-7-7',
+  duplicate: 'M8 8h12v12H8z M4 16V4h12',
+  lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
+  unlock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 7.75-1.4',
 };
 
 const tools: Array<{ name: ToolName; title: string }> = [
@@ -40,6 +48,8 @@ const tools: Array<{ name: ToolName; title: string }> = [
   { name: 'shape', title: 'Shapes' },
   { name: 'laser', title: 'Laser pointer' },
   { name: 'eyedropper', title: 'Eyedropper' },
+  { name: 'sticky', title: 'Sticky note' },
+  { name: 'connector', title: 'Connector (arrow between shapes)' },
 ];
 
 const shortcuts: Array<[string, string]> = [
@@ -51,6 +61,8 @@ const shortcuts: Array<[string, string]> = [
   ['S', 'Shapes'],
   ['K', 'Laser pointer'],
   ['I', 'Eyedropper'],
+  ['N', 'Sticky note (click a note to edit it)'],
+  ['C', 'Connector: drag from one shape to another'],
   ['1 – 9', 'Tools in toolbar order'],
   ['Ctrl/⌘ + Z', 'Undo'],
   ['Ctrl/⌘ + Shift + Z', 'Redo'],
@@ -83,6 +95,12 @@ const highlightColors = [
   'rgba(244, 114, 182, 0.4)',
 ];
 const backgroundColors = ['#ffffff', '#fffbea', '#f1f5f9', '#ecfdf5', '#1f2937'];
+const noteColors = ['#fde68a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#e9d5ff'];
+const arrowModes = [
+  { mode: 'end', label: '→' },
+  { mode: 'both', label: '↔' },
+  { mode: 'none', label: '—' },
+] as const;
 
 const container = ref<HTMLDivElement>();
 const svgInput = ref<HTMLInputElement>();
@@ -97,6 +115,16 @@ const stylusOnly = ref<boolean | 'auto'>('auto');
 const zoom = ref(1);
 const selectMode = ref<'rectangle' | 'lasso'>('rectangle');
 const showHelp = ref(false);
+const stickyColor = ref(noteColors[0]);
+const connectorState = ref({ color: inkColors[0], arrow: 'end' as 'end' | 'both' | 'none' });
+
+// Floating toolbar next to the selection
+const quickBar = ref<HTMLDivElement>();
+const selectionCount = ref(0);
+const selectionHasNote = ref(false);
+const lockedCount = ref(0);
+const quickBarPosition = ref<{ left: number; top: number } | null>(null);
+const pointerDown = ref(false);
 
 // Recently used colors, remembered between visits (when storage is available).
 const recentColorsKey = 'easydrawer-playground-recent-colors';
@@ -133,7 +161,7 @@ const currentPen = computed(() => {
 const cleanups: Array<() => void> = [];
 
 onMounted(async () => {
-  const { Editor, Color4 } = await import('easydrawer');
+  const { Editor, Color4, StickyNote: StickyNoteClass } = await import('easydrawer');
 
   const instance = new Editor(container.value!, {
     tools: {
@@ -181,8 +209,52 @@ onMounted(async () => {
       canRedo.value = instance.canRedo();
     }),
     instance.onZoomChange((value) => (zoom.value = value)),
+    instance.selection.onChange((items) => {
+      selectionCount.value = items.length;
+      selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
+      lockedCount.value = instance.selection.lockedCount;
+      // After Vue has updated the toolbar's buttons (its width depends on them).
+      void nextTick(updateQuickBar);
+    }),
   );
+
+  // Hide the floating toolbar while dragging (e.g. moving the selection).
+  const onPointerDown = () => (pointerDown.value = true);
+  const onPointerUp = () => {
+    pointerDown.value = false;
+    updateQuickBar();
+  };
+  container.value!.addEventListener('pointerdown', onPointerDown, true);
+  window.addEventListener('pointerup', onPointerUp);
+  cleanups.push(() => {
+    container.value?.removeEventListener('pointerdown', onPointerDown, true);
+    window.removeEventListener('pointerup', onPointerUp);
+  });
 });
+
+function updateQuickBar() {
+  const rect = editor.value?.selection.getScreenRect();
+  const area = container.value;
+  if (!rect || !area) {
+    quickBarPosition.value = null;
+    return;
+  }
+
+  // Below the selection if there's room, otherwise above it (clear of the rotation handle).
+  // Measured while hidden (visibility: hidden), so the size is known before showing it.
+  const barWidth = quickBar.value?.offsetWidth || 320;
+  const barHeight = quickBar.value?.offsetHeight || 44;
+  const margin = 8;
+  let top = rect.bottomRight.y + 16;
+  if (top + barHeight > area.clientHeight - margin) {
+    top = rect.topLeft.y - barHeight - 48;
+  }
+  const left = rect.center.x - barWidth / 2;
+  quickBarPosition.value = {
+    left: Math.min(Math.max(margin, left), area.clientWidth - barWidth - margin),
+    top: Math.min(Math.max(margin, top), area.clientHeight - barHeight - margin),
+  };
+}
 
 onBeforeUnmount(() => {
   cleanups.forEach((cleanup) => cleanup());
@@ -206,6 +278,29 @@ function updateShape(options: Partial<{ shape: ShapeTypeName; color: string; bor
   if (options.shape) shapeState.value.shape = options.shape;
   if (options.thickness !== undefined) shapeState.value.thickness = options.thickness;
   editor.value?.tools.configure('shape', options);
+}
+
+function setStickyColor(color: string) {
+  stickyColor.value = color;
+  editor.value?.tools.configure('sticky', { color });
+}
+
+function updateConnector(options: Partial<{ color: string; arrow: 'end' | 'both' | 'none' }>) {
+  Object.assign(connectorState.value, options);
+  editor.value?.tools.configure('connector', options);
+}
+
+function editNote() {
+  const instance = editor.value;
+  const note = instance?.selection.items[0];
+  if (!instance || !note) return;
+  instance.selection.clear();
+  instance.tools.sticky.edit(note as StickyNote);
+}
+
+async function unlockAll() {
+  await editor.value?.selection.unlockAll();
+  lockedCount.value = editor.value?.selection.lockedCount ?? 0;
 }
 
 function setSelectMode(mode: 'rectangle' | 'lasso') {
@@ -386,6 +481,52 @@ async function onImagesSelected(event: Event) {
         </div>
       </div>
 
+      <div v-if="activeTool === 'select' && lockedCount > 0" class="row options">
+        <span class="label">{{ lockedCount }} locked</span>
+        <button class="tool text" title="Unlock all" @click="unlockAll">
+          <svg viewBox="0 0 24 24"><path :d="icons.unlock" /></svg>
+          Unlock all
+        </button>
+      </div>
+
+      <div v-if="activeTool === 'sticky'" class="row options">
+        <span class="label">Note color</span>
+        <button
+          v-for="color in noteColors"
+          :key="color"
+          class="swatch"
+          :class="{ active: stickyColor === color }"
+          :style="{ background: color }"
+          :aria-label="`Note ${color}`"
+          @click="setStickyColor(color)"
+        />
+        <span class="label">Click to add a note, click a note to edit it.</span>
+      </div>
+
+      <div v-if="activeTool === 'connector'" class="row options">
+        <button
+          v-for="color in inkColors"
+          :key="`connector-${color}`"
+          class="swatch"
+          :class="{ active: connectorState.color === color }"
+          :style="{ background: color }"
+          :aria-label="color"
+          @click="updateConnector({ color })"
+        />
+        <div class="segmented">
+          <button
+            v-for="item in arrowModes"
+            :key="item.mode"
+            :class="{ active: connectorState.arrow === item.mode }"
+            :aria-label="`Arrow ${item.mode}`"
+            @click="updateConnector({ arrow: item.mode })"
+          >
+            {{ item.label }}
+          </button>
+        </div>
+        <span class="label">Drag from one shape to another — the arrow follows them.</span>
+      </div>
+
       <div v-if="activeTool === 'laser'" class="row options">
         <span class="label">Point at things — the trail fades away and is never saved.</span>
       </div>
@@ -443,6 +584,41 @@ async function onImagesSelected(event: Event) {
           @click="editor?.setBackground({ color })"
         />
       </div>
+    </div>
+
+    <div
+      ref="quickBar"
+      class="quick-bar"
+      :class="{ hidden: !(selectionCount > 0 && quickBarPosition && !pointerDown) }"
+      :style="quickBarPosition ? { left: `${quickBarPosition.left}px`, top: `${quickBarPosition.top}px` } : {}"
+    >
+      <button
+        v-for="color in (selectionHasNote ? [...noteColors, ...inkColors.slice(0, 3)] : inkColors)"
+        :key="`quick-${color}`"
+        class="swatch small"
+        :style="{ background: color }"
+        :aria-label="`Color ${color}`"
+        @click="editor?.selection.setColor(color)"
+      />
+      <span class="sep" />
+      <button v-if="selectionCount === 1 && selectionHasNote" class="tool" title="Edit text" aria-label="Edit text" @click="editNote">
+        <svg viewBox="0 0 24 24"><path :d="icons.text" /></svg>
+      </button>
+      <button class="tool" title="Bring to front" aria-label="Bring to front" @click="editor?.selection.bringToFront()">
+        <svg viewBox="0 0 24 24"><path :d="icons.front" /></svg>
+      </button>
+      <button class="tool" title="Send to back" aria-label="Send to back" @click="editor?.selection.sendToBack()">
+        <svg viewBox="0 0 24 24"><path :d="icons.back" /></svg>
+      </button>
+      <button class="tool" title="Duplicate" aria-label="Duplicate" @click="editor?.selection.duplicate()">
+        <svg viewBox="0 0 24 24"><path :d="icons.duplicate" /></svg>
+      </button>
+      <button class="tool" title="Lock" aria-label="Lock" @click="editor?.selection.lock()">
+        <svg viewBox="0 0 24 24"><path :d="icons.lock" /></svg>
+      </button>
+      <button class="tool danger" title="Delete" aria-label="Delete" @click="editor?.selection.delete()">
+        <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg>
+      </button>
     </div>
 
     <div class="zoom-controls">
@@ -633,6 +809,47 @@ async function onImagesSelected(event: Event) {
   touch-action: manipulation;
 }
 
+.quick-bar {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.quick-bar.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.quick-bar .swatch.small {
+  width: 22px;
+  height: 22px;
+  margin: 0 1px;
+}
+
+.quick-bar .tool {
+  width: 32px;
+  height: 32px;
+}
+
+.quick-bar .tool svg {
+  width: 18px;
+  height: 18px;
+}
+
+.quick-bar .danger {
+  color: #dc2626;
+}
+
 .zoom-controls {
   position: absolute;
   left: 12px;
@@ -756,6 +973,16 @@ async function onImagesSelected(event: Event) {
   .swatch {
     width: 36px;
     height: 36px;
+  }
+
+  .quick-bar .swatch.small {
+    width: 30px;
+    height: 30px;
+  }
+
+  .quick-bar .tool {
+    width: 44px;
+    height: 44px;
   }
 
   .segmented button {

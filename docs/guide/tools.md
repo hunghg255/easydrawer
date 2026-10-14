@@ -1,6 +1,6 @@
 # Tools
 
-The editor has six built-in tools, addressed by name:
+The editor has ten built-in tools, addressed by name:
 
 | Name | What it does |
 | --- | --- |
@@ -12,6 +12,8 @@ The editor has six built-in tools, addressed by name:
 | `'select'` | Selects (rectangle or lasso), moves, resizes, rotates, duplicates and deletes |
 | `'laser'` | Laser pointer for presenting: a glowing trail that fades away and is never saved |
 | `'eyedropper'` | Picks a color from the drawing and gives it to the previous tool, then switches back |
+| `'sticky'` | Sticky notes: click to add a note and type, click a note to edit it |
+| `'connector'` | Arrows/lines between shapes: drag from one shape to another; the arrow follows them when they move |
 
 Panning and zooming (two fingers, mouse wheel, right-click drag, keyboard) are always available.
 
@@ -121,6 +123,71 @@ handy for presenting a drawing.
   <DrawingDemo hint="Laser pointer: draw, and watch the trail fade" :settings="{ tools: { initial: 'laser' } }" />
 </ClientOnly>
 
+### Sticky note
+
+| Option | Type |
+| --- | --- |
+| `color` | color of new notes (default yellow) |
+
+Click an empty spot to add a note and type its text (`Esc` or `Ctrl/⌘+Enter` to finish). Click an existing note
+to edit it. Notes grow to fit their text, and can be moved, resized, recolored and connected like shapes.
+To edit a note from your own UI: `editor.tools.sticky.edit(note)`.
+
+### Connector
+
+| Option | Type |
+| --- | --- |
+| `color` | line color |
+| `thickness` | line width in pixels (default `2`) |
+| `arrow` | `'end'` (default), `'both'` or `'none'` |
+
+Drag from one shape (or note, text, image…) to another. Each end dropped on something stays attached to it: move
+the shape and the arrow follows, also after undo/redo and after saving and loading the SVG. Ends dropped on empty
+space stay where they are.
+
+```ts
+editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both' });
+editor.tools.use('connector');
+```
+
+<ClientOnly>
+  <DrawingDemo
+    hint="Draw two shapes, then switch to the connector (C) and drag from one to the other"
+    :settings="{ tools: { initial: 'shape', shape: { shape: 'rectangle', color: '#bfdbfe', borderColor: '#1d4ed8', thickness: 2 } } }"
+  />
+</ClientOnly>
+
+## Working with the selection
+
+What is selected with the select tool can be changed from code with
+[`editor.selection`](../api/editor#selection) — handy for a floating toolbar next to the selection, like the
+[playground](/playground)'s:
+
+```ts
+editor.selection.onChange(() => {
+  const rect = editor.selection.getScreenRect(); // null when nothing is selected
+  myToolbar.hidden = !rect;
+  if (rect) myToolbar.style.transform = `translate(${rect.center.x}px, ${rect.bottomRight.y + 12}px)`;
+});
+
+editor.selection.setColor('#dc2626');
+editor.selection.bringToFront(); // or sendToBack()
+editor.selection.duplicate();
+editor.selection.delete();
+```
+
+### Locking
+
+Locked objects can't be selected, moved or erased — useful for a background image or a template:
+
+```ts
+editor.selection.lock();      // lock what is selected
+editor.selection.lockedCount; // how many objects are locked
+editor.selection.unlockAll();
+```
+
+The lock is saved in the SVG (`data-easydrawer-locked`), and locking/unlocking can be undone.
+
 ## Keyboard shortcuts
 
 When the drawing area has focus:
@@ -135,6 +202,8 @@ When the drawing area has focus:
 | `S` | Shapes | | `Ctrl/⌘` + wheel | Zoom |
 | `K` | Laser pointer | | | |
 | `I` | Eyedropper | | | |
+| `N` | Sticky note | | | |
+| `C` | Connector | | | |
 
 Change them with `keyboardShortcutOverrides` (IDs: `easydraw.tools.use.pen`, `easydraw.tools.use.eraser`, …):
 
@@ -150,7 +219,7 @@ new Editor(element, {
 
 ## Advanced: tool objects
 
-`editor.tools.pen`, `.highlighter`, `.eraser`, `.shape`, `.text` and `.select` return the underlying tool objects
+`editor.tools.pen`, `.highlighter`, `.eraser`, `.shape`, `.text`, `.select`, `.sticky` and `.connector` return the underlying tool objects
 for anything the options don't cover:
 
 ```ts

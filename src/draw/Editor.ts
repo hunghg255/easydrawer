@@ -2,6 +2,7 @@ import { ImageComponent } from '~/draw/lib';
 import fileToBase64Url from '~/draw/util/fileToBase64Url';
 import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
+import EditorSelection from './api/EditorSelection';
 import EditorTools from './api/EditorTools';
 import {
   type BackgroundOptions,
@@ -321,6 +322,12 @@ export class Editor {
   public readonly tools: EditorTools;
 
   /**
+   * What is selected with the `'select'` tool: change its color and layering, lock,
+   * duplicate or delete it, and find where it is on screen (e.g. for a floating toolbar).
+   */
+  public readonly selection: EditorSelection;
+
+  /**
 	 * Global event dispatcher/subscriber.
 	 *
 	 * @example
@@ -487,6 +494,7 @@ export class Editor {
     this.history = new UndoRedoHistory(this, this.announceRedoCallback, this.announceUndoCallback);
     this.toolController = new ToolController(this, this.localization);
     this.tools = new EditorTools(this);
+    this.selection = new EditorSelection(this);
 
     // TODO: Make this pipeline configurable (e.g. allow users to add global input stabilization)
     this.toolController.addInputMapper(StrokeKeyboardControl.fromEditor(this));

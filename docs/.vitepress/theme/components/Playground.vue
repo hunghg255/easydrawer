@@ -142,7 +142,25 @@ const showHelp = ref(false);
 // AI panel
 const showAI = ref(false);
 const aiPrompt = ref('');
-const aiBusy = ref<'diagram' | 'organize' | null>(null);
+type AIAction = 'diagram' | 'edit' | 'brainstorm' | 'organize' | 'command';
+const aiBusy = ref<AIAction | null>(null);
+const selectionHasDiagram = ref(false);
+const selectionHasTopic = ref(false);
+
+// Command palette (Ctrl/⌘+K while the drawing has focus)
+const showCommand = ref(false);
+const commandText = ref('');
+const commandInput = ref<HTMLInputElement>();
+const commandExamples = [
+  'Color the notes about marketing in blue',
+  'Align the selected shapes to the left and group them',
+  'Thêm bước gửi email xác nhận vào sơ đồ',
+  'What is missing in this flowchart?',
+];
+function openCommand() {
+  showCommand.value = true;
+  void nextTick(() => commandInput.value?.focus());
+}
 const aiMessage = ref<{ kind: 'error' | 'info'; text: string } | null>(null);
 const aiExamples = [
   'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
@@ -154,10 +172,10 @@ let aiAbort: AbortController | null = null;
 // Shown after the AI changed the drawing (the panel closes so the result is visible).
 const aiToast = ref('');
 let aiToastTimeout: ReturnType<typeof setTimeout> | undefined;
-function showAIToast(text: string) {
+function showAIToast(text: string, duration = 5000) {
   aiToast.value = text;
   clearTimeout(aiToastTimeout);
-  aiToastTimeout = setTimeout(() => (aiToast.value = ''), 5000);
+  aiToastTimeout = setTimeout(() => (aiToast.value = ''), duration);
 }
 
 // The playground's server function (api/ai.js) forwards requests to OpenRouter.
@@ -175,7 +193,7 @@ async function playgroundAIRequest({ messages, signal }: { messages: unknown[]; 
   return data.content as string;
 }
 
-async function runAI(action: 'diagram' | 'organize') {
+async function runAI(action: AIAction) {
   const instance = editor.value;
   if (!instance || aiBusy.value) return;
 
@@ -191,6 +209,25 @@ async function runAI(action: 'diagram' | 'organize') {
       const diagram = await instance.ai.generateDiagram(aiPrompt.value, { signal: aiAbort.signal });
       showAI.value = false;
       showAIToast(`✨ Added ${diagram.nodes.length} shapes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'edit') {
+      if (!aiPrompt.value.trim()) {
+        aiMessage.value = { kind: 'info', text: 'Describe the change, e.g. "add a step to send a confirmation email".' };
+        return;
+      }
+      const diagram = await instance.ai.editDiagram(aiPrompt.value, { signal: aiAbort.signal });
+      showAI.value = false;
+      showAIToast(`✏️ Updated the diagram (${diagram.nodes.length} shapes) — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'brainstorm') {
+      const notes = await instance.ai.brainstorm({ signal: aiAbort.signal });
+      showAI.value = false;
+      showAIToast(`💡 Added ${notes.length} ideas — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'command') {
+      const request = commandText.value.trim();
+      if (!request) return;
+      const result = await instance.ai.runCommand(request, { signal: aiAbort.signal });
+      showCommand.value = false;
+      commandText.value = '';
+      showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
     } else {
       const groups = await instance.ai.organizeNotes({ signal: aiAbort.signal });
       showAI.value = false;
@@ -198,7 +235,12 @@ async function runAI(action: 'diagram' | 'organize') {
     }
   } catch (error) {
     if ((error as Error)?.name !== 'AbortError') {
-      aiMessage.value = { kind: 'error', text: (error as Error)?.message ?? String(error) };
+      const text = (error as Error)?.message ?? String(error);
+      if (action === 'command') {
+        showAIToast(`⚠️ ${text}`, 8000);
+      } else {
+        aiMessage.value = { kind: 'error', text };
+      }
     }
   } finally {
     aiBusy.value = null;
@@ -263,7 +305,7 @@ const currentPen = computed(() => {
 const cleanups: Array<() => void> = [];
 
 onMounted(async () => {
-  const { Editor, Color4, StickyNote: StickyNoteClass } = await import('easydrawer');
+  const { Editor, Color4, StickyNote: StickyNoteClass, TextComponent: TextComponentClass } = await import('easydrawer');
 
   const instance = new Editor(container.value!, {
     tools: {
@@ -282,6 +324,17 @@ onMounted(async () => {
 
   // Restore the previous drawing and keep saving it.
   cleanups.push(await instance.autosave({ key: 'easydrawer-playground' }));
+
+  // Ctrl/⌘+K while the drawing has focus: AI command palette (elsewhere, the docs search).
+  const onCommandShortcut = (event: KeyboardEvent) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && container.value?.contains(document.activeElement)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      openCommand();
+    }
+  };
+  window.addEventListener('keydown', onCommandShortcut, true);
+  cleanups.push(() => window.removeEventListener('keydown', onCommandShortcut, true));
 
   const onKeyDown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null;
@@ -316,6 +369,8 @@ onMounted(async () => {
     instance.selection.onChange((items) => {
       selectionCount.value = items.length;
       selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
+      selectionHasDiagram.value = items.some((item) => !!item.getMetadata().diagramNode);
+      selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
       selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
       selectionHasGroups.value = instance.selection.hasGroups;
       if (items.length === 0) showAlign.value = false;
@@ -547,6 +602,22 @@ async function onImagesSelected(event: Event) {
             </button>
             <button
               type="button"
+              :disabled="!!aiBusy || !selectionHasDiagram"
+              title="Change the selected diagram as described above"
+              @click="runAI('edit')"
+            >
+              {{ aiBusy === 'edit' ? 'Editing…' : '✏️ Edit selected diagram' }}
+            </button>
+            <button
+              type="button"
+              :disabled="!!aiBusy || !selectionHasTopic"
+              title="Ideas around the selected sticky note"
+              @click="runAI('brainstorm')"
+            >
+              {{ aiBusy === 'brainstorm' ? 'Thinking…' : '💡 Brainstorm' }}
+            </button>
+            <button
+              type="button"
               :disabled="!!aiBusy"
               title="Group the sticky notes (selected, or all) by theme"
               @click="runAI('organize')"
@@ -563,6 +634,10 @@ async function onImagesSelected(event: Event) {
           </button>
         </div>
         <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
+        <p class="ai-tip">
+          Tip: <button type="button" class="link" @click="openCommand">ask anything</button> with
+          <kbd>Ctrl/⌘ K</kbd> — "color the notes about marketing in blue", "what is missing?"…
+        </p>
       </div>
 
       <div v-if="currentPen" class="row options">
@@ -837,6 +912,29 @@ async function onImagesSelected(event: Event) {
 
     <div v-if="aiToast" class="ai-toast" role="status">{{ aiToast }}</div>
 
+    <div v-if="showCommand" class="command-backdrop" @click.self="showCommand = false">
+      <form class="command" @submit.prevent="runAI('command')">
+        <div class="command-row">
+          <span class="command-icon">✨</span>
+          <input
+            ref="commandInput"
+            v-model="commandText"
+            placeholder="Ask AI to do something with the board…"
+            :disabled="aiBusy === 'command'"
+            @keydown.esc="showCommand = false"
+          >
+          <button v-if="aiBusy === 'command'" type="button" @click="cancelAI">Cancel</button>
+          <button v-else type="submit">Run</button>
+        </div>
+        <p v-if="aiBusy === 'command'" class="command-status">Thinking…</p>
+        <div v-else class="command-examples">
+          <button v-for="example in commandExamples" :key="example" type="button" @click="commandText = example">
+            {{ example }}
+          </button>
+        </div>
+      </form>
+    </div>
+
     <div class="zoom-controls">
       <button class="tool" title="Zoom out" aria-label="Zoom out" @click="editor?.zoomOut()">−</button>
       <button class="zoom-value" title="Reset to 100%" @click="editor?.setZoom(1)">
@@ -1083,6 +1181,96 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-examples button {
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+}
+
+.ai-tip {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.ai-tip .link {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+
+.ai-tip kbd,
+.command kbd {
+  padding: 1px 5px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.command-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 18vh;
+  background: rgba(15, 23, 42, 0.2);
+}
+
+.command {
+  width: min(620px, calc(100% - 32px));
+  padding: 10px;
+  border-radius: 14px;
+  background: #fff;
+  color: #1f2937;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+}
+
+.command-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.command-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px;
+  border: none;
+  outline: none;
+  font: inherit;
+  font-size: 16px;
+}
+
+.command-row button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  font-weight: 600;
+}
+
+.command-icon {
+  font-size: 18px;
+}
+
+.command-status {
+  margin: 8px 8px 2px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.command-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.command-examples button {
+  padding: 5px 10px;
+  border-radius: 999px;
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;

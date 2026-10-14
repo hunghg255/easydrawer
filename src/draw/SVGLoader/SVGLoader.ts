@@ -7,6 +7,7 @@ import AbstractComponent, {
   groupSVGAttribute,
   idSVGAttribute,
   lockedSVGAttribute,
+  metadataSVGAttribute,
 } from '../components/AbstractComponent';
 import BackgroundComponent, {
   BackgroundType,
@@ -596,6 +597,15 @@ export default class SVGLoader implements ImageLoader {
     if (node && node.getAttribute) {
       if (node.getAttribute(lockedSVGAttribute) === 'true') {
         component.setLockedDirectly(true);
+      }
+
+      const metadata = node.getAttribute(metadataSVGAttribute);
+      if (metadata) {
+        try {
+          component.setMetadata(JSON.parse(metadata));
+        } catch {
+          // Ignore invalid metadata.
+        }
       }
 
       // New group IDs, so loading (or pasting) the same image twice gives separate groups.

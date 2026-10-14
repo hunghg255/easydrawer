@@ -1,4 +1,4 @@
-import { Color4, Mat33, Path, Rect2, Vec2 } from '~/math';
+import { Color4, type IVec2, Mat33, Path, Rect2, Vec2 } from '~/math';
 
 import layoutGraph from './layoutGraph';
 import parseAIJSON from './parseJSON';
@@ -11,6 +11,7 @@ import StickyNote from '../components/StickyNote';
 import Stroke from '../components/Stroke';
 import TextComponent from '../components/TextComponent';
 import type Command from '../commands/Command';
+import Erase from '../commands/Erase';
 import uniteCommands from '../commands/uniteCommands';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
@@ -38,6 +39,14 @@ export interface Diagram {
   direction: 'down' | 'right';
   nodes: DiagramNode[];
   edges: DiagramEdge[];
+}
+
+/** What {@link EditorAI.runCommand} did. */
+export interface AICommandResult {
+  /** The AI's reply (e.g. the answer to a question). */
+  message: string;
+  /** The actions that were run, e.g. `['select', 'setColor']`. */
+  actions: string[];
 }
 
 export interface NoteGroup {
@@ -87,6 +96,31 @@ Rules:
 - Edges leaving a decision have short labels (e.g. "yes"/"no"). Other edge labels are usually empty.
 - "direction": "right" for timelines and short pipelines, otherwise "down".
 - At most 25 nodes. Labels are short (at most 6 words), in the same language as the description.`;
+
+const editDiagramPrompt = `${diagramPrompt}
+You are EDITING an existing diagram: answer with the complete updated diagram.
+Keep the ids, labels, kinds and colors of the nodes that should not change.`;
+
+const brainstormPrompt = `You help people brainstorm.
+Answer with ONE JSON object and nothing else: {"ideas":["first idea","second idea"]}
+Give short, concrete and varied ideas (at most 12 words each), in the same language as the topic.`;
+
+const commandPrompt = `You control a whiteboard app. Turn the user's request into actions.
+Answer with ONE JSON object and nothing else: {"actions":[{"type":"select","ids":["s1"]}],"message":"Done!"}
+Actions (most of them apply to the selected items):
+{"type":"select","ids":["s1","s2"]} select items, by their ids in the scene
+{"type":"setColor","color":"#2563eb"} any CSS color
+{"type":"align","edge":"left|center|right|top|middle|bottom"}
+{"type":"distribute","direction":"horizontal|vertical"}
+{"type":"bringToFront"} {"type":"sendToBack"} {"type":"group"} {"type":"ungroup"}
+{"type":"lock"} {"type":"duplicate"} {"type":"delete"}
+{"type":"addNote","text":"...","color":"yellow|green|blue|pink|purple|gray"}
+{"type":"generateDiagram","prompt":"description of a new diagram"}
+{"type":"editDiagram","instruction":"what to change in the selected diagram"}
+{"type":"brainstorm"} ideas around the selected sticky note
+{"type":"organizeNotes"} sort sticky notes into themed columns
+For questions about the board, use no actions and answer in "message".
+"message" is short, in the language of the request.`;
 
 const organizePrompt = `You organize brainstorming sticky notes into groups by theme.
 Answer with ONE JSON object and nothing else:
@@ -315,8 +349,17 @@ export default class EditorAI {
     return diagram;
   }
 
-  /** Draws a diagram (as returned by {@link generateDiagram}) in the middle of the screen. */
-  public async drawDiagram(diagram: Diagram) {
+  /**
+   * Draws a diagram (as returned by {@link generateDiagram}), by default in the middle of the
+   * screen.
+   */
+  public async drawDiagram(diagram: Diagram, options: { center?: IVec2 } = {}) {
+    const created = this.buildDiagram(diagram, options.center ?? this.editor.viewport.visibleRect.center);
+    await this.addAndShow(created);
+  }
+
+  // Creates the components of a diagram centered on `center` (not added to the image).
+  private buildDiagram(diagram: Diagram, center: IVec2): AbstractComponent[] {
     const editor = this.editor;
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const textStyle: TextRenderingStyle = {
@@ -346,8 +389,6 @@ export default class EditorAI {
       diagram.edges,
       { direction: diagram.direction, nodeGap: 70 * scale, layerGap: 80 * scale },
     );
-    const center = editor.viewport.visibleRect.center;
-
     const created: AbstractComponent[] = [];
     const shapeById = new Map<string, Stroke>();
     for (const { node, lines, width, height } of sized) {
@@ -363,6 +404,12 @@ export default class EditorAI {
       ]);
       const groupId = `group-${shape.getId()}`;
       shape.setGroupDirectly(groupId);
+      shape.setMetadata({
+        diagramNode: node.id,
+        kind: node.kind,
+        direction: diagram.direction,
+        ...(node.color ? { color: node.color } : {}),
+      });
       shapeById.set(node.id, shape);
       created.push(shape);
 
@@ -393,7 +440,7 @@ export default class EditorAI {
       created.push(connector);
     }
 
-    await this.addAndShow(created);
+    return created;
   }
 
   // Adds new components in one undoable step, selects them and makes sure they're visible.
@@ -401,9 +448,10 @@ export default class EditorAI {
     components: AbstractComponent[],
     extraCommands: Command[] = [],
     alsoSelect: AbstractComponent[] = [],
+    commandsBefore: Command[] = [],
   ) {
     const editor = this.editor;
-    const commands = [...components.map((c) => EditorImage.addComponent(c)), ...extraCommands];
+    const commands = [...commandsBefore, ...components.map((c) => EditorImage.addComponent(c)), ...extraCommands];
     await editor.dispatch(uniteCommands(commands));
 
     const selection = [...components, ...alsoSelect];
@@ -413,6 +461,270 @@ export default class EditorAI {
     if (!editor.viewport.visibleRect.containsRect(bbox)) {
       await editor.dispatchNoAnnounce(editor.viewport.zoomTo(bbox.grownBy(bbox.maxDimension * 0.15)), false);
     }
+  }
+
+  /**
+   * Reads a diagram drawn by {@link drawDiagram} from `components` (by default the selection,
+   * or everything): its nodes and the connectors between them.
+   *
+   * @returns the diagram, and the components it is made of, or `null` if there is none.
+   */
+  public readDiagram(components?: AbstractComponent[]): { diagram: Diagram; parts: AbstractComponent[] } | null {
+    const image = this.editor.image;
+    const all = image.getAllComponents();
+    let candidates = components ?? this.editor.selection.items;
+    if (candidates.length === 0) candidates = all;
+
+    const shapes = candidates.filter((c) => c instanceof Stroke && c.getMetadata().diagramNode);
+    if (shapes.length === 0) return null;
+
+    const parts = new Set<AbstractComponent>(shapes);
+    const shortIds = new Map<string, string>();
+    const nodes: DiagramNode[] = shapes.map((shape, i) => {
+      const meta = shape.getMetadata();
+      const id = `n${i + 1}`;
+      shortIds.set(shape.getId(), id);
+
+      // The node's text: texts in the same group, top to bottom.
+      const groupId = shape.getGroupId();
+      const texts = groupId
+        ? all.filter((c): c is TextComponent => c instanceof TextComponent && c.getGroupId() === groupId)
+        : [];
+      texts.sort((a, b) => a.getBBox().y - b.getBBox().y);
+      for (const text of texts) parts.add(text);
+
+      return {
+        id,
+        label: texts.map((t) => t.getText()).join(' ') || '…',
+        kind: oneOf(meta.kind, nodeKinds, 'process'),
+        color: meta.color ? oneOf(meta.color, colorNames, 'blue') : undefined,
+      };
+    });
+
+    const edges: DiagramEdge[] = [];
+    for (const component of all) {
+      if (!(component instanceof Connector)) continue;
+      const from = shortIds.get(component.getStart().targetId ?? '');
+      const to = shortIds.get(component.getEnd().targetId ?? '');
+      if (from && to) {
+        edges.push({ from, to, label: component.getLabel() || undefined });
+        parts.add(component);
+      }
+    }
+
+    const direction = shapes[0].getMetadata().direction === 'right' ? 'right' : 'down';
+    return { diagram: { direction, nodes, edges }, parts: [...parts] };
+  }
+
+  /**
+   * Changes the selected diagram (drawn by {@link generateDiagram}) as described by
+   * `instruction`, e.g. "add a step to send a confirmation email after the payment".
+   * The diagram is redrawn in the same place, in one undoable step.
+   */
+  public async editDiagram(instruction: string, options: AIOptions = {}): Promise<Diagram> {
+    const current = this.readDiagram();
+    if (!current) {
+      throw new AIError('Select a diagram made with "Generate diagram" first.');
+    }
+
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: editDiagramPrompt },
+        {
+          role: 'user',
+          content: `Current diagram:\n${JSON.stringify(current.diagram)}\n\nChange: ${instruction.slice(0, 2000)}`,
+        },
+      ],
+      options,
+    );
+    const diagram = validateDiagram(json);
+
+    const center = Rect2.union(...current.parts.map((c) => c.getBBox())).center;
+    const created = this.buildDiagram(diagram, center);
+    await this.addAndShow(created, [], [], [new Erase(current.parts)]);
+    return diagram;
+  }
+
+  /**
+   * Asks the AI for ideas about the selected sticky note (or text), and adds them as notes
+   * around it, linked to it.
+   *
+   * @returns the new notes.
+   */
+  public async brainstorm(options: AIOptions & { count?: number } = {}): Promise<StickyNote[]> {
+    const editor = this.editor;
+    const source = editor.selection.items.find((c) => c instanceof StickyNote || c instanceof TextComponent);
+    const topic = source instanceof StickyNote || source instanceof TextComponent ? source.getText().trim() : '';
+    if (!source || !topic) {
+      throw new AIError('Select a sticky note (or a text) with the topic first.');
+    }
+
+    const count = Math.min(Math.max(options.count ?? 6, 2), 12);
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: brainstormPrompt },
+        { role: 'user', content: `Topic: ${topic.slice(0, 500)}\nGive ${count} ideas.` },
+      ],
+      options,
+    );
+    const ideas: string[] = (Array.isArray(json?.ideas) ? json.ideas : [])
+      .map((idea: unknown) => shortText(idea, 160))
+      .filter((idea: string) => idea !== '')
+      .slice(0, count);
+    if (ideas.length === 0) {
+      throw new AIError('The AI did not return any ideas.');
+    }
+
+    // Notes in a ring around the topic.
+    const sourceBox = source.getBBox();
+    const noteSize = source instanceof StickyNote ? source.getBBox().w * 0.85 : 170 * editor.viewport.getSizeOfPixelOnCanvas();
+    const radius = Math.max(sourceBox.w, sourceBox.h) / 2 + noteSize * 1.25;
+    const sourceColor = source instanceof StickyNote ? source.getColor().toHexString() : '';
+    const colors = Object.values(noteColors).filter((c) => !sourceColor.startsWith(c));
+    const thickness = 2 * editor.viewport.getSizeOfPixelOnCanvas();
+
+    const created: AbstractComponent[] = [];
+    const notes: StickyNote[] = [];
+    for (const [i, idea] of ideas.entries()) {
+      const angle = -Math.PI / 2 + (i / ideas.length) * Math.PI * 2;
+      const center = sourceBox.center.plus(Vec2.of(Math.cos(angle), Math.sin(angle)).times(radius));
+      const note = StickyNote.centeredAt(center, {
+        text: idea,
+        color: Color4.fromHex(colors[i % colors.length]),
+        size: Vec2.of(noteSize, noteSize * 0.75),
+        fontSize: noteSize / 10,
+      });
+      notes.push(note);
+      created.push(note);
+      created.push(
+        new Connector(
+          { point: sourceBox.center, targetId: source.getId() },
+          { point: center, targetId: note.getId() },
+          { color: Color4.fromHex('#9ca3af'), thickness, arrow: 'none' },
+        ),
+      );
+    }
+
+    await this.addAndShow(created);
+    editor.selection.set(notes);
+    return notes;
+  }
+
+  /**
+   * Does what `request` says, using the editor's features: select items by description,
+   * recolor, align, group, lock, add notes, draw or edit diagrams, brainstorm, organize
+   * notes, or answer a question about the board. For example:
+   * "color the notes about marketing in blue", "align the selected shapes to the left",
+   * "what is missing in this flowchart?".
+   */
+  public async runCommand(request: string, options: AIOptions = {}): Promise<AICommandResult> {
+    const editor = this.editor;
+    const all = editor.image.getAllComponents().filter((c) => c.isSelectable()).slice(-200);
+
+    // Short ids for the scene
+    const byShortId = new Map<string, AbstractComponent>();
+    const shortIdOf = new Map<AbstractComponent, string>();
+    for (const [i, component] of all.entries()) {
+      byShortId.set(`s${i + 1}`, component);
+      shortIdOf.set(component, `s${i + 1}`);
+    }
+    const scene = this.describeScene(all).items.map((item) => {
+      const component = all.find((c) => c.getId() === item.id)!;
+      const result: Record<string, unknown> = { ...item, id: shortIdOf.get(component) };
+      for (const key of ['from', 'to'] as const) {
+        if (typeof item[key] === 'string') {
+          const target = editor.image.lookupElement(item[key] as string);
+          result[key] = target ? shortIdOf.get(target) : undefined;
+        }
+      }
+      if (component.getGroupId()) result.group = component.getGroupId();
+      if (component.isLocked()) result.locked = true;
+      return result;
+    });
+    const shapeCount = all.filter((c) => c instanceof Stroke && c.getMetadata().diagramNode).length;
+    const selected = editor.selection.items.map((c) => shortIdOf.get(c)).filter((id) => id);
+
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: commandPrompt },
+        {
+          role: 'user',
+          content:
+            `Scene: ${JSON.stringify(scene)}\n` +
+            (shapeCount > 0 ? `(${shapeCount} diagram shapes; their text is in the items of the same group)\n` : '') +
+            `Selected: ${JSON.stringify(selected)}\n` +
+            `Request: ${request.slice(0, 2000)}`,
+        },
+      ],
+      options,
+    );
+
+    const actions: any[] = Array.isArray(json?.actions) ? json.actions.slice(0, 20) : [];
+    const done: string[] = [];
+    const selection = editor.selection;
+    let noteOffset = 0;
+    for (const action of actions) {
+      const type = typeof action?.type === 'string' ? action.type : '';
+      switch (type) {
+        case 'select': {
+          const ids: unknown[] = Array.isArray(action.ids) ? action.ids : [];
+          selection.set(ids.map((id) => byShortId.get(String(id))).filter((c): c is AbstractComponent => !!c));
+          break;
+        }
+        case 'setColor':
+          if (typeof action.color !== 'string') continue;
+          try {
+            await selection.setColor(action.color);
+          } catch {
+            continue;
+          }
+          break;
+        case 'align':
+          await selection.align(oneOf(action.edge, ['left', 'center', 'right', 'top', 'middle', 'bottom'] as const, 'left'));
+          break;
+        case 'distribute':
+          await selection.distribute(action.direction === 'vertical' ? 'vertical' : 'horizontal');
+          break;
+        case 'bringToFront': await selection.bringToFront(); break;
+        case 'sendToBack': await selection.sendToBack(); break;
+        case 'group': await selection.group(); break;
+        case 'ungroup': await selection.ungroup(); break;
+        case 'lock': await selection.lock(); break;
+        case 'duplicate': await selection.duplicate(); break;
+        case 'delete': await selection.delete(); break;
+        case 'addNote': {
+          const scale = editor.viewport.getSizeOfPixelOnCanvas();
+          const center = editor.viewport.visibleRect.center.plus(Vec2.of(noteOffset, noteOffset).times(scale));
+          noteOffset += 30;
+          const color = noteColors[oneOf(action.color, colorNames, 'yellow')];
+          const note = StickyNote.centeredAt(center, {
+            text: shortText(action.text, 500),
+            color: Color4.fromHex(color),
+            size: Vec2.of(200, 200).times(scale),
+            fontSize: 20 * scale,
+          });
+          await editor.dispatch(EditorImage.addComponent(note));
+          selection.set([note]);
+          break;
+        }
+        case 'generateDiagram':
+          if (typeof action.prompt !== 'string') continue;
+          await this.generateDiagram(action.prompt, options);
+          break;
+        case 'editDiagram':
+          if (typeof action.instruction !== 'string') continue;
+          await this.editDiagram(action.instruction, options);
+          break;
+        case 'brainstorm': await this.brainstorm(options); break;
+        case 'organizeNotes': await this.organizeNotes(options); break;
+        default:
+          continue;
+      }
+      done.push(type);
+    }
+
+    const message = shortText(json?.message, 2000) || (done.length > 0 ? 'Done.' : 'Nothing to do.');
+    return { message, actions: done };
   }
 
   /**

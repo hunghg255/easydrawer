@@ -41,6 +41,16 @@ export { default as EventDispatcher } from './EventDispatcher';
 export { default as Pointer, PointerDevice } from './Pointer';
 export { default as UndoRedoHistory } from './UndoRedoHistory';
 
+// Simplified API: named tools and plain-object options
+export { default as EditorTools, type ToolTypeMap } from './api/EditorTools';
+export * from './api/options';
+export {
+  penStyles,
+  shapeTypes,
+  type PenStyleName,
+  type ShapeTypeName,
+} from './components/builders/presets';
+
 export * from './util/lib';
 
 // @internal

@@ -79,7 +79,7 @@ export default class ClipboardHandler {
     const editorSettings = editor.getCurrentSettings();
     if (hasEvent) {
       // NOTE: On some browsers, .getData and .files must be used before any async operations.
-      files = [...clipboardData.files];
+      files = Array.from(clipboardData.files);
       for (const mime of supportedMIMEs) {
         const data = clipboardData.getData(mime);
         if (data) {

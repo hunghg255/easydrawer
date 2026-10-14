@@ -34,6 +34,8 @@ export interface ToolbarLocalization extends ToolbarUtilsLocalization {
   roundedTipPen: string;
   roundedTipPen2: string;
   flatTipPen: string;
+  naturalPen: string;
+  markerPen: string;
   selectPenType: string;
   selectShape: string;
   colorLabel: string;
@@ -180,6 +182,8 @@ export const defaultToolbarLocalization: ToolbarLocalization = {
   roundedTipPen: 'Round',
   roundedTipPen2: 'Polyline',
   flatTipPen: 'Flat',
+  naturalPen: 'Natural ink',
+  markerPen: 'Marker',
   arrowPen: 'Arrow',
   linePen: 'Line',
   outlinedRectanglePen: 'Outlined rectangle',

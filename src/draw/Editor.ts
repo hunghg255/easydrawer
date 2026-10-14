@@ -2,6 +2,14 @@ import { ImageComponent } from '~/draw/lib';
 import fileToBase64Url from '~/draw/util/fileToBase64Url';
 import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
+import EditorTools from './api/EditorTools';
+import {
+  type BackgroundOptions,
+  type BackgroundTypeName,
+  type InputSettings,
+  type ToolsSettings,
+  toColor4,
+} from './api/options';
 import type Command from './commands/Command';
 import Erase from './commands/Erase';
 import uniteCommands from './commands/uniteCommands';
@@ -185,6 +193,29 @@ export interface EditorSettings {
   } | null;
 
   disableZoom: boolean;
+
+  /**
+   * Initial configuration of the built-in tools.
+   *
+   * @example
+   * ```ts
+   * const editor = new Editor(document.body, {
+   *   tools: {
+   *     initial: 'pen',
+   *     pen: { color: '#1e293b', thickness: 3 },
+   *     highlighter: { color: 'rgba(255, 220, 0, 0.4)' },
+   *     shape: { shape: 'rectangle', color: 'transparent', borderColor: 'black', thickness: 2 },
+   *   },
+   * });
+   * ```
+   */
+  tools: ToolsSettings | null;
+
+  /** Input settings (e.g. palm rejection for tablets). */
+  input: InputSettings | null;
+
+  /** Initial background. */
+  background: BackgroundOptions | null;
 }
 
 /**
@@ -276,6 +307,18 @@ export class Editor {
 	 * for more.
 	 */
   public readonly toolController: ToolController;
+
+  /**
+   * Access and configure the built-in tools by name.
+   *
+   * @example
+   * ```ts
+   * editor.tools.use('eraser');
+   * editor.tools.configure('pen', { color: 'red', thickness: 4 });
+   * editor.tools.pen.getColor();
+   * ```
+   */
+  public readonly tools: EditorTools;
 
   /**
 	 * Global event dispatcher/subscriber.
@@ -384,6 +427,9 @@ export class Editor {
       },
       clipboardApi: settings.clipboardApi ?? null,
       disableZoom: settings.disableZoom ?? false,
+      tools: settings.tools ?? null,
+      input: settings.input ?? null,
+      background: settings.background ?? null,
     } satisfies EditorSettings;
 
     // Validate settings
@@ -440,6 +486,7 @@ export class Editor {
 
     this.history = new UndoRedoHistory(this, this.announceRedoCallback, this.announceUndoCallback);
     this.toolController = new ToolController(this, this.localization);
+    this.tools = new EditorTools(this);
 
     // TODO: Make this pipeline configurable (e.g. allow users to add global input stabilization)
     this.toolController.addInputMapper(StrokeKeyboardControl.fromEditor(this));
@@ -454,6 +501,10 @@ export class Editor {
     this.registerListeners();
     this.queueRerender();
     this.hideLoadingWarning();
+
+    if (this.settings.background) {
+      this.setBackground(this.settings.background, { addToHistory: false });
+    }
 
     // Enforce zoom limits.
     this.notifier.on(EditorEventType.ViewportChanged, (evt) => {
@@ -594,6 +645,14 @@ export class Editor {
     this.container.addEventListener('wheel', (evt) => {
       this.handleHTMLWheelEvent(evt);
     });
+
+    // Safari (iPad/iPhone) fires non-standard gesture events for pinches. Without this,
+    // pinching the editor can zoom the whole page instead of the drawing.
+    for (const eventName of ['gesturestart', 'gesturechange', 'gestureend']) {
+      this.container.addEventListener(eventName, (event) => event.preventDefault(), {
+        passive: false,
+      });
+    }
 
     const handleResize = () => {
       this.viewport.updateScreenSize(Vec2.of(this.display.width, this.display.height));
@@ -755,34 +814,39 @@ export class Editor {
 
       return true;
     } else if (eventType === 'pointermove') {
-      const pointer = Pointer.ofEvent(
-        evt,
-        this.pointers[evt.pointerId]?.down ?? false,
-        this.viewport,
-        eventsRelativeTo,
-      );
-      if (pointer.down) {
-        const prevData = this.pointers[pointer.id];
+      const prevData = this.pointers[evt.pointerId];
+      if (!prevData?.down) {
+        return true;
+      }
 
-        if (prevData) {
-          const distanceMoved = pointer.screenPos.distanceTo(prevData.screenPos);
+      // Styluses (e.g. Apple Pencil) can report many more positions than there are
+      // pointermove events. Use all of them for smooth, accurate strokes.
+      const samples = evt.getCoalescedEvents?.() ?? [];
+      if (samples.length === 0) {
+        samples.push(evt);
+      }
 
-          // If the pointer moved less than two pixels, don't send a new event.
-          if (distanceMoved < 2) {
-            return false;
-          }
+      let handled = false;
+      for (const sample of samples) {
+        const pointer = Pointer.ofEvent(sample, true, this.viewport, eventsRelativeTo);
+        const lastPointer = this.pointers[pointer.id];
+
+        // Skip samples that are (almost) at the same position as the last one.
+        if (lastPointer && pointer.screenPos.distanceTo(lastPointer.screenPos) < 0.5) {
+          continue;
         }
 
         this.pointers[pointer.id] = pointer;
-        if (
+        handled =
           this.toolController.dispatchInputEvent({
             kind: InputEvtType.PointerMoveEvt,
             current: pointer,
             allPointers: this.getPointerList(),
-          })
-        ) {
-          evt.preventDefault();
-        }
+          }) || handled;
+      }
+
+      if (handled) {
+        evt.preventDefault();
       }
       return true;
     } else if (eventType === 'pointercancel' || eventType === 'pointerup') {
@@ -1941,6 +2005,87 @@ export class Editor {
 
     // TODO: Is additional cleanup necessary here?
     this.toolController.onEditorDestroyed();
+  }
+
+  /** Undoes the last action. */
+  public undo() {
+    this.history.undo();
+  }
+
+  /** Redoes the last undone action. */
+  public redo() {
+    this.history.redo();
+  }
+
+  /** Whether there is something to undo/redo. */
+  public canUndo() {
+    return this.history.undoStackSize > 0;
+  }
+  public canRedo() {
+    return this.history.redoStackSize > 0;
+  }
+
+  /**
+   * Removes everything drawn on the canvas, keeping the background.
+   * This can be undone.
+   */
+  public clear() {
+    const backgrounds = new Set(this.image.getBackgroundComponents());
+    const toRemove = this.image.getAllComponents().filter((component) => !backgrounds.has(component));
+
+    if (toRemove.length > 0) {
+      this.dispatch(new Erase(toRemove));
+    }
+  }
+
+  /**
+   * Changes the background.
+   *
+   * @example
+   * ```ts
+   * editor.setBackground({ type: 'grid', color: '#fffbea' });
+   * editor.setBackground({ type: 'none' });
+   * ```
+   */
+  public setBackground(options: BackgroundOptions, { addToHistory = true } = {}) {
+    const typeByName: Record<BackgroundTypeName, BackgroundType> = {
+      none: BackgroundType.None,
+      solid: BackgroundType.SolidColor,
+      grid: BackgroundType.Grid,
+      dot: BackgroundType.Dot,
+    };
+    const type = options.type ? typeByName[options.type] : undefined;
+
+    // Grid/dot backgrounds should cover the whole visible area.
+    const autoresize = type === BackgroundType.Grid || type === BackgroundType.Dot ? true : undefined;
+
+    let color = options.color !== undefined ? toColor4(options.color) : undefined;
+    // Start from white rather than transparent when adding a first background.
+    if (!color && type !== BackgroundType.None && !this.getTopmostBackgroundComponent()) {
+      color = Color4.white;
+    }
+
+    const command = this.setBackgroundStyle({ type, color, autoresize });
+    this.dispatch(command, addToHistory);
+  }
+
+  /**
+   * Calls `callback` whenever the drawing changes (something is drawn, erased,
+   * undone, redone…).
+   *
+   * @returns a function that removes the listener.
+   */
+  public onChange(callback: () => void): () => void {
+    const listeners = [
+      this.notifier.on(EditorEventType.CommandDone, () => callback()),
+      this.notifier.on(EditorEventType.CommandUndone, () => callback()),
+    ];
+    return () => listeners.forEach((listener) => listener.remove());
+  }
+
+  /** Returns the drawing as an SVG string. */
+  public toSVGString(options?: { minDimension?: number }): string {
+    return this.toSVG(options).outerHTML;
   }
 
   async uploadImages(files: File[]) {

@@ -1,266 +1,96 @@
-/* eslint-disable unicorn/prefer-add-event-listener */
-import React, { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import {
-  Editor,
-  makeDropdownToolbar
-} from 'easydrawer';
+import { Editor } from 'easydrawer';
 
 import styles from './App.module.css';
 import ControlDrawer from './ControlDraw';
 
+function download(url: string, filename: string) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
 function App() {
-  const refEditor = React.useRef<Editor | null>(null);
-  const refWidget = React.useRef<any>(null);
-  const [bg, setBg] = useState<'none' | 'bg' | 'grid' | 'dot'>('none');
-  const refInput = React.useRef<HTMLInputElement | null>(null);
-  const refInputImage = React.useRef<HTMLInputElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const svgInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
 
   useEffect(() => {
-    const init = async () => {
-      const parentElement = document.querySelector('#easydrawer');
+    if (!containerRef.current) return;
 
-      if (!parentElement) return;
+    const newEditor = new Editor(containerRef.current, {
+      tools: {
+        initial: 'pen',
+        pen: { color: '#1f2937', thickness: 3 },
+        highlighter: { color: 'rgba(250, 204, 21, 0.45)' },
+      },
+      // Palm rejection: after an Apple Pencil/stylus is used, fingers only pan & zoom.
+      input: { stylusOnly: 'auto' },
+    });
+    setEditor(newEditor);
 
-      refEditor.current = new Editor(parentElement as any);
-
-      refWidget.current = makeDropdownToolbar(refEditor.current);
-      refWidget.current.addDefaultToolWidgets();
-
-      const image = refWidget.current.getWidgetById('image');
-      console.log('image', image);
-
-      // document-properties-widget
-    };
-
-    init();
+    return () => newEditor.remove();
   }, []);
 
-  const setColorPen = (color: string) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
-    const shapeWidget = refWidget.current.getWidgetById('pen-1');
-
-    if (penTool && shapeWidget) {
-      penTool.setColor(color);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const setThicknessPen = (thickness: number) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[2] as any;
-    const shapeWidget = refWidget.current.getWidgetById('pen-1');
-
-    if (penTool && shapeWidget) {
-      penTool.setThickness(thickness);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const setColorHighlight = (color: string) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[3] as any;
-
-    const shapeWidget = refWidget.current.getWidgetById('pen-2');
-
-    if (penTool && shapeWidget) {
-      penTool.setColor(color);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const changeShape = (type: any) => {
-    const shapeWidget = refWidget.current.getWidgetById('shape');
-
-    if (shapeWidget) {
-      shapeWidget.setShapeType(type);
-    }
-  };
-
-  const changeColorShape = (color: string) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
-    const shapeWidget = refWidget.current.getWidgetById('shape');
-
-    if (penTool && shapeWidget) {
-      penTool.setColor(color);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const onThicknessChange = (v: any) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
-    const shapeWidget = refWidget.current.getWidgetById('shape');
-
-    if (penTool && shapeWidget) {
-      penTool.setThickness(v);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const changeBorderColorShape = (color: string) => {
-    const penTool = refEditor.current!.toolController.getPrimaryTools()[5] as any;
-    const shapeWidget = refWidget.current.getWidgetById('shape');
-
-    if (penTool && shapeWidget) {
-      penTool.setBorderColor(color);
-      shapeWidget.serializeState();
-    }
-  };
-
-  const saveButtonSvg = () => {
-    const svgElem = refEditor.current!.toSVG();
-
-    console.log('The saved SVG:', svgElem.outerHTML);
-    // download svg string
-    const svgString = new XMLSerializer().serializeToString(svgElem);
-    const blob = new Blob([svgString], { type: 'image/svg+xml' });
+  const saveSvg = () => {
+    if (!editor) return;
+    const blob = new Blob([editor.toSVGString()], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'drawing.svg';
-    a.click();
+    download(url, 'drawing.svg');
     URL.revokeObjectURL(url);
   };
 
-  const saveButtonImage = () => {
-    const img = refEditor.current!.toDataURL('image/webp');
-    const a = document.createElement('a');
-    a.href = img;
-    a.download = 'drawing.png';
-    a.click();
-  };
-
-  const toggleGrid = () => {
-    const documentW = refWidget.current.getWidgetById('document-properties-widget');
-
-    if (bg !== 'grid') {
-      documentW?.removeBackground();
-      documentW?.setBackgroundGrid();
-      setBg('grid');
-    } else {
-      documentW?.removeBackground();
-      setBg('none');
-    }
-  };
-
-  const toggleDot= () => {
-    const documentW = refWidget.current.getWidgetById('document-properties-widget');
-
-    if (bg !== 'dot') {
-      documentW?.removeBackground();
-      documentW?.setBackgroundDot();
-      setBg('dot');
-    } else {
-      documentW?.removeBackground();
-      setBg('none');
-    }
-  };
-
-  const toggleBackground = () => {
-    const documentW = refWidget.current.getWidgetById('document-properties-widget');
-
-    if (bg !== 'bg') {
-      documentW?.setBackgroundSolid();
-      setBg('bg');
-    } else {
-      // documentW?.removeBackground();
-      setBg('none');
-    }
-  };
-
-  const setColorBackground = (color: any) => {
-    const documentW = refWidget.current.getWidgetById('document-properties-widget');
-
-    documentW?.updateBackgroundColor(color);
-  };
-
-  const onUndo =() => {
-    refEditor.current!.history.undo();
-  };
-
-  const onRedo =() => {
-    refEditor.current!.history.redo();
-  };
-
-  const onClear =() => {
-    refEditor.current!.history.clearAllDraft();
-  };
-
-  const loadButtonSvg = () => {
-    refInput.current!.click();
-  };
-
-  const onUploadImage = () => {
-    refInputImage.current!.click();
+  const savePng = () => {
+    if (!editor) return;
+    download(editor.toDataURL('image/png'), 'drawing.png');
   };
 
   return (
-    <>
-      <div className={styles.lessonContent}>
-
+    <div className={styles.lessonContent}>
+      {editor && (
         <ControlDrawer
-          bg={bg}
-          changeBorderColorShape={changeBorderColorShape}
-          changeColorShape={changeColorShape}
-          changeShape={changeShape}
-          loadbuttonSvg={loadButtonSvg}
-          onClear={onClear}
-          onRedo={onRedo}
-          onThicknessChange={onThicknessChange}
-          onUndo={onUndo}
-          onUploadImage={onUploadImage}
-          refEditor={refEditor}
-          savebuttonImage={saveButtonImage}
-          savebuttonSvg={saveButtonSvg}
-          setColorBackground={setColorBackground}
-          setColorHighlight={setColorHighlight}
-          setColorPen={setColorPen}
-          setThicknessPen={setThicknessPen}
-          toggleBackground={toggleBackground}
-          toggleDot={toggleDot}
-          toggleGrid={toggleGrid}
+          editor={editor}
+          onOpenSvg={() => svgInputRef.current?.click()}
+          onSavePng={savePng}
+          onSaveSvg={saveSvg}
+          onUploadImage={() => imageInputRef.current?.click()}
         />
+      )}
 
-        <div className={styles.easyDrawer}
-          id='easydrawer'
-        >
-        </div>
+      <div className={styles.easyDrawer} ref={containerRef} />
 
-        <input accept='image/svg+xml'
-          ref={refInput}
-          type='file'
-          onChange={(e) => {
-            const file = e.target.files![0];
+      <input
+        accept='image/svg+xml'
+        ref={svgInputRef}
+        style={{ display: 'none' }}
+        type='file'
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file || !editor) return;
 
-            const reader = new FileReader();
+          editor.history.clearAllStack();
+          await editor.loadFromSVG(await file.text());
+          e.target.value = '';
+        }}
+      />
 
-            reader.onload = (e) => {
-              const svg = e.target!.result as string;
-              if (refEditor.current) {
-                refEditor.current.history.clearAllStack();
-                refEditor.current.loadFromSVG(svg);
-              }
-            };
-            reader.readAsText(file);
-          }}
-          style={{
-            display: 'none',
-          }}
-        />
+      <input
+        accept='image/*'
+        multiple
+        ref={imageInputRef}
+        style={{ display: 'none' }}
+        type='file'
+        onChange={async (e) => {
+          if (!e.target.files || !editor) return;
 
-        <input accept='image/*'
-          multiple
-          ref={refInputImage}
-          type='file'
-          onChange={async (e) => {
-            const files = e.target.files;
-
-            refEditor.current!.uploadImages(files as any);
-          }}
-          style={{
-            display: 'none',
-          }}
-        />
-      </div>
-    </>
+          await editor.uploadImages([...e.target.files]);
+          e.target.value = '';
+        }}
+      />
+    </div>
   );
 }
 

@@ -2193,7 +2193,18 @@
   accent-color: var(--primary-action-foreground-color)
 }
 
+/* Tablets: no tap highlight, text selection, long-press menu or scroll bounce while drawing */
+.imageEditorContainer {
+  -webkit-tap-highlight-color: transparent
+}
+
 .imageEditorContainer .imageEditorRenderArea {
+  touch-action: none;
+  -moz-user-select: none;
+       user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
   display: grid;
   grid-template-columns: 1fr;
   flex-grow: 2;

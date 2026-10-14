@@ -188,7 +188,14 @@ async function playgroundAIRequest({ messages, signal }: { messages: unknown[]; 
   });
   const data = await response.json().catch(() => null);
   if (!response.ok || typeof data?.content !== 'string') {
-    throw new Error(data?.error ?? `AI is not available here (${response.status}).`);
+    if (data?.error) throw new Error(data.error);
+    throw new Error(
+      response.status === 404
+        ? 'AI is not available here: /api/ai was not found (it only runs on Vercel).'
+        : response.status === 504
+          ? 'The AI took too long to answer (timeout). Try again, or use a faster model.'
+          : `AI request failed (HTTP ${response.status}).`,
+    );
   }
   return data.content as string;
 }

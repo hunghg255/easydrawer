@@ -8,7 +8,11 @@ import type AbstractComponent from '../AbstractComponent';
 export interface ComponentBuilder {
   getBBox(): Rect2;
   build(): AbstractComponent;
-  preview(renderer: AbstractRenderer): void;
+  /**
+   * Draws the component being built. `predictedPoints` are where the input is expected
+   * to go next: builders may draw them to reduce visible lag, but must not keep them.
+   */
+  preview(renderer: AbstractRenderer, predictedPoints?: StrokeDataPoint[]): void;
 
   /**
 	 * Called when the pen is stationary (or the user otherwise

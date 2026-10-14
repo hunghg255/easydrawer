@@ -17,6 +17,8 @@ const icons: Record<string, string> = {
   highlighter: 'm9 11-6 6v3h9l3-3 M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4',
   eraser: 'm7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21 M22 21H7 M5 11l9 9',
   shape: 'M3 3h18v18H3z',
+  laser: 'M12 12m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M4.9 19.1 7 17 M17 7l2.1-2.1',
+  fit: 'M15 3h6v6 M9 21H3v-6 M21 3l-7 7 M3 21l7-7',
   undo: 'M3 7v6h6 M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13',
   redo: 'M21 7v6h-6 M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7',
   clear: 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6 M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
@@ -35,6 +37,7 @@ const tools: Array<{ name: ToolName; title: string }> = [
   { name: 'highlighter', title: 'Highlighter' },
   { name: 'eraser', title: 'Eraser' },
   { name: 'shape', title: 'Shapes' },
+  { name: 'laser', title: 'Laser pointer' },
 ];
 
 const shapeNames: ShapeTypeName[] = [
@@ -66,6 +69,8 @@ const canUndo = ref(false);
 const canRedo = ref(false);
 const background = ref<BackgroundTypeName>('none');
 const stylusOnly = ref<boolean | 'auto'>('auto');
+const zoom = ref(1);
+const selectMode = ref<'rectangle' | 'lasso'>('rectangle');
 
 const penState = ref({
   pen: { color: inkColors[0], thickness: 3, style: 'natural' as PenStyleName },
@@ -101,6 +106,7 @@ onMounted(async () => {
       canUndo.value = instance.canUndo();
       canRedo.value = instance.canRedo();
     }),
+    instance.onZoomChange((value) => (zoom.value = value)),
   );
 });
 
@@ -125,6 +131,11 @@ function updateShape(options: Partial<{ shape: ShapeTypeName; color: string; bor
   if (options.shape) shapeState.value.shape = options.shape;
   if (options.thickness !== undefined) shapeState.value.thickness = options.thickness;
   editor.value?.tools.configure('shape', options);
+}
+
+function setSelectMode(mode: 'rectangle' | 'lasso') {
+  selectMode.value = mode;
+  editor.value?.tools.configure('select', { mode });
 }
 
 function toggleBackground(type: BackgroundTypeName) {
@@ -272,6 +283,21 @@ async function onImagesSelected(event: Event) {
         </div>
       </div>
 
+      <div v-if="activeTool === 'select'" class="row options">
+        <div class="segmented">
+          <button :class="{ active: selectMode === 'rectangle' }" @click="setSelectMode('rectangle')">
+            Rectangle
+          </button>
+          <button :class="{ active: selectMode === 'lasso' }" @click="setSelectMode('lasso')">
+            Lasso
+          </button>
+        </div>
+      </div>
+
+      <div v-if="activeTool === 'laser'" class="row options">
+        <span class="label">Point at things — the trail fades away and is never saved.</span>
+      </div>
+
       <div v-if="activeTool === 'shape'" class="row options">
         <div class="segmented wrap">
           <button
@@ -325,6 +351,17 @@ async function onImagesSelected(event: Event) {
           @click="editor?.setBackground({ color })"
         />
       </div>
+    </div>
+
+    <div class="zoom-controls">
+      <button class="tool" title="Zoom out" aria-label="Zoom out" @click="editor?.zoomOut()">−</button>
+      <button class="zoom-value" title="Reset to 100%" @click="editor?.setZoom(1)">
+        {{ Math.round(zoom * 100) }}%
+      </button>
+      <button class="tool" title="Zoom in" aria-label="Zoom in" @click="editor?.zoomIn()">+</button>
+      <button class="tool" title="Fit to content" aria-label="Fit to content" @click="editor?.zoomToFit()">
+        <svg viewBox="0 0 24 24"><path :d="icons.fit" /></svg>
+      </button>
     </div>
 
     <button class="stylus-mode" title="Palm rejection" @click="cycleStylusOnly">
@@ -484,6 +521,32 @@ async function onImagesSelected(event: Event) {
   border-radius: 6px;
   font-size: 13px;
   text-transform: capitalize;
+  touch-action: manipulation;
+}
+
+.zoom-controls {
+  position: absolute;
+  left: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  font-size: 18px;
+}
+
+.zoom-value {
+  min-width: 56px;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
   touch-action: manipulation;
 }
 

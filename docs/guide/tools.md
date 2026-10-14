@@ -9,7 +9,8 @@ The editor has six built-in tools, addressed by name:
 | `'eraser'` | Erases whole strokes or parts of strokes |
 | `'shape'` | Draws shapes (rectangle, circle, star, arrow…) |
 | `'text'` | Adds and edits text |
-| `'select'` | Selects, moves, resizes, rotates, duplicates and deletes |
+| `'select'` | Selects (rectangle or lasso), moves, resizes, rotates, duplicates and deletes |
+| `'laser'` | Laser pointer for presenting: a glowing trail that fades away and is never saved |
 
 Panning and zooming (two fingers, mouse wheel, right-click drag, keyboard) are always available.
 
@@ -55,7 +56,7 @@ new Editor(element, {
 | `style` | `'natural' \| 'marker' \| 'flat-tip' \| 'round-tip' \| 'polyline'` or a [custom factory](./natural-ink#custom-brushes) | `'natural'` / `'marker'` |
 | `pressureSensitive` | `boolean` | `true` |
 | `stabilization` | `boolean` — extra inertia-based smoothing | `false` |
-| `autocorrect` | `boolean` — hold the pen still at the end of a stroke to turn it into a line/rectangle | `false` |
+| `autocorrect` | `boolean` — hold the pen still for ½ s at the end of a stroke to turn it into a straight line, circle/ellipse or rectangle | `true` (pen) / `false` (highlighter) |
 
 ### Shape
 
@@ -94,6 +95,30 @@ A stylus with an eraser end (Surface Pen, Wacom) erases automatically.
 | `color` | text color |
 | `fontSize` | `number` |
 | `fontFamily` | CSS font family |
+
+### Select
+
+| Option | Type |
+| --- | --- |
+| `mode` | `'rectangle'` (default) or `'lasso'` (draw a loop around what to select) |
+
+```ts
+editor.tools.configure('select', { mode: 'lasso' });
+```
+
+### Laser pointer
+
+| Option | Type |
+| --- | --- |
+| `color` | trail color (default red) |
+| `thickness` | trail width in screen pixels (default `6`) |
+
+The laser pointer also works when the editor is read-only (`editor.setReadOnly(true)`), which makes it
+handy for presenting a drawing.
+
+<ClientOnly>
+  <DrawingDemo hint="Laser pointer: draw, and watch the trail fade" :settings="{ tools: { initial: 'laser' } }" />
+</ClientOnly>
 
 ## Advanced: tool objects
 

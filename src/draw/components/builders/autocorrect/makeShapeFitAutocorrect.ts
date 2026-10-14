@@ -1,4 +1,4 @@
-import { Rect2, LineSegment2, type IVec2 } from '~/math';
+import { Rect2, LineSegment2, type IVec2, Vec2 } from '~/math';
 
 import type AbstractRenderer from '../../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../../types';
@@ -30,6 +30,20 @@ function makeRectangleTemplate (_startPoint: IVec2,
   return { points: [...bbox.corners, bbox.corners[0]] };
 }
 
+function makeEllipseTemplate (_startPoint: IVec2, _points: IVec2[], bbox: Rect2): ShapeTemplate {
+  const center = bbox.center;
+  const radiusX = bbox.w / 2;
+  const radiusY = bbox.h / 2;
+  const segments = 48;
+
+  const points: IVec2[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * Math.PI * 2;
+    points.push(center.plus(Vec2.of(Math.cos(angle) * radiusX, Math.sin(angle) * radiusY)));
+  }
+  return { points };
+}
+
 class ShapeFitBuilder implements ComponentBuilder {
   private builder: ComponentBuilder;
   private points: StrokeDataPoint[];
@@ -51,8 +65,8 @@ class ShapeFitBuilder implements ComponentBuilder {
     return this.builder.build();
   }
 
-  public preview(renderer: AbstractRenderer) {
-    this.builder.preview(renderer);
+  public preview(renderer: AbstractRenderer, predictedPoints?: StrokeDataPoint[]) {
+    this.builder.preview(renderer, predictedPoints);
   }
 
   public addPoint(point: StrokeDataPoint): void {
@@ -88,6 +102,11 @@ class ShapeFitBuilder implements ComponentBuilder {
         toleranceMultiplier: 0.5,
       },
       makeLineTemplate(startPoint, points, bbox),
+      // Before rectangles: a drawn circle is also close to its bounding box's sides.
+      {
+        ...makeEllipseTemplate(startPoint, points, bbox),
+        toleranceMultiplier: 0.7,
+      },
       {
         ...makeRectangleTemplate(snappedStartPoint, snappedPoints, snappedBBox),
         toleranceMultiplier: 0.6,
@@ -198,6 +217,10 @@ class ShapeFitBuilder implements ComponentBuilder {
       return {
         pos: this.viewport.screenToCanvas(point),
         width: startWidth * (1 - fractionToEnd) + endWidth * fractionToEnd,
+        baseWidth: this.startPoint.baseWidth,
+        pressure: this.startPoint.pressure !== undefined
+          ? this.startPoint.pressure * (1 - fractionToEnd) + (lastDataPoint.pressure ?? this.startPoint.pressure) * fractionToEnd
+          : undefined,
         color: startColor.mix(endColor, fractionToEnd),
         time: startTime * (1 - fractionToEnd) + endTime * fractionToEnd,
       };

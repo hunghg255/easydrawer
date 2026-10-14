@@ -5,6 +5,7 @@ import { Color4 } from '~/math';
 
 import type BaseTool from './BaseTool';
 import Eraser from './Eraser';
+import LaserPointer from './LaserPointer';
 import FindTool from './FindTool';
 import { type InputEventListener } from './InputFilter/InputMapper';
 import type InputMapper from './InputFilter/InputMapper';
@@ -65,6 +66,8 @@ export default class ToolController implements InputEventListener {
       thickness: 2,
       factory: makeNaturalPenBuilder,
     });
+    // Hold the pen still at the end of a stroke to turn it into a line/circle/rectangle.
+    primaryPenTool.setStrokeAutocorrectEnabled(true);
 
     const highlighterTool = new Pen(editor, localization.penTool(2), {
       color: Color4.blackHighlight,
@@ -81,6 +84,7 @@ export default class ToolController implements InputEventListener {
     const eraser = new Eraser(editor, localization.eraserTool);
     const selectionTool = new SelectionTool(editor, localization.selectionTool);
     const textTool = new TextTool(editor, localization.textTool, localization);
+    const laserTool = new LaserPointer(editor, localization.laserPointerTool);
 
     this.namedTools = {
       select: selectionTool,
@@ -89,6 +93,7 @@ export default class ToolController implements InputEventListener {
       highlighter: highlighterTool,
       eraser,
       shape: shapeTool,
+      laser: laserTool,
     };
 
     // Order matters: it's the order used by toolbars.
@@ -99,13 +104,14 @@ export default class ToolController implements InputEventListener {
       highlighterTool,
       eraser,
       shapeTool,
+      laserTool,
     ];
 
     const settings = editor.getCurrentSettings();
     this.stylusOnlySetting = settings.input?.stylusOnly ?? 'auto';
 
     const toolSettings = settings.tools ?? {};
-    for (const name of ['pen', 'highlighter', 'eraser', 'shape', 'text'] as const) {
+    for (const name of ['pen', 'highlighter', 'eraser', 'shape', 'text', 'select', 'laser'] as const) {
       const options = toolSettings[name];
       if (options) {
         applyToolOptions(this.namedTools[name]!, options);

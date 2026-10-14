@@ -204,23 +204,24 @@ export default class NaturalPenBuilder implements ComponentBuilder {
 
   // Returns the smoothed center line of the stroke. It ends at the latest input point so
   // that the stroke follows the pointer without lag.
-  private getCenterLine(): InkPoint[] {
+  private getCenterLine(predicted: StrokeDataPoint[] = []): InkPoint[] {
     const points = this.points.slice();
-    const last = points[points.length - 1];
-    const tip = this.lastInput.pos;
-    const tipDist = Math.hypot(tip.x - last.x, tip.y - last.y);
+    const tipRadius = this.radiusFor(this.pressure);
+    const minTipDist = Math.min(this.pixelSize, this.baseRadius / 4);
 
-    if (tipDist > Math.min(this.pixelSize, this.baseRadius / 4)) {
-      points.push({
-        x: tip.x,
-        y: tip.y,
-        r: this.radiusFor(this.pressure),
-        dist: last.dist + tipDist,
-      });
+    for (const { pos } of [this.lastInput, ...predicted]) {
+      const last = points[points.length - 1];
+      const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
+      if (dist > minTipDist && isFinite(dist)) {
+        points.push({ x: pos.x, y: pos.y, r: tipRadius, dist: last.dist + dist });
+      }
     }
 
     const smoothing = Math.min(Math.max(this.options.smoothing, 0), 1);
-    return smoothCenterLine(points, Math.round(smoothing * 6));
+    // Only jitter-sized segments are smoothed. Long segments (fast strokes, generated
+    // shapes like autocorrected rectangles) are kept exactly.
+    const maxSmoothedSegment = Math.max(this.baseRadius * 8, this.pixelSize * 24);
+    return smoothCenterLine(points, Math.round(smoothing * 6), maxSmoothedSegment);
   }
 
   private applyTapers(points: InkPoint[], taperEnd: boolean): number[] {
@@ -244,8 +245,8 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     });
   }
 
-  private computeOutline(isFinal: boolean): IVec2[] {
-    const points = simplifyCenterLine(this.getCenterLine(), this.pixelSize * 0.25);
+  private computeOutline(isFinal: boolean, predicted?: StrokeDataPoint[]): IVec2[] {
+    const points = simplifyCenterLine(this.getCenterLine(predicted), this.pixelSize * 0.25);
     const radii = this.applyTapers(points, isFinal);
     const count = points.length;
 
@@ -343,7 +344,24 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     return Viewport.roundPoint(point, Math.min(this.pixelSize, this.baseRadius) / 4);
   }
 
-  private outlineToPath(outline: IVec2[]): RenderablePathSpec {
+  private outlineToPath(sparseOutline: IVec2[]): RenderablePathSpec {
+    // The outline is drawn as a smooth curve through the midpoints of its edges. Long
+    // edges (straight lines, rectangles) would turn their corners into large arcs: add
+    // points close to both ends of each long edge so corners stay tight.
+    const cornerRadius = Math.max(this.baseRadius, this.pixelSize);
+    const longEdge = Math.max(this.baseRadius * 12, this.pixelSize * 30);
+    const outline: IVec2[] = [];
+    for (let i = 0; i < sparseOutline.length; i++) {
+      const current = sparseOutline[i];
+      const next = sparseOutline[(i + 1) % sparseOutline.length];
+      const length = current.distanceTo(next);
+      outline.push(current);
+      if (length > longEdge) {
+        outline.push(current.lerp(next, cornerRadius / length));
+        outline.push(next.lerp(current, cornerRadius / length));
+      }
+    }
+
     const count = outline.length;
     const midpoint = (i: number) => outline[i % count].lerp(outline[(i + 1) % count], 0.5);
 
@@ -365,13 +383,13 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     };
   }
 
-  private toRenderable(isFinal: boolean) {
-    return this.outlineToPath(this.computeOutline(isFinal));
+  private toRenderable(isFinal: boolean, predicted?: StrokeDataPoint[]) {
+    return this.outlineToPath(this.computeOutline(isFinal, predicted));
   }
 
-  public preview(renderer: AbstractRenderer) {
+  public preview(renderer: AbstractRenderer, predictedPoints?: StrokeDataPoint[]) {
     renderer.startObject(this.viewport.visibleRect);
-    renderer.drawPath(this.toRenderable(false));
+    renderer.drawPath(this.toRenderable(false, predictedPoints));
     renderer.endObject();
   }
 
@@ -412,7 +430,7 @@ function arcThrough(
 
 // Symmetric (lag-free) Laplacian smoothing. The end points and sharp corners don't move,
 // so corners stay crisp.
-function smoothCenterLine(points: InkPoint[], iterations: number): InkPoint[] {
+function smoothCenterLine(points: InkPoint[], iterations: number, maxSegmentLength: number): InkPoint[] {
   const count = points.length;
   if (count < 3 || iterations <= 0) {
     return points;
@@ -424,8 +442,11 @@ function smoothCenterLine(points: InkPoint[], iterations: number): InkPoint[] {
     const ay = points[i].y - points[i - 1].y;
     const bx = points[i + 1].x - points[i].x;
     const by = points[i + 1].y - points[i].y;
-    const cosTurn = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by) || 1);
-    isCorner[i] = cosTurn < -0.2 ? 1 : 0;
+    const lengthA = Math.hypot(ax, ay);
+    const lengthB = Math.hypot(bx, by);
+    const cosTurn = (ax * bx + ay * by) / (lengthA * lengthB || 1);
+    const isLongSegment = lengthA > maxSegmentLength || lengthB > maxSegmentLength;
+    isCorner[i] = cosTurn < -0.2 || isLongSegment ? 1 : 0;
   }
 
   let xs = points.map((p) => p.x);

@@ -37,6 +37,28 @@ editor.setBackground({ type: 'dot', color: 'white' });
 | `setBackground(options)` | Change the background type and/or color (undoable) |
 | `estimateBackgroundColor()` | Current background color, as a `Color4` |
 
+## Zoom
+
+```ts
+editor.zoomIn();        // ×1.25
+editor.zoomOut();       // ÷1.25
+editor.setZoom(1);      // 100%
+editor.zoomToFit();     // show everything that's drawn
+editor.getZoom();       // → 1.25
+
+const stop = editor.onZoomChange((zoom) => label.textContent = `${Math.round(zoom * 100)}%`);
+```
+
+| Method | Description |
+| --- | --- |
+| `getZoom()` | Current zoom level (1 = 100%) |
+| `setZoom(zoom, screenCenter?)` | Set the zoom, keeping `screenCenter` (default: the middle) in place. Limited by `minZoom`/`maxZoom`. |
+| `zoomIn()` / `zoomOut()` | One step in/out |
+| `zoomToFit()` | Zoom and scroll so all content is visible |
+| `onZoomChange(callback)` | Called when the zoom changes. Returns an unsubscribe function. |
+
+Pinch, Ctrl/⌘ + wheel and keyboard shortcuts also zoom.
+
 ## Import & export
 
 | Method | Returns | Description |

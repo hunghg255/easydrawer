@@ -110,6 +110,13 @@ export interface PointerDownEvt extends PointerEvtBase {
 
 export interface PointerMoveEvt extends PointerEvtBase {
   readonly kind: InputEvtType.PointerMoveEvt;
+
+  /**
+   * Where the browser predicts `current` will be in the next few milliseconds (from
+   * `PointerEvent.getPredictedEvents()`). Tools may draw these to reduce visible lag,
+   * but must not store them.
+   */
+  readonly predicted?: Pointer[];
 }
 
 export interface PointerUpEvt extends PointerEvtBase {

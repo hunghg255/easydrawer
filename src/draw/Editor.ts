@@ -826,10 +826,15 @@ export class Editor {
         samples.push(evt);
       }
 
+      const predicted = (evt.getPredictedEvents?.() ?? [])
+        .slice(0, 2)
+        .map((sample) => Pointer.ofEvent(sample, true, this.viewport, eventsRelativeTo));
+
       let handled = false;
-      for (const sample of samples) {
+      for (const [index, sample] of samples.entries()) {
         const pointer = Pointer.ofEvent(sample, true, this.viewport, eventsRelativeTo);
         const lastPointer = this.pointers[pointer.id];
+        const isLastSample = index === samples.length - 1;
 
         // Skip samples that are (almost) at the same position as the last one.
         if (lastPointer && pointer.screenPos.distanceTo(lastPointer.screenPos) < 0.5) {
@@ -842,6 +847,7 @@ export class Editor {
             kind: InputEvtType.PointerMoveEvt,
             current: pointer,
             allPointers: this.getPointerList(),
+            predicted: isLastSample ? predicted : undefined,
           }) || handled;
       }
 
@@ -2081,6 +2087,85 @@ export class Editor {
       this.notifier.on(EditorEventType.CommandUndone, () => callback()),
     ];
     return () => listeners.forEach((listener) => listener.remove());
+  }
+
+  /** The current zoom level (1 = 100%). */
+  public getZoom(): number {
+    return this.viewport.getScaleFactor();
+  }
+
+  /**
+   * Sets the zoom level (1 = 100%), keeping `screenCenter` (default: the middle of the
+   * drawing area) in place. The value is limited to {@link EditorSettings.minZoom} and
+   * {@link EditorSettings.maxZoom}.
+   */
+  public setZoom(zoom: number, screenCenter?: IVec2) {
+    const newZoom = Math.min(Math.max(zoom, this.settings.minZoom), this.settings.maxZoom);
+    const currentZoom = this.getZoom();
+    if (!isFinite(newZoom) || newZoom <= 0 || currentZoom === newZoom) {
+      return;
+    }
+
+    const center = this.viewport.screenToCanvas(
+      screenCenter ?? this.viewport.getScreenRectSize().times(0.5),
+    );
+    const transform = Mat33.scaling2D(newZoom / currentZoom, center);
+    this.dispatchNoAnnounce(Viewport.transformBy(transform), false);
+  }
+
+  /** Zooms in by one step (×1.25). */
+  public zoomIn() {
+    this.setZoom(this.getZoom() * 1.25);
+  }
+
+  /** Zooms out by one step (÷1.25). */
+  public zoomOut() {
+    this.setZoom(this.getZoom() / 1.25);
+  }
+
+  /** Zooms and scrolls so that everything drawn is visible. */
+  public zoomToFit() {
+    const backgrounds = new Set(this.image.getBackgroundComponents());
+    const components = this.image.getAllComponents().filter((c) => !backgrounds.has(c));
+    if (components.length === 0) {
+      this.setZoom(1);
+      return;
+    }
+
+    const contentRect = Rect2.union(...components.map((c) => c.getBBox()));
+    const screenSize = this.viewport.getScreenRectSize();
+    const padding = 0.85;
+    let zoom = Math.min(
+      (screenSize.x * padding) / Math.max(contentRect.w, 1e-6),
+      (screenSize.y * padding) / Math.max(contentRect.h, 1e-6),
+    );
+    // Don't blow up small drawings.
+    zoom = Math.min(zoom, 4, this.settings.maxZoom);
+    zoom = Math.max(zoom, this.settings.minZoom);
+
+    // canvas → screen: center the content, keep the current rotation.
+    const newTransform = Mat33.translation(screenSize.times(0.5))
+      .rightMul(Mat33.zRotation(this.viewport.getRotationAngle()))
+      .rightMul(Mat33.scaling2D(zoom))
+      .rightMul(Mat33.translation(contentRect.center.times(-1)));
+    const delta = this.viewport.canvasToScreenTransform.inverse().rightMul(newTransform);
+    this.dispatchNoAnnounce(Viewport.transformBy(delta), false);
+  }
+
+  /**
+   * Calls `callback(zoom)` whenever the zoom level changes.
+   * @returns a function that removes the listener.
+   */
+  public onZoomChange(callback: (zoom: number) => void): () => void {
+    let lastZoom = this.getZoom();
+    const listener = this.notifier.on(EditorEventType.ViewportChanged, () => {
+      const zoom = this.getZoom();
+      if (Math.abs(zoom - lastZoom) > 1e-9) {
+        lastZoom = zoom;
+        callback(zoom);
+      }
+    });
+    return () => listener.remove();
   }
 
   /** Returns the drawing as an SVG string. */

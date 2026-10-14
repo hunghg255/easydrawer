@@ -39,6 +39,8 @@ interface ShapeToolOptions {
 }
 interface EraserToolOptions { thickness?: number; mode?: 'full-stroke' | 'partial-stroke' }
 interface TextToolOptions { color?: string | Color4; fontSize?: number; fontFamily?: string }
+interface SelectToolOptions { mode?: 'rectangle' | 'lasso' }
+interface LaserToolOptions { color?: string | Color4; thickness?: number }   // 'laser'
 ```
 
 ## `editor.tools`
@@ -50,7 +52,7 @@ interface TextToolOptions { color?: string | Color4; fontSize?: number; fontFami
 | `configure(name, options)` | Partial update of a tool's options |
 | `onChange(cb)` | Active tool changes; returns unsubscribe |
 | `get(name)` | Tool object or `null` |
-| `pen`, `highlighter` (`PenTool`), `eraser` (`EraserTool`), `shape` (`ShapeTool`), `text` (`TextTool`), `select` (`SelectionTool`) | Tool objects |
+| `pen`, `highlighter` (`PenTool`), `eraser` (`EraserTool`), `shape` (`ShapeTool`), `text` (`TextTool`), `select` (`SelectionTool`), `laser` (`LaserPointer`) | Tool objects |
 
 Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStrokeFactory()`,
 `select.getSelectedObjects()`, `select.setSelection(components)`, `select.clearSelection()`.
@@ -68,7 +70,9 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `toDataURL(format?)` | Export raster image |
 | `loadFromSVG(svg)` | Import SVG (async) |
 | `uploadImages(files: File[])` | Insert images (async) |
-| `setReadOnly(bool)` | View-only mode (pan/zoom still work) |
+| `setReadOnly(bool)` | View-only mode (pan/zoom and the laser pointer still work) |
+| `getZoom()`, `setZoom(z, center?)`, `zoomIn()`, `zoomOut()`, `zoomToFit()` | Zoom |
+| `onZoomChange(cb)` | Zoom changes; returns unsubscribe |
 | `focus()` | Focus for keyboard shortcuts |
 | `remove()` | Destroy |
 | `history.clearAllStack()` | Forget undo history (e.g. after loading a file) |

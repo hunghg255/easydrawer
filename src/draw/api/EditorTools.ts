@@ -5,6 +5,8 @@ import {
   type ShapeToolOptions,
   type EraserToolOptions,
   type TextToolOptions,
+  type SelectToolOptions,
+  type LaserToolOptions,
   toColor4,
   toolNames,
 } from './options';
@@ -12,8 +14,10 @@ import { penStyles, shapeTypes } from '../components/builders/presets';
 import type Editor from '../Editor';
 import type BaseTool from '../tools/BaseTool';
 import Eraser, { EraserMode } from '../tools/Eraser';
+import LaserPointer from '../tools/LaserPointer';
 import Pen from '../tools/Pen';
-import type SelectionTool from '../tools/SelectionTool/SelectionTool';
+import SelectionTool from '../tools/SelectionTool/SelectionTool';
+import { SelectionMode } from '../tools/SelectionTool/types';
 import ShapeTool from '../tools/ShapeTool';
 import TextTool from '../tools/TextTool';
 import { EditorEventType } from '../types';
@@ -54,6 +58,15 @@ export function applyToolOptions (tool: BaseTool, options: ToolOptionsMap[ToolNa
         eraserOptions.mode === 'partial-stroke' ? EraserMode.PartialStroke : EraserMode.FullStroke,
       );
     }
+  } else if (tool instanceof SelectionTool) {
+    const selectOptions = options as SelectToolOptions;
+    if (selectOptions.mode !== undefined) {
+      tool.modeValue.set(selectOptions.mode === 'lasso' ? SelectionMode.Lasso : SelectionMode.Rectangle);
+    }
+  } else if (tool instanceof LaserPointer) {
+    const laserOptions = options as LaserToolOptions;
+    if (laserOptions.color !== undefined) tool.setColor(toColor4(laserOptions.color));
+    if (laserOptions.thickness !== undefined) tool.setThickness(laserOptions.thickness);
   } else if (tool instanceof TextTool) {
     const textOptions = options as TextToolOptions;
     if (textOptions.color !== undefined) tool.setColor(toColor4(textOptions.color));
@@ -193,4 +206,5 @@ export interface ToolTypeMap {
   highlighter: Pen;
   eraser: Eraser;
   shape: ShapeTool;
+  laser: LaserPointer;
 }

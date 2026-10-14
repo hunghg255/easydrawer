@@ -39,13 +39,15 @@ Rules:
 ## Core API (prefer this over low-level APIs)
 
 ```ts
-// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape'
+// Tools: 'select' | 'text' | 'pen' | 'highlighter' | 'eraser' | 'shape' | 'laser'
 editor.tools.use('eraser');              // activate; use(null) = pan/zoom only
 editor.tools.active;                     // current ToolName | null
 editor.tools.configure('pen', { color: 'red', thickness: 4, style: 'natural' });
 editor.tools.configure('shape', { shape: 'star', color: 'gold', borderColor: '#000', thickness: 2 });
 editor.tools.configure('eraser', { thickness: 20, mode: 'partial-stroke' });
 editor.tools.configure('text', { fontSize: 24, fontFamily: 'serif', color: '#333' });
+editor.tools.configure('select', { mode: 'lasso' });   // or 'rectangle'
+editor.tools.configure('laser', { color: 'red' });      // fading trail, never saved
 const off = editor.tools.onChange((name) => {/* sync toolbar UI */});
 
 // History & document
@@ -54,6 +56,10 @@ editor.canUndo(); editor.canRedo();
 editor.clear();                                       // undoable, keeps background
 editor.setBackground({ type: 'dot', color: '#fffbea' });
 const offChange = editor.onChange(() => {/* autosave */});
+
+// Zoom
+editor.zoomIn(); editor.zoomOut(); editor.setZoom(1); editor.zoomToFit();
+const offZoom = editor.onZoomChange((zoom) => {/* update a "125%" label */});
 
 // Import / export
 const svg = editor.toSVGString();
@@ -75,7 +81,8 @@ Colors accept any CSS color string or a `Color4`. `configure` only changes the o
 
 `style`: `'natural'` (default pen: width from stylus pressure, or from speed for mouse/finger),
 `'marker'` (default highlighter, constant width), `'flat-tip'`, `'round-tip'`, `'polyline'`,
-or a custom factory:
+or a custom factory. The pen snaps a stroke to a line/circle/rectangle when held still for ½ s at
+the end (`autocorrect`, on by default for the pen):
 
 ```ts
 import { naturalPenBuilderFactory } from 'easydrawer';

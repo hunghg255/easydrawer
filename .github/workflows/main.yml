@@ -16,4 +16,9 @@ jobs:
       - name: Setup Continuous integration
         uses: ./.github/cache
 
-      - run: pnpm run lint && pnpm run build
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run test
+      - run: pnpm run build
+      - run: pnpm run build:playground
+      - run: pnpm run build:docs

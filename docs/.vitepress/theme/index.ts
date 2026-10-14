@@ -1,7 +1,7 @@
 import DefaultTheme from 'vitepress/theme';
 import { type Theme } from 'vitepress';
 
-import '../../../src/styles/assets/styles.css';
+import '../../../src/styles/styles.css';
 import './custom.css';
 import DrawingDemo from './components/DrawingDemo.vue';
 import Playground from './components/Playground.vue';

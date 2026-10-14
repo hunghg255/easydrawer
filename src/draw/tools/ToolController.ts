@@ -119,9 +119,6 @@ export default class ToolController implements InputEventListener {
     ];
 
     this.tools = [
-      // new ScrollbarTool(editor),
-      // new PipetteTool(editor, localization.pipetteTool),
-      // soundExplorer,
       ...primaryTools,
 
       new UndoRedoShortcut(editor),

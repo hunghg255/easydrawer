@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 
 import App from './App.tsx';
 
-import '../../src/styles/assets/styles.css';
+import '../../src/styles/styles.css';
 
 createRoot(document.getElementById('root')!).render(
   <App />

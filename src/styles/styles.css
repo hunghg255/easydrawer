@@ -1,18 +1,8 @@
-
-
-
 .toolbar-root {
   display: none;
   pointer-events: none;
   visibility: hidden;
   height: 0 !important;
-}
-
-
-.container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 
@@ -347,8 +337,7 @@
   align-items: center;
   justify-content: center;
   padding: 4px;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none
 }
 
@@ -439,7 +428,6 @@
 
 .toolbar-button-grid>.button {
   font-size: 1em;
-  width: -moz-min-content;
   width: min-content
 }
 
@@ -502,8 +490,7 @@
   border-radius: 6px;
   border: none;
   box-shadow: 0px 0px 2px var(--shadow-color);
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   transition: background-color .15s ease, box-shadow .25s ease, opacity .2s ease
 }
@@ -520,15 +507,13 @@
   padding-right: 3px;
   min-width: 40px;
   max-width: 105px;
-  width: -moz-min-content;
   width: min-content;
   font-size: 1em
 }
 
 .toolbar-button>label {
   cursor: inherit;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none
 }
 
@@ -553,9 +538,7 @@
 
 .toolbar-root .toolbar-icon {
   flex-shrink: 1;
-  -webkit-user-select: none;
-     -moz-user-select: none;
-          user-select: none;
+  user-select: none;
   width: 100%;
   min-width: 20px;
   min-height: 20px
@@ -593,7 +576,6 @@
   flex-wrap: wrap;
   flex-direction: column;
   max-height: 80vh;
-  max-width: -moz-fit-content;
   max-width: fit-content;
   z-index: 2;
   background-color: var(--background-color-1);
@@ -1226,8 +1208,7 @@
 .toolbar-edgemenu-container .toolbar-edgemenu {
   --toolbar-button-height: 48px;
   touch-action: none;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   background-color: var(--background-color-2);
   color: var(--foreground-color-2);
@@ -1244,8 +1225,7 @@
 
 .toolbar-edgemenu-container .toolbar-edgemenu input,
 .toolbar-edgemenu-container .toolbar-edgemenu textarea {
-  -moz-user-select: auto;
-       user-select: auto;
+  user-select: auto;
   -webkit-user-select: auto
 }
 
@@ -1533,8 +1513,7 @@
 .toolbar-help-overlay .help-page-container>.cloned-element-container {
   position: absolute;
   z-index: 0;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   border-radius: 10px;
   opacity: .01;
@@ -1853,8 +1832,7 @@
   height: 24px;
   padding: 6px;
   font-size: 14px;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   color: var(--foreground-color-1);
   border: .5px solid var(--foreground-color-1);
@@ -1934,8 +1912,7 @@
   width: 0px;
   height: 0px;
   overflow: hidden;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none
 }
 
@@ -2176,7 +2153,9 @@
 
 .imageEditorContainer {
   --icon-color: var(--foreground-color-1)
-;
+}
+
+.imageEditorContainer {
   /* color: var(--foreground-color-1); */
   font-family: system-ui, -apple-system, sans-serif;
   /* background-color: var(--background-color-1); */
@@ -2187,7 +2166,8 @@
   writing-mode: horizontal-tb;
   box-sizing: border-box;
   display: flex;
-  flex-direction: column-reverse}
+  flex-direction: column-reverse
+}
 
 .imageEditorContainer input {
   accent-color: var(--primary-action-foreground-color)
@@ -2200,11 +2180,13 @@
 
 .imageEditorContainer .imageEditorRenderArea {
   touch-action: none;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-  overscroll-behavior: none;
+  overscroll-behavior: none
+}
+
+.imageEditorContainer .imageEditorRenderArea {
   display: grid;
   grid-template-columns: 1fr;
   flex-grow: 2;
@@ -2226,8 +2208,7 @@
   max-width: inherit;
   min-height: 0px;
   max-height: inherit;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none
 }
@@ -2248,8 +2229,7 @@
   height: 0;
   overflow: hidden;
   pointer-events: none;
-  -moz-user-select: none;
-       user-select: none;
+  user-select: none;
   -webkit-user-select: none
 }
 
@@ -2258,8 +2238,7 @@
   height: .001px;
   overflow: hidden;
   -webkit-user-select: none;
-  -moz-user-select: none;
-       user-select: none
+  user-select: none
 }
 
 .imageEditorContainer .textRendererOutputContainer:focus-within {

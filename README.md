@@ -127,7 +127,7 @@ editor.tools.configure('pen', { style: brush });
 src/
 ├── index.ts                   # package entry
 ├── math/                      # vectors, matrices, paths, Bézier curves, colors
-├── styles/                    # styles.tailwind.css (source) → assets/styles.css (built)
+├── styles/styles.css          # all editor CSS (copied to dist/styles.css)
 └── draw/
     ├── Editor.ts              # main class: settings, DOM, input events, high-level helpers
     ├── api/                   # simple public API: EditorTools (editor.tools) + option types
@@ -150,9 +150,10 @@ skills/easydrawer/             # Agent Skill for AI coding assistants (shipped i
 
 ```bash
 pnpm install
-pnpm dev       # library watch + playground
+pnpm dev       # playground (uses the library source directly)
 pnpm dev:docs  # docs site (uses the library source directly)
-pnpm test    # unit tests (vitest)
+pnpm test      # unit tests (vitest)
+pnpm typecheck
 pnpm lint
 pnpm build
 ```

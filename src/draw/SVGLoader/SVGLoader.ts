@@ -26,6 +26,7 @@ import {
   type OnDetermineExportRectListener,
   type OnProgressListener,
 } from '../types';
+import { pencilFilterId } from '../rendering/textures';
 
 type OnFinishListener = () => void;
 
@@ -162,9 +163,12 @@ export default class SVGLoader implements ImageLoader {
       }
     }
 
+    const texture = node.getAttribute('data-texture') === 'pencil' ? ('pencil' as const) : undefined;
+
     const style: RenderingStyle = {
       fill,
       stroke,
+      ...(texture ? { texture } : {}),
     };
     return style;
   }
@@ -250,10 +254,12 @@ export default class SVGLoader implements ImageLoader {
 
       elem = new Stroke(strokeData);
 
+      // A textured path's filter is recreated when saving: don't keep the old one.
+      const textureAttrs = node.hasAttribute('data-texture') ? ['data-texture', 'filter'] : [];
       this.attachUnrecognisedAttrs(
         elem,
         node,
-        new Set([...supportedStrokeFillStyleAttrs, 'd']),
+        new Set([...supportedStrokeFillStyleAttrs, 'd', ...textureAttrs]),
         new Set(supportedStrokeFillStyleAttrs),
       );
     } catch (e) {
@@ -655,6 +661,16 @@ export default class SVGLoader implements ImageLoader {
         case 'svg':
           this.updateViewBox(node as SVGSVGElement);
           this.updateSVGAttrs(node as SVGSVGElement);
+          break;
+        case 'defs':
+          // Definitions added by easydrawer (e.g. the pencil texture filter) are
+          // recreated when saving. Keep any others.
+          if (node.childElementCount === 1 && node.firstElementChild?.id === pencilFilterId) {
+            visitChildren = false;
+          } else {
+            await this.addUnknownNode(node as SVGElement);
+            visitChildren = false;
+          }
           break;
         case 'style':
         // Keeping unnecessary style sheets can cause the browser to keep all

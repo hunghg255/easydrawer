@@ -7,9 +7,14 @@ export interface StrokeStyle {
   readonly width: number;
 }
 
+/** A texture applied to a path's fill. */
+export type FillTexture = 'pencil';
+
 export interface RenderingStyle {
   readonly fill: Color4;
   readonly stroke?: StrokeStyle;
+  /** Optional texture for the fill (e.g. pencil grain). */
+  readonly texture?: FillTexture;
 }
 
 export default RenderingStyle;
@@ -17,6 +22,7 @@ export default RenderingStyle;
 export function cloneStyle (style: RenderingStyle) {
   return {
     fill: style.fill,
+    texture: style.texture,
     stroke: style.stroke
       ? {
         ...style.stroke,
@@ -31,7 +37,8 @@ export function stylesEqual (a: RenderingStyle, b: RenderingStyle): boolean {
 		(a.fill.eq(b.fill) &&
 			(a.stroke == undefined) === (b.stroke == undefined) &&
 			(a.stroke?.color?.eq(b.stroke?.color) ?? true) &&
-			a.stroke?.width === b.stroke?.width);
+			a.stroke?.width === b.stroke?.width &&
+			a.texture === b.texture);
 
   // Map undefined/null -> false
   return result ?? false;
@@ -50,6 +57,7 @@ export function styleToJSON (style: RenderingStyle) {
   return {
     fill: style.fill.toHexString(),
     stroke,
+    ...(style.texture ? { texture: style.texture } : {}),
   };
 }
 
@@ -63,5 +71,6 @@ export function styleFromJSON (json: Record<string, any>) {
   return {
     fill: Color4.fromHex(json.fill),
     stroke,
+    ...(json.texture === 'pencil' ? { texture: 'pencil' as const } : {}),
   };
 }

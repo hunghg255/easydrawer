@@ -322,7 +322,11 @@ export default class Pen extends BaseTool {
       }
 
       const stroke = this.autocorrectedShape ?? this.builder.build();
-      this.previewStroke();
+
+      // The wet ink is copied to the canvas as-is ("flattened"), so draw the final
+      // stroke there: the live preview can differ (predicted points, no end taper).
+      this.editor.clearWetInk();
+      stroke.render(this.editor.display.getWetInkRenderer(), this.editor.viewport.visibleRect);
 
       if (stroke.getBBox().area > 0) {
         if (stroke === this.autocorrectedShape) {

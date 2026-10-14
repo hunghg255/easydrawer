@@ -153,7 +153,9 @@ describe('pen styles', () => {
   it('pencil strokes should be lighter than the color', () => {
     const builder = new NaturalPenBuilder(point(0, 0, 0, 0.5), makeViewport(), defaultPencilOptions);
     builder.addPoint(point(50, 0, 10, 0.5));
-    const color = builder.build().getStyle().color!;
-    expect(color.a).toBeLessThan(Color4.red.a);
+    const stroke = builder.build();
+    expect(stroke.getStyle().color!.a).toBeLessThan(Color4.red.a);
+    // Graphite grain
+    expect(stroke.getParts()[0].style.texture).toBe('pencil');
   });
 });

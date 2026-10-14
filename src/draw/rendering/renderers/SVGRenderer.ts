@@ -16,6 +16,7 @@ import { pathFromRenderable } from '../RenderablePathSpec';
 import type RenderingStyle from '../RenderingStyle';
 import { stylesEqual } from '../RenderingStyle';
 import type TextRenderingStyle from '../TextRenderingStyle';
+import { createPencilFilter, pencilFilterId } from '../textures';
 
 export const renderedStylesheetId = 'easydrawer-style-sheet';
 
@@ -155,6 +156,12 @@ export default class SVGRenderer extends AbstractRenderer {
       pathElem.setAttribute('fill', 'none');
     }
 
+    if (style.texture === 'pencil') {
+      this.ensurePencilFilter();
+      pathElem.setAttribute('filter', `url(#${pencilFilterId})`);
+      pathElem.setAttribute('data-texture', 'pencil');
+    }
+
     if (style.stroke) {
       pathElem.setAttribute('stroke', style.stroke.color.toHexString());
       pathElem.setAttribute(
@@ -167,6 +174,15 @@ export default class SVGRenderer extends AbstractRenderer {
     this.objectElems?.push(pathElem);
 
     return pathElem;
+  }
+
+  // Adds the pencil texture <filter> to the SVG, once.
+  private ensurePencilFilter() {
+    if (this.elem.querySelector(`#${pencilFilterId}`)) return;
+
+    const defs = document.createElementNS(svgNameSpace, 'defs');
+    defs.appendChild(createPencilFilter(svgNameSpace));
+    this.elem.insertBefore(defs, this.elem.firstChild);
   }
 
   public override drawPath(pathSpec: RenderablePathSpec) {

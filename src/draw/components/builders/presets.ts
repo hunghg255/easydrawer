@@ -27,7 +27,7 @@ export const penStyles = {
   natural: makeNaturalPenBuilder,
   /** Smooth, constant-width marker. The default for the highlighter. */
   marker: makeHighlighterBuilder,
-  /** Pencil: lighter, slightly uneven strokes with tapered ends. */
+  /** Pencil: graphite grain, slightly uneven strokes with tapered ends. */
   pencil: makePencilBuilder,
   /** Calligraphy pen with a flat nib: width depends on the direction of the stroke. */
   calligraphy: makeCalligraphyBuilder,

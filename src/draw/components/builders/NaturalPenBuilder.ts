@@ -3,6 +3,7 @@ import { type IVec2, Vec2, Rect2, type Color4, type PathCommand, PathCommandType
 import makeShapeFitAutocorrect from './autocorrect/makeShapeFitAutocorrect';
 import { type ComponentBuilder, type ComponentBuilderFactory } from './types';
 import type RenderablePathSpec from '../../rendering/RenderablePathSpec';
+import { type FillTexture } from '../../rendering/RenderingStyle';
 import type AbstractRenderer from '../../rendering/renderers/AbstractRenderer';
 import { type StrokeDataPoint } from '../../types';
 import Viewport from '../../Viewport';
@@ -51,6 +52,9 @@ export interface NaturalPenOptions {
 
   /** Opacity multiplied into the color's alpha, from 0 to 1. */
   opacity?: number;
+
+  /** A texture for the ink, e.g. `'pencil'` for graphite grain. */
+  texture?: FillTexture;
 }
 
 export const defaultNaturalPenOptions: Readonly<NaturalPenOptions> = {
@@ -79,7 +83,8 @@ export const defaultPencilOptions: Readonly<NaturalPenOptions> = {
   taperStart: 1.5,
   taperEnd: 2,
   roughness: 0.45,
-  opacity: 0.85,
+  opacity: 0.9,
+  texture: 'pencil',
 };
 
 export const defaultCalligraphyOptions: Readonly<NaturalPenOptions> = {
@@ -450,7 +455,9 @@ export default class NaturalPenBuilder implements ComponentBuilder {
     return {
       startPoint: this.roundPoint(midpoint(0)),
       commands,
-      style: { fill: this.fillColor },
+      style: this.options.texture
+        ? { fill: this.fillColor, texture: this.options.texture }
+        : { fill: this.fillColor },
     };
   }
 

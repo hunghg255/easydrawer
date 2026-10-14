@@ -36,7 +36,7 @@ editor.tools.configure('pen', { autocorrect: false }); // turn it off
 | Style | Look |
 | --- | --- |
 | `'natural'` | Ink with pressure (default pen) |
-| `'pencil'` | Lighter, slightly uneven strokes with tapered ends |
+| `'pencil'` | Graphite grain, slightly uneven width, tapered ends |
 | `'calligraphy'` | Flat nib: thick or thin depending on the stroke direction |
 | `'marker'` | Smooth, constant width (default highlighter) |
 | `'flat-tip'` | Older pressure-sensitive pen |
@@ -80,3 +80,4 @@ editor.tools.configure('pen', { style: brushPen, thickness: 6 });
 | `nibAngle` | `null` | Calligraphy: angle of a flat nib in radians (e.g. `-Math.PI / 4`) |
 | `roughness` | `0` | Pencil-like unevenness, `0`–`1` |
 | `opacity` | `1` | Multiplied into the color's alpha |
+| `texture` | none | `'pencil'`: graphite grain. Drawn with a grain pattern on screen and an SVG `feTurbulence` filter in exported SVG, so strokes stay vectors |

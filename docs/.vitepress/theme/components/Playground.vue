@@ -37,7 +37,27 @@ const icons: Record<string, string> = {
   duplicate: 'M8 8h12v12H8z M4 16V4h12',
   lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
   unlock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 7.75-1.4',
+  group: 'M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h7v5H7z M10 12h7v5h-7z',
+  ungroup: 'M4 5h8v6H4z M12 13h8v6h-8z',
+  align: 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
+  'align-left': 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
+  'align-center': 'M12 3v18 M6 7h12v4H6z M8.5 14h7v4h-7z',
+  'align-right': 'M20 3v18 M4 7h12v4H4z M9 14h7v4H9z',
+  'align-top': 'M3 4h18 M7 8h4v12H7z M14 8h4v7h-4z',
+  'align-middle': 'M3 12h18 M7 6h4v12H7z M14 8.5h4v7h-4z',
+  'align-bottom': 'M3 20h18 M7 4h4v12H7z M14 9h4v7h-4z',
+  'distribute-horizontal': 'M4 3v18 M20 3v18 M10 7h4v10h-4z',
+  'distribute-vertical': 'M3 4h18 M3 20h18 M7 10h10v4H7z',
 };
+
+const alignments = [
+  { edge: 'left', title: 'Align left' },
+  { edge: 'center', title: 'Align centers horizontally' },
+  { edge: 'right', title: 'Align right' },
+  { edge: 'top', title: 'Align top' },
+  { edge: 'middle', title: 'Align centers vertically' },
+  { edge: 'bottom', title: 'Align bottom' },
+] as const;
 
 const tools: Array<{ name: ToolName; title: string }> = [
   { name: 'select', title: 'Select' },
@@ -68,6 +88,8 @@ const shortcuts: Array<[string, string]> = [
   ['Ctrl/⌘ + Shift + Z', 'Redo'],
   ['Ctrl/⌘ + A', 'Select all'],
   ['Delete', 'Delete selection'],
+  ['Ctrl/⌘ + G', 'Group (Ctrl/⌘ + Shift + G: ungroup)'],
+  ['Double click', 'Edit a note or text'],
   ['− / =', 'Thinner / thicker pen'],
   ['Ctrl/⌘ + wheel, pinch', 'Zoom'],
   ['Arrows, two fingers', 'Pan'],
@@ -122,6 +144,10 @@ const connectorState = ref({ color: inkColors[0], arrow: 'end' as 'end' | 'both'
 const quickBar = ref<HTMLDivElement>();
 const selectionCount = ref(0);
 const selectionHasNote = ref(false);
+// Things that move separately: groups count as one.
+const selectionUnits = ref(0);
+const selectionHasGroups = ref(false);
+const showAlign = ref(false);
 const lockedCount = ref(0);
 const quickBarPosition = ref<{ left: number; top: number } | null>(null);
 const pointerDown = ref(false);
@@ -212,6 +238,9 @@ onMounted(async () => {
     instance.selection.onChange((items) => {
       selectionCount.value = items.length;
       selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
+      selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
+      selectionHasGroups.value = instance.selection.hasGroups;
+      if (items.length === 0) showAlign.value = false;
       lockedCount.value = instance.selection.lockedCount;
       // After Vue has updated the toolbar's buttons (its width depends on them).
       void nextTick(updateQuickBar);
@@ -604,6 +633,34 @@ async function onImagesSelected(event: Event) {
       <button v-if="selectionCount === 1 && selectionHasNote" class="tool" title="Edit text" aria-label="Edit text" @click="editNote">
         <svg viewBox="0 0 24 24"><path :d="icons.text" /></svg>
       </button>
+      <button
+        v-if="selectionUnits > 1"
+        class="tool"
+        title="Group (Ctrl/⌘+G)"
+        aria-label="Group"
+        @click="editor?.selection.group()"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.group" /></svg>
+      </button>
+      <button
+        v-if="selectionHasGroups"
+        class="tool"
+        title="Ungroup (Ctrl/⌘+Shift+G)"
+        aria-label="Ungroup"
+        @click="editor?.selection.ungroup()"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.ungroup" /></svg>
+      </button>
+      <button
+        v-if="selectionUnits > 1"
+        class="tool"
+        :class="{ active: showAlign }"
+        title="Align & distribute"
+        aria-label="Align and distribute"
+        @click="showAlign = !showAlign; nextTick(updateQuickBar)"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.align" /></svg>
+      </button>
       <button class="tool" title="Bring to front" aria-label="Bring to front" @click="editor?.selection.bringToFront()">
         <svg viewBox="0 0 24 24"><path :d="icons.front" /></svg>
       </button>
@@ -619,6 +676,31 @@ async function onImagesSelected(event: Event) {
       <button class="tool danger" title="Delete" aria-label="Delete" @click="editor?.selection.delete()">
         <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg>
       </button>
+      <div v-if="showAlign && selectionUnits > 1" class="quick-row">
+        <button
+          v-for="item in alignments"
+          :key="item.edge"
+          class="tool"
+          :title="item.title"
+          :aria-label="item.title"
+          @click="editor?.selection.align(item.edge)"
+        >
+          <svg viewBox="0 0 24 24"><path :d="icons[`align-${item.edge}`]" /></svg>
+        </button>
+        <template v-if="selectionUnits > 2">
+          <span class="sep" />
+          <button
+            v-for="direction in (['horizontal', 'vertical'] as const)"
+            :key="direction"
+            class="tool"
+            :title="`Distribute ${direction}ly`"
+            :aria-label="`Distribute ${direction}ly`"
+            @click="editor?.selection.distribute(direction)"
+          >
+            <svg viewBox="0 0 24 24"><path :d="icons[`distribute-${direction}`]" /></svg>
+          </button>
+        </template>
+      </div>
     </div>
 
     <div class="zoom-controls">
@@ -823,6 +905,21 @@ async function onImagesSelected(event: Event) {
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
   user-select: none;
   -webkit-user-select: none;
+}
+
+.quick-bar {
+  flex-wrap: wrap;
+  max-width: calc(100% - 16px);
+}
+
+.quick-row {
+  display: flex;
+  flex-basis: 100%;
+  justify-content: center;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #e5e7eb;
 }
 
 .quick-bar.hidden {

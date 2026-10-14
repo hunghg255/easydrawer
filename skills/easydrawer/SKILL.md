@@ -63,6 +63,10 @@ editor.selection.setColor('#dc2626');
 editor.selection.bringToFront(); editor.selection.sendToBack();
 editor.selection.duplicate(); editor.selection.delete();
 editor.selection.lock(); editor.selection.unlockAll(); // locked = can't be selected/moved/erased
+editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+Shift+G
+editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
+editor.selection.distribute('horizontal');             // or 'vertical'
+// Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
 
 // History & document
 editor.undo(); editor.redo();

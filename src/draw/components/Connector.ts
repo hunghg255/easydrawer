@@ -13,6 +13,9 @@ import type AbstractRenderer from '../rendering/renderers/AbstractRenderer';
 
 const componentKind = 'connector';
 
+/** Finds components by ID (an {@link EditorImage}, or a stand-in, e.g. for previews). */
+export type ComponentLookup = Pick<EditorImage, 'lookupElement'>;
+
 /** Where arrowheads are drawn. */
 export type ConnectorArrowMode = 'end' | 'both' | 'none';
 
@@ -61,6 +64,16 @@ export default class Connector extends AbstractComponent implements RestyleableC
     this.recomputeBBox();
   }
 
+  /** @returns true if at least one end is attached to a component. */
+  public isAttached() {
+    return !!(this.start.targetId || this.end.targetId);
+  }
+
+  /** @returns true if an end is attached to the component with the given ID. */
+  public isAttachedTo(id: string) {
+    return this.start.targetId === id || this.end.targetId === id;
+  }
+
   public getStart(): ConnectorEnd {
     return { ...this.start };
   }
@@ -83,7 +96,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
   }
 
   // Returns the component an end is attached to, if it's in the image.
-  private targetOf(end: ConnectorEnd, image: EditorImage | null) {
+  private targetOf(end: ConnectorEnd, image: ComponentLookup | null) {
     if (!end.targetId || !image) return null;
     const target = image.lookupElement(end.targetId);
     return target && target !== this ? target : null;
@@ -133,7 +146,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
    * Moves attached ends to the current position of their components.
    * @returns true if an end moved.
    */
-  public updateEnds(image: EditorImage | null = this.image): boolean {
+  public updateEnds(image: ComponentLookup | null = this.image): boolean {
     const startTarget = this.targetOf(this.start, image);
     const endTarget = this.targetOf(this.end, image);
 

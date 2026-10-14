@@ -1,6 +1,6 @@
 import Erase from './Erase';
 import SerializableCommand from './SerializableCommand';
-import type AbstractComponent from '../components/AbstractComponent';
+import AbstractComponent from '../components/AbstractComponent';
 import describeComponentList from '../components/util/describeComponentList';
 import type Editor from '../Editor';
 import { type EditorLocalization } from '../localization';
@@ -50,6 +50,7 @@ export default class Duplicate extends SerializableCommand {
         return elem.clone();
       }
     });
+    AbstractComponent.regroupCopies(toDuplicate, this.duplicates);
     this.reverse = new Erase(this.duplicates);
   }
 

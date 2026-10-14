@@ -38,11 +38,15 @@ const stop = editor.selection.onChange((items) => placeToolbar(editor.selection.
 | `bringToFront()` / `sendToBack()` | Layering |
 | `duplicate(offset?)` | Copy the selection, offset by `offset` screen pixels (default `24`), and select the copies |
 | `delete()` | Delete the selection |
+| `group()` / `ungroup()` / `hasGroups` | Grouped components are selected and moved together |
+| `align(edge)` | Align to the selection's `'left'`, `'center'`, `'right'`, `'top'`, `'middle'` or `'bottom'` (groups move as one) |
+| `distribute(direction)` | Equal gaps, `'horizontal'` or `'vertical'` (3+ items; the outermost don't move) |
 | `lock()` | Lock the selection: locked components can't be selected, moved or erased |
 | `unlockAll()` | Unlock everything. Returns the number of unlocked components. |
 | `lockedCount` | Number of locked components |
 
-Components also have `isLocked()` and `setLocked(locked)` (a command: `editor.dispatch(component.setLocked(true))`).
+Components also have `isLocked()` / `setLocked(locked)` and `getGroupId()` / `setGroup(groupId | null)`
+(commands: `editor.dispatch(component.setLocked(true))`).
 
 ## History
 

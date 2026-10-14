@@ -1,7 +1,7 @@
-import { Mat33, type Rect2, Vec2 } from '~/math';
+import { type IVec2, Mat33, Rect2, Vec2 } from '~/math';
 
 import { type ColorInput, toColor4 } from './options';
-import type AbstractComponent from '../components/AbstractComponent';
+import AbstractComponent from '../components/AbstractComponent';
 import { isRestylableComponent } from '../components/RestylableComponent';
 import type Command from '../commands/Command';
 import Erase from '../commands/Erase';
@@ -147,11 +147,113 @@ export default class EditorSelection {
 
     const shift = Mat33.translation(Vec2.of(offset, offset).times(this.editor.viewport.getSizeOfPixelOnCanvas()));
     const copies = items.map((item) => item.clone());
+    AbstractComponent.regroupCopies(items, copies);
     await this.dispatchAll([
       ...copies.map((copy) => EditorImage.addComponent(copy)),
       ...copies.map((copy) => copy.transformBy(shift)),
     ]);
     this.set(copies);
+  }
+
+  /**
+   * Groups the selected items: from then on, they are selected (and so moved, recolored…)
+   * together. Undoable.
+   */
+  public async group() {
+    const items = this.items;
+    if (items.length < 2) return;
+
+    const groupId = `group-${items[0].getId()}`;
+    await this.dispatchAll(items.map((item) => item.setGroup(groupId)));
+    this.set(items);
+  }
+
+  /** Ungroups the selected items. Undoable. */
+  public async ungroup() {
+    const grouped = this.items.filter((item) => item.getGroupId() !== null);
+    await this.dispatchAll(grouped.map((item) => item.setGroup(null)));
+  }
+
+  /** Whether the selection contains grouped items. */
+  public get hasGroups(): boolean {
+    return this.items.some((item) => item.getGroupId() !== null);
+  }
+
+  // The selection split into units that move together: groups, and ungrouped items.
+  private units() {
+    const units = new Map<string, AbstractComponent[]>();
+    for (const item of this.items) {
+      const key = item.getGroupId() ?? `item-${item.getId()}`;
+      units.set(key, [...(units.get(key) ?? []), item]);
+    }
+    return [...units.values()].map((items) => ({
+      items,
+      bbox: Rect2.union(...items.map((item) => item.getExactBBox())),
+    }));
+  }
+
+  // Moves each unit by its offset, keeping z-order.
+  private async moveUnits(moves: Array<{ items: AbstractComponent[]; offset: IVec2 }>) {
+    const commands = moves
+      .filter(({ offset }) => offset.magnitude() > 1e-8)
+      .flatMap(({ items, offset }) =>
+        items.map((item) => item.setZIndexAndTransformBy(Mat33.translation(offset), item.getZIndex())),
+      );
+    const items = this.items;
+    await this.dispatchAll(commands);
+    // Update the selection box.
+    this.set(items);
+  }
+
+  /**
+   * Aligns the selected items (groups move as one) to the edge or center of the selection.
+   */
+  public async align(edge: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') {
+    const units = this.units();
+    if (units.length < 2) return;
+
+    const all = Rect2.union(...units.map((u) => u.bbox));
+    await this.moveUnits(
+      units.map(({ items, bbox }) => {
+        let offset: IVec2;
+        switch (edge) {
+          case 'left': offset = Vec2.of(all.x - bbox.x, 0); break;
+          case 'center': offset = Vec2.of(all.center.x - bbox.center.x, 0); break;
+          case 'right': offset = Vec2.of(all.x + all.w - (bbox.x + bbox.w), 0); break;
+          case 'top': offset = Vec2.of(0, all.y - bbox.y); break;
+          case 'middle': offset = Vec2.of(0, all.center.y - bbox.center.y); break;
+          case 'bottom': offset = Vec2.of(0, all.y + all.h - (bbox.y + bbox.h)); break;
+        }
+        return { items, offset };
+      }),
+    );
+  }
+
+  /**
+   * Spreads the selected items (groups move as one) so the gaps between them are equal.
+   * The first and last items don't move. Needs at least 3 items.
+   */
+  public async distribute(direction: 'horizontal' | 'vertical') {
+    const units = this.units();
+    if (units.length < 3) return;
+
+    const horizontal = direction === 'horizontal';
+    const start = (r: Rect2) => (horizontal ? r.x : r.y);
+    const size = (r: Rect2) => (horizontal ? r.w : r.h);
+    units.sort((a, b) => start(a.bbox) + size(a.bbox) / 2 - (start(b.bbox) + size(b.bbox) / 2));
+
+    const first = units[0].bbox;
+    const last = units[units.length - 1].bbox;
+    const totalSize = units.reduce((sum, u) => sum + size(u.bbox), 0);
+    const gap = (start(last) + size(last) - start(first) - totalSize) / (units.length - 1);
+
+    let position = start(first);
+    const moves = units.map(({ items, bbox }) => {
+      const delta = position - start(bbox);
+      position += size(bbox) + gap;
+      return { items, offset: horizontal ? Vec2.of(delta, 0) : Vec2.of(0, delta) };
+    });
+    await this.moveUnits(moves);
   }
 
   /** Deletes the selected items. */

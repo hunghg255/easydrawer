@@ -130,7 +130,7 @@ handy for presenting a drawing.
 | `color` | color of new notes (default yellow) |
 
 Click an empty spot to add a note and type its text (`Esc` or `Ctrl/⌘+Enter` to finish). Click an existing note
-to edit it. Notes grow to fit their text, and can be moved, resized, recolored and connected like shapes.
+to edit it — or double-click it with the select tool (this also works for text). Notes grow to fit their text, and can be moved, resized, recolored and connected like shapes.
 To edit a note from your own UI: `editor.tools.sticky.edit(note)`.
 
 ### Connector
@@ -143,7 +143,7 @@ To edit a note from your own UI: `editor.tools.sticky.edit(note)`.
 
 Drag from one shape (or note, text, image…) to another. Each end dropped on something stays attached to it: move
 the shape and the arrow follows, also after undo/redo and after saving and loading the SVG. Ends dropped on empty
-space stay where they are.
+space stay where they are. While you drag a shape, its arrows follow it live.
 
 ```ts
 editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both' });
@@ -176,6 +176,20 @@ editor.selection.duplicate();
 editor.selection.delete();
 ```
 
+### Groups, alignment and snapping
+
+```ts
+editor.selection.group();    // Ctrl/⌘+G — grouped items are selected and moved together
+editor.selection.ungroup();  // Ctrl/⌘+Shift+G
+
+editor.selection.align('left');            // 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+editor.selection.distribute('horizontal'); // equal gaps ('horizontal' | 'vertical'), 3+ items
+```
+
+Groups move as one when aligning and distributing, and are saved in the SVG. A copy of a group is a new group.
+
+When dragging a selection, it snaps to the edges and centers of nearby objects, with pink guide lines.
+
 ### Locking
 
 Locked objects can't be selected, moved or erased — useful for a background image or a template:
@@ -203,7 +217,7 @@ When the drawing area has focus:
 | `K` | Laser pointer | | | |
 | `I` | Eyedropper | | | |
 | `N` | Sticky note | | | |
-| `C` | Connector | | | |
+| `C` | Connector | | `Ctrl/⌘+G` | Group (`+Shift`: ungroup) |
 
 Change them with `keyboardShortcutOverrides` (IDs: `easydraw.tools.use.pen`, `easydraw.tools.use.eraser`, …):
 

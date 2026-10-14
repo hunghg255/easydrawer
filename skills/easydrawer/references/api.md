@@ -75,6 +75,8 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `bringToFront()`, `sendToBack()` | Layering (undoable) |
 | `duplicate(offset = 24)` | Copy with offset, selects the copies |
 | `delete()` | Erase the selection |
+| `group()`, `ungroup()`, `hasGroups` | Grouped components select/move together; saved in SVG |
+| `align(edge)`, `distribute(direction)` | `'left' \| 'center' \| 'right' \| 'top' \| 'middle' \| 'bottom'`; `'horizontal' \| 'vertical'` |
 | `lock()`, `unlockAll()`, `lockedCount` | Locked components can't be selected, moved or erased; saved in SVG |
 
 Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.

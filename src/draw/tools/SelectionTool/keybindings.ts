@@ -97,3 +97,15 @@ KeyboardShortcutManager.registerDefaultKeyboardShortcut(
   ['Period'],
   'Increase selection size',
 );
+export const groupSelectionShortcut = 'easydraw.tools.SelectionTool.group';
+KeyboardShortcutManager.registerDefaultKeyboardShortcut(
+  groupSelectionShortcut,
+  ['CtrlOrMeta+KeyG'],
+  'Group selection',
+);
+export const ungroupSelectionShortcut = 'easydraw.tools.SelectionTool.ungroup';
+KeyboardShortcutManager.registerDefaultKeyboardShortcut(
+  ungroupSelectionShortcut,
+  ['CtrlOrMeta+Shift+KeyG'],
+  'Ungroup selection',
+);

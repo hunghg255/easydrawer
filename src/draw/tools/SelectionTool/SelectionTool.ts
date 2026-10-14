@@ -1,4 +1,4 @@
-import { Mat33, type Rect2, type IVec2, Vec2, Color4 } from '~/math';
+import { Mat33, Rect2, type IVec2, Vec2, Color4 } from '~/math';
 
 import Selection from './Selection';
 import LassoSelectionBuilder from './SelectionBuilders/LassoSelectionBuilder';
@@ -8,6 +8,7 @@ import ToPointerAutoscroller from './ToPointerAutoscroller';
 import { SelectionMode } from './types';
 import showSelectionContextMenu from './util/showSelectionContextMenu';
 import type AbstractComponent from '../../components/AbstractComponent';
+import StickyNote from '../../components/StickyNote';
 import TextComponent from '../../components/TextComponent';
 import type Editor from '../../Editor';
 import {
@@ -24,8 +25,12 @@ import { EditorEventType } from '../../types';
 import { MutableReactiveValue } from '../../util/ReactiveValue';
 import Viewport from '../../Viewport';
 import BaseTool from '../BaseTool';
+import type StickyNoteTool from '../StickyNoteTool';
+import type TextTool from '../TextTool';
 import {
   duplicateSelectionShortcut,
+  groupSelectionShortcut,
+  ungroupSelectionShortcut,
   translateLeftSelectionShortcutId,
   translateRightSelectionShortcutId,
   selectAllKeyboardShortcut,
@@ -166,6 +171,11 @@ export default class SelectionTool extends BaseTool {
       current = current.snappedToGrid(this.editor.viewport);
     }
 
+    // Double click/tap on a sticky note or text: edit it.
+    if (allPointers.length === 1 && this.isDoubleTap(current) && this.editTextAt(current.canvasPos)) {
+      return false;
+    }
+
     // Don't rely on .isPrimary -- it's buggy in Firefox. See https://github.com/personalizedrefrigerator/easydrawer/issues/71
     if (allPointers.length === 1) {
       this.startPoint = current.canvasPos;
@@ -208,6 +218,42 @@ export default class SelectionTool extends BaseTool {
       return true;
     }
     return false;
+  }
+
+  private lastTap: { time: number; screenPos: IVec2 } | null = null;
+
+  private isDoubleTap(pointer: Pointer) {
+    const now = Date.now();
+    const last = this.lastTap;
+    const isDouble = !!last && now - last.time < 400 && pointer.screenPos.distanceTo(last.screenPos) < 12;
+    this.lastTap = isDouble ? null : { time: now, screenPos: pointer.screenPos };
+    return isDouble;
+  }
+
+  /** Opens the editor of the sticky note or text at `canvasPos`, if any. */
+  private editTextAt(canvasPos: IVec2): boolean {
+    const radius = this.editor.viewport.getSizeOfPixelOnCanvas() * 4;
+    const region = Rect2.fromCorners(canvasPos.minus(Vec2.of(radius, radius)), canvasPos.plus(Vec2.of(radius, radius)));
+    const target = this.editor.image
+      .getComponentsIntersecting(region)
+      .findLast((c) => (c instanceof StickyNote || c instanceof TextComponent) && c.isEditable());
+    if (!target) return false;
+
+    const toolController = this.editor.toolController;
+    if (target instanceof StickyNote) {
+      const stickyTool = toolController.getToolByName('sticky') as StickyNoteTool | null;
+      if (!stickyTool) return false;
+      this.clearSelection();
+      stickyTool.edit(target);
+      return true;
+    }
+
+    const textTool = toolController.getToolByName('text') as TextTool | null;
+    if (!textTool) return false;
+    this.clearSelection();
+    textTool.setEnabled(true);
+    textTool.editText(target as TextComponent);
+    return true;
   }
 
   public override onPointerMove(event: PointerEvt): void {
@@ -365,6 +411,12 @@ export default class SelectionTool extends BaseTool {
       return true;
     } else if (shortcucts.matchesShortcut(selectAllKeyboardShortcut, event)) {
       this.setSelection(this.editor.image.getAllComponents());
+      return true;
+    } else if (this.selectionBox && shortcucts.matchesShortcut(ungroupSelectionShortcut, event)) {
+      void this.editor.selection.ungroup();
+      return true;
+    } else if (this.selectionBox && shortcucts.matchesShortcut(groupSelectionShortcut, event)) {
+      void this.editor.selection.group();
       return true;
     } else if (event.ctrlKey) {
       // Don't transform the selection with, for example, ctrl+i.
@@ -641,6 +693,15 @@ export default class SelectionTool extends BaseTool {
   public setSelection(objects: AbstractComponent[]) {
     // Only select selectable objects.
     objects = objects.filter((obj) => obj.isEditable());
+
+    // Grouped objects are selected together.
+    const groupIds = new Set<string | null>(objects.map((obj) => obj.getGroupId()).filter((id) => id !== null));
+    if (groupIds.size > 0) {
+      const groupMembers = this.editor.image
+        .getAllComponents()
+        .filter((obj) => groupIds.has(obj.getGroupId()) && obj.isEditable());
+      objects = [...objects, ...groupMembers];
+    }
 
     // Sort by z-index
     objects.sort((a, b) => a.getZIndex() - b.getZIndex());

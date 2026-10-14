@@ -22,6 +22,7 @@ export const easydrawerSVGAttributesKey = 'easydrawerSVGAttrs';
 export const lockedSVGAttribute = 'data-easydrawer-locked';
 export const idSVGAttribute = 'data-easydrawer-id';
 export const componentSVGAttribute = 'data-easydrawer-component';
+export const groupSVGAttribute = 'data-easydrawer-group';
 
 export enum ComponentSizingMode {
   /** The default. The compnent gets its size from its bounding box. */
@@ -153,8 +154,89 @@ export default abstract class AbstractComponent {
     if (this.keepIdInSVG) {
       result.push([idSVGAttribute, this.id]);
     }
+    if (this.groupId) {
+      result.push([groupSVGAttribute, this.groupId]);
+    }
     return result;
   }
+
+  private groupId: string | null = null;
+
+  /** ID of the group this component belongs to (see `editor.selection.group()`), or `null`. */
+  public getGroupId(): string | null {
+    return this.groupId;
+  }
+
+  /** Sets the group without creating a command. Prefer {@link setGroup}. @internal */
+  public setGroupDirectly(groupId: string | null) {
+    this.groupId = groupId;
+  }
+
+  /** Returns a command that moves this component into a group (`null` to ungroup it). */
+  public setGroup(groupId: string | null): SerializableCommand {
+    return new AbstractComponent.SetGroupCommand(this.getId(), this.groupId, groupId, this);
+  }
+
+  /**
+   * Copies of grouped components (`copies[i]` is a copy of `originals[i]`) are put in new
+   * groups, so a copy of a group is a separate group. @internal
+   */
+  public static regroupCopies(originals: AbstractComponent[], copies: AbstractComponent[]) {
+    const newGroupIds = new Map<string, string>();
+    for (const [i, original] of originals.entries()) {
+      const groupId = original.groupId;
+      const copy = copies[i];
+      if (!copy) continue;
+      if (!groupId) {
+        copy.groupId = null;
+        continue;
+      }
+      // Derived from a copy's ID, so it's the same for everyone (collaborative editing).
+      if (!newGroupIds.has(groupId)) {
+        newGroupIds.set(groupId, `group-${copy.getId()}`);
+      }
+      copy.groupId = newGroupIds.get(groupId)!;
+    }
+  }
+
+  private static setGroupCommandId = 'set-component-group';
+  private static SetGroupCommand = class extends UnresolvedSerializableCommand {
+    public constructor(
+      componentID: string,
+      private oldGroup: string | null,
+      private newGroup: string | null,
+      component?: AbstractComponent,
+    ) {
+      super(AbstractComponent.setGroupCommandId, componentID, component);
+    }
+
+    public apply(editor: Editor) {
+      this.resolveComponent(editor.image);
+      this.component!.groupId = this.newGroup;
+    }
+
+    public unapply(editor: Editor) {
+      this.resolveComponent(editor.image);
+      this.component!.groupId = this.oldGroup;
+    }
+
+    public description(_editor: Editor, localizationTable: EditorLocalization) {
+      return this.newGroup ? localizationTable.groupedElements : localizationTable.ungroupedElements;
+    }
+
+    protected serializeToJSON() {
+      return { id: this.componentID, oldGroup: this.oldGroup, newGroup: this.newGroup };
+    }
+
+    static {
+      SerializableCommand.register(AbstractComponent.setGroupCommandId, (json: any, editor: Editor) => {
+        assertIsString(json.id);
+        const group = (value: unknown) => (typeof value === 'string' ? value : null);
+        const elem = editor.image.lookupElement(json.id) ?? undefined;
+        return new AbstractComponent.SetGroupCommand(json.id, group(json.oldGroup), group(json.newGroup), elem);
+      });
+    }
+  };
 
   private locked = false;
 
@@ -345,6 +427,17 @@ export default abstract class AbstractComponent {
 
   // Private helper for transformBy: Apply the given transformation to all points of this.
   protected abstract applyTransformation(affineTransfm: Mat33): void;
+
+  /**
+   * Returns a transformed copy of this component, not added to the image. For previews
+   * (e.g. connectors following a shape while it is being dragged). @internal
+   */
+  public transformedPreview(affineTransfm: Mat33): AbstractComponent {
+    const copy = this.clone();
+    copy.id = this.id;
+    copy.applyTransformation(affineTransfm);
+    return copy;
+  }
 
   /**
 	 * Returns a command that, when applied, transforms this by [affineTransfm] and
@@ -578,6 +671,7 @@ export default abstract class AbstractComponent {
       loadSaveData: this.loadSaveData,
       data,
       ...(this.locked ? { locked: true } : {}),
+      ...(this.groupId ? { group: this.groupId } : {}),
     };
   }
 
@@ -618,6 +712,7 @@ export default abstract class AbstractComponent {
     const instance = this.deserializationCallbacks[json.name]!(json.data);
     instance.id = json.id;
     instance.locked = json.locked === true;
+    instance.groupId = typeof json.group === 'string' ? json.group : null;
 
     if (isFinite(json.zIndex)) {
       instance.zIndex = json.zIndex;

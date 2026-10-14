@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { Mat33, Rect2, type IVec2, Vec2, type Mat33Array } from '~/math';
+import { Color4, Mat33, Rect2, type IVec2, Vec2, type Mat33Array } from '~/math';
 
 import SelectionHandle, { HandleAction, handleSize } from './SelectionHandle';
 import SelectionMenuShortcut from './SelectionMenuShortcut';
@@ -16,6 +16,7 @@ import Erase from '../../commands/Erase';
 import SerializableCommand from '../../commands/SerializableCommand';
 import uniteCommands from '../../commands/uniteCommands';
 import type AbstractComponent from '../../components/AbstractComponent';
+import Connector from '../../components/Connector';
 import type Editor from '../../Editor';
 import EditorImage from '../../image/EditorImage';
 import { type EditorLocalization } from '../../localization';
@@ -26,6 +27,10 @@ import Viewport from '../../Viewport';
 
 const updateChunkSize = 100;
 const maxPreviewElemCount = 500;
+
+// Distance (in screen pixels) within which a dragged selection snaps to other objects.
+const snapDistance = 6;
+const snapGuideColor = Color4.fromHex('#ec4899');
 
 // @internal
 export default class Selection {
@@ -444,10 +449,15 @@ export default class Selection {
     const visibleRect = viewportVisibleRect.transformedBoundingBox(this.transform.inverse());
 
     for (const elem of this.selectedElems) {
+      // Attached connectors are drawn separately (see renderAttachedConnectors).
+      if (elem instanceof Connector && elem.isAttached()) continue;
       elem.render(wetInkRenderer, visibleRect);
     }
 
     wetInkRenderer.popTransform();
+
+    this.renderAttachedConnectors();
+    this.renderSnapGuides();
 
     this.updateUI();
   }
@@ -537,6 +547,138 @@ export default class Selection {
   // Maps IDs to whether we removed the component from the image
   private removedFromImage: Record<string, boolean> = {};
 
+  // Connectors attached to selected items (but not selected): hidden while dragging
+  // and drawn following the selection instead.
+  private attachedConnectors: Connector[] = [];
+
+  private renderAttachedConnectors() {
+    const selectedConnectors = this.selectedElems.filter(
+      (elem): elem is Connector => elem instanceof Connector && elem.isAttached(),
+    );
+    const connectors = [...this.attachedConnectors, ...selectedConnectors];
+    if (connectors.length === 0) return;
+
+    const transform = this.transform;
+    const moved = new Map<string, AbstractComponent>();
+    for (const elem of this.selectedElems) {
+      if (connectors.some((c) => c.isAttachedTo(elem.getId()))) {
+        moved.set(elem.getId(), elem.transformedPreview(transform));
+      }
+    }
+
+    const image = this.editor.image;
+    const lookup = {
+      lookupElement: (id: string) => moved.get(id) ?? image.lookupElement(id),
+    };
+    const renderer = this.editor.display.getWetInkRenderer();
+    for (const connector of connectors) {
+      // Free ends of selected connectors move with the selection. Attached ends follow
+      // their components.
+      const preview = (
+        selectedConnectors.includes(connector) ? connector.transformedPreview(transform) : connector.clone()
+      ) as Connector;
+      preview.updateEnds(lookup);
+      preview.render(renderer);
+    }
+  }
+
+  // Shows/hides connectors attached to the selection (see attachedConnectors).
+  private addRemoveAttachedConnectors(inImage: boolean) {
+    if (!inImage) {
+      const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
+      this.attachedConnectors = this.editor.image
+        .getAllComponents()
+        .filter(
+          (c): c is Connector =>
+            c instanceof Connector &&
+            !selectedIds.has(c.getId()) &&
+            [...selectedIds].some((id) => c.isAttachedTo(id)),
+        );
+      for (const connector of this.attachedConnectors) {
+        this.editor.image.findParent(connector)?.remove();
+      }
+    } else {
+      for (const connector of this.attachedConnectors) {
+        if (!this.editor.image.findParent(connector)) {
+          EditorImage.addComponent(connector).apply(this.editor);
+        }
+      }
+      this.attachedConnectors = [];
+    }
+  }
+
+  // Edges and centers of nearby objects that a dragged selection can snap to.
+  private snapTargets: Rect2[] = [];
+  private snapBox: Rect2 = Rect2.empty;
+  private snapGuides: Array<[IVec2, IVec2]> = [];
+
+  private collectSnapTargets() {
+    this.snapBox = this.computeTightBoundingBox();
+    const selected = new Set(this.selectedElems);
+    const attached = new Set<AbstractComponent>(this.attachedConnectors);
+    this.snapTargets = this.editor.image
+      .getComponentsIntersecting(this.editor.viewport.visibleRect)
+      .filter((c) => !selected.has(c) && !attached.has(c) && !(c instanceof Connector) && c.isSelectable())
+      .map((c) => c.getBBox())
+      .slice(-300);
+  }
+
+  /**
+   * Adjusts the translation of a dragged selection so its edges or center line up with
+   * those of nearby objects, and remembers guide lines to show. @internal
+   */
+  public snapDragDelta(delta: IVec2): IVec2 {
+    this.snapGuides = [];
+    if (this.snapTargets.length === 0) return delta;
+
+    const moved = this.snapBox.translatedBy(delta);
+    const maxDistance = snapDistance * this.editor.viewport.getSizeOfPixelOnCanvas();
+    const xsOf = (r: Rect2) => [r.x, r.center.x, r.x + r.w];
+    const ysOf = (r: Rect2) => [r.y, r.center.y, r.y + r.h];
+
+    const findSnap = (values: number[], targetValues: (r: Rect2) => number[]) => {
+      let best: { offset: number; value: number; target: Rect2 } | null = null;
+      for (const target of this.snapTargets) {
+        for (const targetValue of targetValues(target)) {
+          for (const value of values) {
+            const offset = targetValue - value;
+            if (Math.abs(offset) <= maxDistance && (!best || Math.abs(offset) < Math.abs(best.offset))) {
+              best = { offset, value: targetValue, target };
+            }
+          }
+        }
+      }
+      return best;
+    };
+
+    const snapX = findSnap(xsOf(moved), xsOf);
+    const snapY = findSnap(ysOf(moved), ysOf);
+    const snapped = Vec2.of(delta.x + (snapX?.offset ?? 0), delta.y + (snapY?.offset ?? 0));
+    const box = this.snapBox.translatedBy(snapped);
+
+    if (snapX) {
+      const top = Math.min(box.y, snapX.target.y);
+      const bottom = Math.max(box.y + box.h, snapX.target.y + snapX.target.h);
+      this.snapGuides.push([Vec2.of(snapX.value, top), Vec2.of(snapX.value, bottom)]);
+    }
+    if (snapY) {
+      const left = Math.min(box.x, snapY.target.x);
+      const right = Math.max(box.x + box.w, snapY.target.x + snapY.target.w);
+      this.snapGuides.push([Vec2.of(left, snapY.value), Vec2.of(right, snapY.value)]);
+    }
+    return snapped;
+  }
+
+  private renderSnapGuides() {
+    if (this.snapGuides.length === 0) return;
+
+    const renderer = this.editor.display.getWetInkRenderer();
+    const width = this.editor.viewport.getSizeOfPixelOnCanvas();
+    for (const [from, to] of this.snapGuides) {
+      renderer.fillRect(Rect2.bboxOf([from, to]).grownBy(width / 2), snapGuideColor);
+    }
+  }
+
   // Add/remove the contents of this seleciton from the editor.
   // Used to prevent previewed content from looking like duplicate content
   // while dragging.
@@ -552,6 +694,12 @@ export default class Selection {
     // Don't hide elements if doing so will be slow.
     if (!inImage && this.selectedElems.length > maxPreviewElemCount) {
       return;
+    }
+
+    this.addRemoveAttachedConnectors(inImage);
+    if (inImage) {
+      this.snapGuides = [];
+      this.snapTargets = [];
     }
 
     for (const elem of this.selectedElems) {
@@ -633,6 +781,7 @@ export default class Selection {
     }
 
     if (this.backgroundDragging) {
+      this.collectSnapTargets();
       this.transformers.drag.onDragStart(pointer.canvasPos);
     }
 

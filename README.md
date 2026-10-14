@@ -76,6 +76,9 @@ editor.selection.onChange(() => {        // e.g. to place a floating toolbar
 editor.selection.setColor('#dc2626');
 editor.selection.bringToFront();         // sendToBack()
 editor.selection.duplicate();            // delete()
+editor.selection.group();                // Ctrl/⌘+G; ungroup() is Ctrl/⌘+Shift+G
+editor.selection.align('left');          // center, right, top, middle, bottom
+editor.selection.distribute('horizontal');
 editor.selection.lock();                 // locked objects can't be selected, moved or erased
 editor.selection.unlockAll();
 ```

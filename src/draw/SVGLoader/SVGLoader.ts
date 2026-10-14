@@ -4,6 +4,7 @@ import { Color4, Mat33, Path, Rect2, Vec2 } from '~/math';
 import determineFontSize from './utils/determineFontSize';
 import AbstractComponent, {
   componentSVGAttribute,
+  groupSVGAttribute,
   idSVGAttribute,
   lockedSVGAttribute,
 } from '../components/AbstractComponent';
@@ -581,6 +582,7 @@ export default class SVGLoader implements ImageLoader {
 
   // Maps `data-easydrawer-id`s in the SVG to the IDs of the loaded components.
   private idMap = new Map<string, string>();
+  private groupIdMap = new Map<string, string>();
   private componentsWithReferences: AbstractComponent[] = [];
   private currentNode: Element | null = null;
 
@@ -594,6 +596,15 @@ export default class SVGLoader implements ImageLoader {
     if (node && node.getAttribute) {
       if (node.getAttribute(lockedSVGAttribute) === 'true') {
         component.setLockedDirectly(true);
+      }
+
+      // New group IDs, so loading (or pasting) the same image twice gives separate groups.
+      const savedGroup = node.getAttribute(groupSVGAttribute);
+      if (savedGroup) {
+        if (!this.groupIdMap.has(savedGroup)) {
+          this.groupIdMap.set(savedGroup, `group-${component.getId()}`);
+        }
+        component.setGroupDirectly(this.groupIdMap.get(savedGroup)!);
       }
 
       const savedId = node.getAttribute(idSVGAttribute);

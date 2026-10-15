@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { Color4, Mat33, Path, Vec2 } from '~/math';
 
 import { pathFromRenderable, pathToRenderable } from './RenderablePathSpec';
-import { sketchFromSource, sketchParts, sketchPath, sketchSeedOf, sketchSourceOf } from './sketch';
+import { sketchFromSource, sketchParts, sketchPath, sketchSeedOf, sketchSourceOf, translateSketchSource } from './sketch';
 import TextComponent from '../components/TextComponent';
 
 const square = Path.fromString('M0,0 L100,0 L100,60 L0,60 Z');
@@ -80,6 +80,19 @@ describe('sketchPath', () => {
     expect(again.length).toBe(first.length);
     expect(again[0].x).toBeCloseTo(first[0].x, 3);
     expect(sketchFromSource('not json', Mat33.identity)).toBeNull();
+  });
+
+  it('moves a hand-drawn shape without drawing it again', () => {
+    const clean = [pathToRenderable(square, { fill: Color4.transparent, stroke: { color: Color4.black, width: 2 } })];
+    const source = sketchSourceOf(clean, { seed: 7 });
+    const moved = translateSketchSource(translateSketchSource(source, Vec2.of(30, 0))!, Vec2.of(20, 10))!;
+    // Resizing after moving: the same as moving the resized shape.
+    const after = sketchFromSource(moved, Mat33.identity)!;
+    const expected = sketchFromSource(source, Mat33.translation(Vec2.of(50, 10)))!;
+    expect(after.parts.map((part) => pathFromRenderable(part).toString())).toEqual(
+      expected.parts.map((part) => pathFromRenderable(part).toString()),
+    );
+    expect(translateSketchSource('not json', Vec2.zero)).toBeNull();
   });
 
   it('gives a stable seed for a string', () => {

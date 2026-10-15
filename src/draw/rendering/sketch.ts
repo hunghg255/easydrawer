@@ -1,6 +1,6 @@
 import { RoughGenerator } from 'roughjs/bin/generator';
 
-import { Color4, Mat33, Path } from '~/math';
+import { Color4, type IVec2, Mat33, Path, Vec2 } from '~/math';
 
 import { pathFromRenderable, pathToRenderable, type RenderablePathSpecWithPath } from './RenderablePathSpec';
 import type RenderablePathSpec from './RenderablePathSpec';
@@ -106,6 +106,8 @@ export function sketchParts (parts: RenderablePathSpec[], options: SketchOptions
 interface SketchSource {
   parts: Array<{ d: string; fill: string; stroke?: string; width?: number }>;
   options: SketchOptions;
+  /** A translation not applied to `parts` yet (see {@link translateSketchSource}). */
+  offset?: [number, number];
 }
 
 /**
@@ -141,8 +143,10 @@ export function sketchFromSource (source: string, transform: Mat33): { parts: Re
     return null;
   }
 
+  const offset = parsed.offset ? Mat33.translation(Vec2.of(parsed.offset[0], parsed.offset[1])) : Mat33.identity;
+  const fullTransform = transform.rightMul(offset);
   const clean = parsed.parts.map((part) =>
-    pathToRenderable(Path.fromString(part.d).transformedBy(transform), {
+    pathToRenderable(Path.fromString(part.d).transformedBy(fullTransform), {
       fill: Color4.fromHex(part.fill),
       ...(part.stroke ? { stroke: { color: Color4.fromHex(part.stroke), width: part.width ?? 1 } } : {}),
     }),
@@ -152,4 +156,23 @@ export function sketchFromSource (source: string, transform: Mat33): { parts: Re
     parts: sketchParts(clean, options),
     source: JSON.stringify({ parts: clean.map((part, i) => ({ ...parsed.parts[i], d: part.path.toString() })), options }),
   };
+}
+
+/**
+ * The source of a hand-drawn shape (see {@link sketchFromSource}) after moving it by `delta`:
+ * moving doesn't change how it looks, so the parts can just be moved too, and this is much
+ * faster than drawing them again. @internal
+ *
+ * @returns `null` if `source` can't be read.
+ */
+export function translateSketchSource (source: string, delta: IVec2): string | null {
+  let parsed: SketchSource;
+  try {
+    parsed = JSON.parse(source);
+    if (!Array.isArray(parsed.parts)) return null;
+  } catch {
+    return null;
+  }
+  const [x, y] = parsed.offset ?? [0, 0];
+  return JSON.stringify({ ...parsed, offset: [x + delta.x, y + delta.y] });
 }

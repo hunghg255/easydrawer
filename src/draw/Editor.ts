@@ -1277,9 +1277,10 @@ export class Editor {
   ) {
     console.assert(updateChunkSize > 0);
     this.display.setDraftMode(true);
+    // Show progress only when it takes a while: re-rendering everything in between is slow.
+    let lastProgress = performance.now();
+    let showedProgress = false;
     for (let i = 0; i < commands.length; i += updateChunkSize) {
-      this.showLoadingWarning(i / commands.length);
-
       for (let j = i; j < commands.length && j < i + updateChunkSize; j++) {
         const cmd = commands[j];
 
@@ -1291,15 +1292,19 @@ export class Editor {
       }
 
       // Re-render to show progress, but only if we're not done.
-      if (i + updateChunkSize < commands.length) {
+      const done = i + updateChunkSize >= commands.length;
+      if (!done && performance.now() - lastProgress > 100) {
+        this.showLoadingWarning((i + updateChunkSize) / commands.length);
+        showedProgress = true;
         await new Promise((resolve) => {
           this.rerender();
           requestAnimationFrame(resolve);
         });
+        lastProgress = performance.now();
       }
     }
     this.display.setDraftMode(false);
-    this.hideLoadingWarning();
+    if (showedProgress) this.hideLoadingWarning();
   }
 
   /** @see {@link asyncApplyOrUnapplyCommands } */
@@ -2215,7 +2220,7 @@ export class Editor {
     options: { key?: string; delay?: number; storage?: Pick<Storage, 'getItem' | 'setItem'> } = {},
   ): Promise<() => void> {
     const key = options.key ?? 'easydrawer';
-    const delay = options.delay ?? 400;
+    const delay = options.delay ?? 1000;
 
     let storage = options.storage;
     try {

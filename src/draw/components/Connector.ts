@@ -530,6 +530,12 @@ export default class Connector extends AbstractComponent implements RestyleableC
     canvas.startObject(this.contentBBox);
 
     const points = this.getPoints().map((p) => Vec2.ofXY(p));
+    // E.g. a route from a point to itself (when starting to draw).
+    if (points.length === 0) {
+      canvas.endObject(this.getLoadSaveData());
+      return;
+    }
+    if (points.length === 1) points.push(points[0]);
     const { color, thickness, arrow } = this.style;
     const segmentDirection = (from: IVec2, to: IVec2) => {
       const d = to.minus(from);

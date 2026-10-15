@@ -9,6 +9,7 @@ import {
   comparePathIndices,
   stepPathIndexBy,
   Color4,
+  Vec2,
 } from '~/math';
 
 import AbstractComponent from './AbstractComponent';
@@ -34,7 +35,7 @@ import {
   styleToJSON,
 } from '../rendering/RenderingStyle';
 import { type StrokeStyle } from '../rendering/RenderingStyle';
-import { sketchFromSource } from '../rendering/sketch';
+import { sketchFromSource, translateSketchSource } from '../rendering/sketch';
 import type Viewport from '../Viewport';
 
 interface StrokePart extends RenderablePathSpec {
@@ -99,7 +100,11 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
     this.setParts(parts);
   }
 
+  // Computing it is slow for long or hand-drawn strokes (see getExactBBox).
+  private exactBBox: Rect2 | null = null;
+
   private setParts(parts: RenderablePathSpec[]) {
+    this.exactBBox = null;
     this.approximateRenderingTime = 0;
     this.parts = [];
     this.contentBBox = undefined as unknown as Rect2;
@@ -187,6 +192,7 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
       return;
     }
 
+    this.exactBBox = null;
     this.parts = this.parts.map((part) => {
       const newStyle = {
         ...part.style,
@@ -582,6 +588,7 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
   }
 
   public override getExactBBox(): Rect2 {
+    if (this.exactBBox) return this.exactBBox;
     let bbox: Rect2 | null = null;
 
     for (const { path, style } of this.parts) {
@@ -592,20 +599,31 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
       bbox = bbox.union(partBBox);
     }
 
-    return bbox ?? Rect2.empty;
+    this.exactBBox = bbox ?? Rect2.empty;
+    return this.exactBBox;
   }
 
   protected applyTransformation(affineTransfm: Mat33): void {
     // Hand-drawn shapes are drawn again from their clean shape (see sketchFromSource), so that
     // resizing doesn't stretch the lines.
     const sketchSource = this.getMetadata().sketchSource;
-    const sketched = sketchSource ? sketchFromSource(sketchSource, affineTransfm) : null;
+    // Moved: the hand-drawn lines just move too (below).
+    const t = affineTransfm;
+    const isTranslation = [t.a1 - 1, t.a2, t.b1, t.b2 - 1, t.c1, t.c2, t.c3 - 1].every((v) => Math.abs(v) < 1e-9);
+    const translated = sketchSource && isTranslation
+      ? translateSketchSource(sketchSource, Vec2.of(affineTransfm.a3, affineTransfm.b3))
+      : null;
+    if (translated) {
+      this.setMetadata({ ...this.getMetadata(), sketchSource: translated });
+    }
+    const sketched = sketchSource && !translated ? sketchFromSource(sketchSource, affineTransfm) : null;
     if (sketched) {
       this.setMetadata({ ...this.getMetadata(), sketchSource: sketched.source });
       this.setParts(sketched.parts);
       return;
     }
 
+    this.exactBBox = isTranslation && this.exactBBox ? this.exactBBox.translatedBy(Vec2.of(t.a3, t.b3)) : null;
     this.contentBBox = Rect2.empty;
     let isFirstPart = true;
 

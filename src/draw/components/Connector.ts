@@ -657,6 +657,21 @@ export default class Connector extends AbstractComponent implements RestyleableC
   }
 
   protected applyTransformation(affineTransfm: Mat33): void {
+    // Rotated: the sides the line leaves from/arrives at turn too (by quarter turns), or are
+    // chosen again.
+    const x = affineTransfm.transformVec3(Vec2.unitX);
+    const angle = Math.atan2(x.y, x.x);
+    if (Math.abs(angle) > 1e-6 && (this.start.side || this.end.side)) {
+      const quarterTurns = Math.round(angle / (Math.PI / 2));
+      const isQuarterTurn = Math.abs(angle - quarterTurns * (Math.PI / 2)) < 1e-3;
+      const sides: RouteSide[] = ['right', 'bottom', 'left', 'top'];
+      const turn = (side?: RouteSide) =>
+        side && isQuarterTurn ? sides[(((sides.indexOf(side) + quarterTurns) % 4) + 4) % 4] : undefined;
+      this.start = { ...this.start, side: turn(this.start.side) };
+      this.end = { ...this.end, side: turn(this.end.side) };
+      this.routeCache = null;
+    }
+
     this.start.point = affineTransfm.transformVec2(this.start.point);
     this.end.point = affineTransfm.transformVec2(this.end.point);
     this.route = this.route?.map((p) => affineTransfm.transformVec2(p)) ?? null;

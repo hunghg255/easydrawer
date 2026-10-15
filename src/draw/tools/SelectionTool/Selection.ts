@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { Color4, Mat33, Rect2, type IVec2, Vec2, type Mat33Array } from '~/math';
+import { Color4, type LineSegment2, Mat33, Rect2, type IVec2, Vec2, type Mat33Array } from '~/math';
 
 import SelectionHandle, { HandleAction, handleSize } from './SelectionHandle';
 import SelectionMenuShortcut from './SelectionMenuShortcut';
@@ -42,6 +42,16 @@ const snapDistance = 6;
 const snapGuideColor = Color4.fromHex('#ec4899');
 
 // @internal
+
+/** A stand-in for a component being transformed, for routing connectors: its box. */
+function boxProxy (id: string, bbox: Rect2): AbstractComponent {
+  return {
+    getId: () => id,
+    getBBox: () => bbox,
+    isSelectable: () => true,
+    intersects: (segment: LineSegment2) => bbox.intersectsLineSegment(segment).length > 0,
+  } as unknown as AbstractComponent;
+}
 
 /**
  * The transformation of `elem` when the selection (`all`) is transformed by `full`: the same,
@@ -556,8 +566,8 @@ export default class Selection {
   } | null = null;
 
   private getDragSnapshot() {
-    // When moving the selection, the connectors that move with it are in the image too.
-    const connectors = this.backgroundDragging ? this.connectorsMovingWithSelection() : [];
+    // The connectors that move with the selection are in the image too.
+    const connectors = this.connectorsMovingWithSelection();
     // When resizing, the text of shapes is drawn on its own (it keeps its size).
     const notIncluded = this.backgroundDragging
       ? []
@@ -699,38 +709,37 @@ export default class Selection {
 
     // When dragging, connectors with all their ends in the selection just move with it:
     // no need to route them again (which is slow with many connectors).
-    // Moved, or resized without rotating: routes stay made of horizontal and vertical lines.
-    const x = transform.transformVec3(Vec2.unitX);
-    const y = transform.transformVec3(Vec2.unitY);
-    const isTranslation = Math.abs(x.y) < 1e-9 && Math.abs(y.x) < 1e-9 && x.x > 0 && y.y > 0;
+    // Connectors whose ends all move with the selection are transformed with it while it's
+    // being transformed (routed again when it's dropped, e.g. after rotating).
     const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
-    const rigid = new Set(isTranslation ? this.connectorsMovingWithSelection() : []);
+    const rigid = new Set(this.connectorsMovingWithSelection());
     const toRoute: Connector[] = [];
     for (const connector of connectors) {
       if (this.dragSnapshot?.connectors.has(connector)) {
         // Drawn in the image of the selection.
       } else if (rigid.has(connector)) {
-        connector.transformedPreview(transform).render(renderer);
+        // Drawn transformed (rather than transforming a copy), so its cached drawing is used.
+        renderer.pushTransform(transform);
+        connector.render(renderer);
+        renderer.popTransform();
       } else {
         toRoute.push(connector);
       }
     }
     if (toRoute.length === 0) return;
 
-    // Components the connectors are attached to, where they're being dragged to.
+    // Components the connectors are attached to, where they're being dragged to. Only their
+    // boxes are used (copying them can be slow, e.g. hand-drawn shapes are drawn again).
     const moved = new Map<string, AbstractComponent>();
     for (const elem of this.selectedElems) {
       if (toRoute.some((c) => c.isAttachedTo(elem.getId()))) {
-        moved.set(elem.getId(), elem.transformedPreview(transform));
+        moved.set(elem.getId(), boxProxy(elem.getId(), elem.getBBox().transformedBoundingBox(transform)));
       }
     }
     // Other selected components are only obstacles for elbow routes: their boxes are enough.
     const movedObstacles = this.selectedElems
       .filter((elem) => !(elem instanceof Connector) && !moved.has(elem.getId()) && elem.isSelectable())
-      .map((elem) => {
-        const bbox = elem.getBBox().transformedBoundingBox(transform);
-        return { getBBox: () => bbox, isSelectable: () => true } as unknown as AbstractComponent;
-      });
+      .map((elem) => boxProxy(elem.getId(), elem.getBBox().transformedBoundingBox(transform)));
 
     const image = this.editor.image;
     const lookup = {

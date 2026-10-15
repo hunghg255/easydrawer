@@ -19,7 +19,9 @@ import TextComponent from '../components/TextComponent';
 import { type RouteSide } from '../components/util/routeOrthogonal';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
+import type RenderablePathSpec from '../rendering/RenderablePathSpec';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
+import { sketchParts, type SketchOptions } from '../rendering/sketch';
 import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 
 /** Colors the AI can choose for diagram nodes and note groups. */
@@ -361,6 +363,27 @@ export default class EditorAI {
     this.requestHandler = editor.getCurrentSettings().ai?.request ?? null;
   }
 
+  /**
+   * Draws diagrams, mind maps and brainstorm links in a hand-drawn style (like Excalidraw):
+   * `true`, sketch options, or `null` for clean lines (the default).
+   */
+  public sketch: SketchOptions | null = null;
+
+  /** Font of the text of diagrams, mind maps and note titles. Default: `'sans-serif'`. */
+  public fontFamily = 'sans-serif';
+
+  public setSketch(sketch: SketchOptions | boolean | null) {
+    this.sketch = sketch === true ? {} : sketch || null;
+  }
+
+  // A shape, hand-drawn if `sketch` is set (filled with a solid color, so that text stays readable).
+  private shapeStroke(parts: RenderablePathSpec[]) {
+    if (!this.sketch) return new Stroke(parts);
+    const scale = this.editor.viewport.getSizeOfPixelOnCanvas();
+    const stroke = new Stroke(sketchParts(parts, { fillStyle: 'solid', ...this.sketch, scale }));
+    return stroke;
+  }
+
   /** Whether a request handler has been given. */
   public get isConfigured() {
     return this.requestHandler !== null;
@@ -465,7 +488,7 @@ export default class EditorAI {
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const textStyle: TextRenderingStyle = {
       size: 15 * scale,
-      fontFamily: 'sans-serif',
+      fontFamily: this.fontFamily,
       renderingStyle: { fill: Color4.fromHex('#1f2937') },
     };
     const lineHeight = textStyle.size * 1.25;
@@ -519,7 +542,7 @@ export default class EditorAI {
       const nodeCenter = Vec2.of(center.x + position.x, center.y + position.y);
       const colors = shapeColors[node.color ?? defaultKindColors[node.kind]];
 
-      const shape = new Stroke([
+      const shape = this.shapeStroke([
         pathToRenderable(nodePath(node.kind === 'entity' ? 'process' : node.kind, width, height).transformedBy(Mat33.translation(nodeCenter)), {
           fill: Color4.fromHex(colors.fill),
           stroke: { color: Color4.fromHex(colors.border), width: 2 * scale },
@@ -551,7 +574,7 @@ export default class EditorAI {
 
         const details = node.details ?? [];
         if (details.length > 0) {
-          const separator = new Stroke([
+          const separator = this.shapeStroke([
             pathToRenderable(Path.fromString(`M${left},${top + headerHeight} L${left + width},${top + headerHeight}`), {
               fill: Color4.transparent,
               stroke: { color: Color4.fromHex(colors.border), width: 1.5 * scale },
@@ -594,7 +617,7 @@ export default class EditorAI {
       const connector = new Connector(
         { point: from.getBBox().center, targetId: from.getId(), side: sides[i].start },
         { point: to.getBBox().center, targetId: to.getId(), side: sides[i].end },
-        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label, routing: 'elbow' },
+        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label, routing: 'elbow', sketch: !!this.sketch },
       );
       created.push(connector);
     }
@@ -894,7 +917,7 @@ export default class EditorAI {
   private mindMapTextStyle(depth: number, scale: number): TextRenderingStyle {
     return {
       size: (depth === 0 ? 22 : depth === 1 ? 17 : 15) * scale,
-      fontFamily: 'sans-serif',
+      fontFamily: this.fontFamily,
       ...(depth <= 1 ? { fontWeight: 'bold' } : {}),
       renderingStyle: { fill: Color4.fromHex(depth === 0 ? '#ffffff' : '#1f2937') },
     };
@@ -914,7 +937,7 @@ export default class EditorAI {
     const colors = shapeColors[color];
     const fill = depth === 0 ? '#1e293b' : depth === 1 ? colors.fill : '#ffffff';
     const border = depth === 0 ? '#1e293b' : colors.border;
-    const shape = new Stroke([
+    const shape = this.shapeStroke([
       pathToRenderable(nodePath(depth === 0 ? 'terminal' : 'process', width, height).transformedBy(Mat33.translation(center)), {
         fill: Color4.fromHex(fill),
         stroke: { color: Color4.fromHex(border), width: (depth <= 1 ? 2.5 : 1.5) * scale },
@@ -942,7 +965,7 @@ export default class EditorAI {
     return new Connector(
       { point: from.getBBox().center, targetId: from.getId() },
       { point: to.getBBox().center, targetId: to.getId() },
-      { color: Color4.fromHex(shapeColors[color].border), thickness: (depth === 1 ? 3 : 2) * scale, arrow: 'none' },
+      { color: Color4.fromHex(shapeColors[color].border), thickness: (depth === 1 ? 3 : 2) * scale, arrow: 'none', sketch: !!this.sketch },
     );
   }
 
@@ -1297,7 +1320,7 @@ export default class EditorAI {
         new Connector(
           { point: sourceBox.center, targetId: source.getId() },
           { point: center, targetId: note.getId() },
-          { color: Color4.fromHex('#9ca3af'), thickness, arrow: 'none' },
+          { color: Color4.fromHex('#9ca3af'), thickness, arrow: 'none', sketch: !!this.sketch },
         ),
       );
     }
@@ -1495,7 +1518,7 @@ export default class EditorAI {
       const title = TextComponent.fromLines(
         [group.title],
         Mat33.translation(Vec2.of(left, origin.y + titleSize)),
-        { size: titleSize, fontFamily: 'sans-serif', fontWeight: 'bold', renderingStyle: { fill: Color4.fromHex('#1f2937') } },
+        { size: titleSize, fontFamily: this.fontFamily, fontWeight: 'bold', renderingStyle: { fill: Color4.fromHex('#1f2937') } },
       );
       title.setGroupDirectly(groupId);
       titles.push(title);

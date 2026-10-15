@@ -66,6 +66,8 @@ editor.selection.lock(); editor.selection.unlockAll(); // locked = can't be sele
 editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+Shift+G
 editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
 editor.selection.distribute('horizontal');             // or 'vertical'
+// Flowcharts: editor.selection.addConnected('right' | 'down' | 'left' | 'up') (Ctrl/⌘+arrows), selectConnected(dir) (Alt+arrows), Enter edits text
+// Hand-drawn style: tools.configure('shape' | 'connector', { sketch: true }); editor.ai.setSketch(true); sketchPath(path, style)
 // Frames (slides): editor.frames.add({ title }) / addAroundSelection() / list() / goTo(i) / toDataURL(i)
 // Double-click with the select tool: edit a note/text, an arrow's label, or a shape's text (editor.selection.editText()).
 // connector.setLabel('yes') → command. Hand-drawn boxes + text + connectors are diagrams like AI-made ones. Dragged selections snap to nearby objects.

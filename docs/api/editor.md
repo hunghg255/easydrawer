@@ -15,7 +15,7 @@ Creates an editor inside `parentElement`. See [Settings](./settings) for the opt
 | `tools` | Named access to the built-in tools. See [editor.tools](./tools). |
 | `selection` | What is selected with the select tool. See [below](#selection). |
 | `frames` | Named areas of the drawing: slides to present, pages to export. See [below](#frames). |
-| `ai` | AI features: `generateDiagram(prompt)`, `editDiagram(instruction)`, `editSelection(instruction)`, `drawDiagram(diagram)`, `drawMermaid(text)`, `toMermaid()`, `generateMindMap(topic)`, `drawMindMap(tree)`, `expandMindMap()`, `diagramFromCode(code)`, `generateChart(prompt)`, `drawChart(chart)`, `generateIllustration(prompt)`, `readDiagram()`, `brainstorm()`, `organizeNotes()`, `runCommand(request)`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
+| `ai` | AI features: `generateDiagram(prompt)`, `editDiagram(instruction)`, `editSelection(instruction)`, `drawDiagram(diagram)`, `setSketch(on)` (hand-drawn style), `fontFamily`, `drawMermaid(text)`, `toMermaid()`, `generateMindMap(topic)`, `drawMindMap(tree)`, `expandMindMap()`, `diagramFromCode(code)`, `generateChart(prompt)`, `drawChart(chart)`, `generateIllustration(prompt)`, `readDiagram()`, `brainstorm()`, `organizeNotes()`, `runCommand(request)`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
 
 ## Selection
 
@@ -44,6 +44,8 @@ const stop = editor.selection.onChange((items) => placeToolbar(editor.selection.
 | `align(edge)` | Align to the selection's `'left'`, `'center'`, `'right'`, `'top'`, `'middle'` or `'bottom'` (groups move as one) |
 | `distribute(direction)` | Equal gaps, `'horizontal'` or `'vertical'` (3+ items; the outermost don't move) |
 | `lock()` | Lock the selection: locked components can't be selected, moved or erased |
+| `addConnected(direction)` | Flowcharts: add a copy of the selected shape in `'right' \| 'down' \| 'left' \| 'up'`, linked by an arrow, and select it (<kbd>Ctrl/⌘</kbd>+arrows) |
+| `selectConnected(direction)` | Select the shape linked to the selected one in that direction (<kbd>Alt</kbd>+arrows) |
 | `editText()` | Edit the text of the selected item: a note or text, an arrow's label, or a shape's text (added in it if it has none). Like a double click. Returns `false` if there is nothing to edit |
 | `unlockAll()` | Unlock everything. Returns the number of unlocked components. |
 | `lockedCount` | Number of locked components |

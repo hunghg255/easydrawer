@@ -559,27 +559,54 @@ export default class Selection {
     if (connectors.length === 0) return;
 
     const transform = this.transform;
+    const renderer = this.editor.display.getWetInkRenderer();
+
+    // When dragging, connectors with all their ends in the selection just move with it:
+    // no need to route them again (which is slow with many connectors).
+    const isTranslation =
+      Vec2.unitX.eq(transform.transformVec3(Vec2.unitX), 1e-9) && Vec2.unitY.eq(transform.transformVec3(Vec2.unitY), 1e-9);
+    const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
+    const movesRigidly = (connector: Connector) => {
+      const ends = [connector.getStart(), connector.getEnd()];
+      const allAttachedEndsMove = ends.every((end) => !end.targetId || selectedIds.has(end.targetId));
+      const freeEndsMove = selectedConnectors.includes(connector) || ends.every((end) => end.targetId);
+      return isTranslation && allAttachedEndsMove && freeEndsMove;
+    };
+    const toRoute: Connector[] = [];
+    for (const connector of connectors) {
+      if (movesRigidly(connector)) {
+        connector.transformedPreview(transform).render(renderer);
+      } else {
+        toRoute.push(connector);
+      }
+    }
+    if (toRoute.length === 0) return;
+
+    // Components the connectors are attached to, where they're being dragged to.
     const moved = new Map<string, AbstractComponent>();
     for (const elem of this.selectedElems) {
-      if (connectors.some((c) => c.isAttachedTo(elem.getId()))) {
+      if (toRoute.some((c) => c.isAttachedTo(elem.getId()))) {
         moved.set(elem.getId(), elem.transformedPreview(transform));
       }
     }
+    // Other selected components are only obstacles for elbow routes: their boxes are enough.
+    const movedObstacles = this.selectedElems
+      .filter((elem) => !(elem instanceof Connector) && !moved.has(elem.getId()) && elem.isSelectable())
+      .map((elem) => {
+        const bbox = elem.getBBox().transformedBoundingBox(transform);
+        return { getBBox: () => bbox, isSelectable: () => true } as unknown as AbstractComponent;
+      });
 
     const image = this.editor.image;
     const lookup = {
       lookupElement: (id: string) => moved.get(id) ?? image.lookupElement(id),
       // For elbow routes: other components, with the selection where it's being dragged to.
       getComponentsIntersecting: (region: Rect2) => [
-        ...image.getComponentsIntersecting(region).filter((c) => !moved.has(c.getId())),
-        ...this.selectedElems
-          .filter((elem) => !(elem instanceof Connector))
-          .map((elem) => moved.get(elem.getId()) ?? elem.transformedPreview(transform))
-          .filter((elem) => elem.getBBox().intersects(region)),
+        ...image.getComponentsIntersecting(region).filter((c) => !selectedIds.has(c.getId())),
+        ...[...moved.values(), ...movedObstacles].filter((elem) => elem.getBBox().intersects(region)),
       ],
     };
-    const renderer = this.editor.display.getWetInkRenderer();
-    for (const connector of connectors) {
+    for (const connector of toRoute) {
       // Free ends of selected connectors move with the selection. Attached ends follow
       // their components.
       const preview = (

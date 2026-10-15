@@ -47,6 +47,9 @@ import {
   stretchYSelectionShortcutId,
   stretchXYSelectionShortcutId,
   shrinkXYSelectionShortcutId,
+  addConnectedShortcutIds,
+  selectConnectedShortcutIds,
+  editTextShortcutId,
 } from '../keybindings';
 import type StickyNoteTool from '../StickyNoteTool';
 import type TextTool from '../TextTool';
@@ -288,7 +291,17 @@ export default class SelectionTool extends BaseTool {
         groupId === null
           ? undefined
           : this.editor.image.getAllComponents().find((c): c is TextComponent => c instanceof TextComponent && c.getGroupId() === groupId);
-      return withTextTool((tool) => (groupText ? tool.editText(groupText) : tool.addTextIn(component)));
+      return withTextTool((tool) => {
+        if (groupText) tool.editText(groupText);
+        else tool.addTextIn(component);
+        // Then the shape (with its text) is selected again, e.g. to add the next shape of a
+        // flowchart with Ctrl/⌘ + arrow keys.
+        tool.whenEditingDone(() => {
+          if (!this.editor.image.findParent(component)) return;
+          const id = component.getGroupId();
+          this.editor.selection.set(id === null ? [component] : this.editor.image.getAllComponents().filter((c) => c.getGroupId() === id));
+        });
+      });
     }
     return false;
   }
@@ -476,7 +489,23 @@ export default class SelectionTool extends BaseTool {
     } else if (this.selectionBox && shortcucts.matchesShortcut(groupSelectionShortcut, event)) {
       void this.editor.selection.group();
       return true;
-    } else if (event.ctrlKey) {
+    } else if (this.selectionBox && shortcucts.matchesShortcut(editTextShortcutId, event)) {
+      return this.editor.selection.editText();
+    }
+
+    if (this.selectionBox) {
+      for (const direction of ['right', 'down', 'left', 'up'] as const) {
+        if (shortcucts.matchesShortcut(addConnectedShortcutIds[direction], event)) {
+          void this.editor.selection.addConnected(direction);
+          return true;
+        }
+        if (shortcucts.matchesShortcut(selectConnectedShortcutIds[direction], event)) {
+          return this.editor.selection.selectConnected(direction) !== null;
+        }
+      }
+    }
+
+    if (event.ctrlKey) {
       // Don't transform the selection with, for example, ctrl+i.
       // Pass it to another tool, if apliccable.
       return false;

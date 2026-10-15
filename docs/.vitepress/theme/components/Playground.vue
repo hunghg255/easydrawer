@@ -96,6 +96,9 @@ const shortcuts: Array<[string, string]> = [
   ['Ctrl/⌘ + G', 'Group (Ctrl/⌘ + Shift + G: ungroup)'],
   ['Double click', 'Edit the text of a note, text, arrow or shape'],
   ['Ctrl/⌘ + K', 'Ask AI to do something'],
+  ['Enter', 'Edit the text of the selected shape'],
+  ['Ctrl/⌘ + arrows', 'Add a linked shape (flowcharts)'],
+  ['Alt + arrows', 'Select the linked shape'],
   ['→ / Space, ←, Esc', 'Next / previous frame, stop (while presenting)'],
   ['− / =', 'Thinner / thicker pen'],
   ['Ctrl/⌘ + wheel, pinch', 'Zoom'],
@@ -542,6 +545,33 @@ const penState = ref({
 });
 const shapeState = ref({ shape: 'rectangle' as ShapeTypeName, thickness: 2 });
 
+// Hand-drawn style (like Excalidraw): sketchy shapes, arrows and diagrams, and a handwriting font.
+const handDrawn = ref(false);
+const handwritingFont = '"Patrick Hand", "Comic Sans MS", "Segoe Print", sans-serif';
+async function setHandDrawn(on: boolean) {
+  const instance = editor.value;
+  if (!instance) return;
+  handDrawn.value = on;
+  try {
+    localStorage.setItem('easydrawer-hand-drawn', on ? '1' : '');
+  } catch {}
+  if (on && !document.getElementById('hand-drawn-font')) {
+    // Patrick Hand: a handwriting font with Vietnamese characters.
+    const link = document.createElement('link');
+    link.id = 'hand-drawn-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap';
+    document.head.append(link);
+    await document.fonts?.load('20px "Patrick Hand"').catch(() => undefined);
+  }
+  const fontFamily = on ? handwritingFont : 'sans-serif';
+  instance.tools.configure('shape', { sketch: on });
+  instance.tools.configure('connector', { sketch: on });
+  instance.tools.configure('text', { fontFamily });
+  instance.ai.setSketch(on);
+  instance.ai.fontFamily = fontFamily;
+}
+
 const currentPen = computed(() => {
   return activeTool.value === 'pen' || activeTool.value === 'highlighter'
     ? penState.value[activeTool.value]
@@ -569,6 +599,9 @@ onMounted(async () => {
   if (import.meta.env.DEV) (window as any).__editor = instance;
 
   loadRecentColors();
+  try {
+    if (localStorage.getItem('easydrawer-hand-drawn')) void setHandDrawn(true);
+  } catch {}
 
   // Restore the previous drawing and keep saving it.
   cleanups.push(await instance.autosave({ key: 'easydrawer-playground' }));
@@ -1035,6 +1068,12 @@ async function onImagesSelected(event: Event) {
 
     <!-- ⋯ menu -->
     <div v-if="showMenu" class="flyout menu" role="menu" aria-label="More">
+      <span class="label">Style of new shapes</span>
+      <div class="chips">
+        <button :class="{ active: !handDrawn }" @click="setHandDrawn(false)">Clean</button>
+        <button :class="{ active: handDrawn }" @click="setHandDrawn(true)">✏️ Hand-drawn</button>
+      </div>
+      <span class="sep-h" />
       <span class="label">Background</span>
       <div class="chips">
         <button

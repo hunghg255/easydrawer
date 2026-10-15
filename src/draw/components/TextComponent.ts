@@ -112,11 +112,13 @@ export default class TextComponent extends AbstractComponent implements Restylea
   }
 
   public static applyTextStyles(ctx: CanvasRenderingContext2D, style: TextRenderingStyle) {
-    // Quote the font family if necessary.
-    const hasSpaces = style.fontFamily.match(/\s/);
-    const isQuoted = style.fontFamily.match(/^".*"$/);
-    const fontFamily =
-			hasSpaces && !isQuoted ? `"${style.fontFamily.replace(/"/g, String.raw`\"`)}"` : style.fontFamily;
+    // Quote the font families if necessary (it can be a list, e.g. `"Patrick Hand", sans-serif`).
+    const fontFamily = style.fontFamily
+      .split(',')
+      .map((family) => family.trim())
+      .filter((family) => family !== '')
+      .map((family) => (/\s/.test(family) && !/^(["']).*\1$/.test(family) ? `"${family.replaceAll('"', String.raw`\"`)}"` : family))
+      .join(', ');
 
     ctx.font = [
       style.fontStyle ?? '',
@@ -249,7 +251,10 @@ export default class TextComponent extends AbstractComponent implements Restylea
   }
 
   public override getProportionalRenderingTime(): number {
-    return this.textObjects.length;
+    // Drawing text (glyph shaping and rasterization) costs about as much as a stroke with a few
+    // parts. Underestimating it keeps text-heavy drawings (diagrams…) from using the rendering
+    // cache, which makes panning and dragging slow.
+    return this.textObjects.length * 8;
   }
 
   public override intersects(lineSegment: LineSegment2): boolean {
@@ -438,19 +443,24 @@ export default class TextComponent extends AbstractComponent implements Restylea
     lines: string[],
     transform: Mat33,
     style: TextRenderingStyle,
+    options: { align?: 'left' | 'center' } = {},
   ): AbstractComponent {
     let lastComponent: TextComponent | null = null;
     const components: TextComponent[] = [];
 
     const lineMargin = Math.round(this.getFontHeight(style));
+    // Centered lines: each line is moved right by half of what it is shorter than the longest.
+    const widths = options.align === 'center' ? lines.map((line) => this.measureTextWidth(line, style)) : [];
+    const maxWidth = Math.max(0, ...widths);
 
     let position = Vec2.zero;
-    for (const line of lines) {
+    for (const [i, line] of lines.entries()) {
       if (lastComponent) {
         position = position.plus(Vec2.unitY.times(lineMargin));
       }
 
-      const component = new TextComponent([line], Mat33.translation(position), style);
+      const indent = options.align === 'center' ? (maxWidth - widths[i]) / 2 : 0;
+      const component = new TextComponent([line], Mat33.translation(position.plus(Vec2.of(indent, 0))), style);
       components.push(component);
       lastComponent = component;
     }

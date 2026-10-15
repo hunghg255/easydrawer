@@ -36,6 +36,7 @@ interface ShapeToolOptions {
   color?: string | Color4;            // fill ('transparent' = outline only)
   borderColor?: string | Color4;
   thickness?: number;                 // border width
+  sketch?: boolean | { roughness?: number; bowing?: number; fillStyle?: 'hachure' | 'cross-hatch' | 'solid' | 'zigzag' | 'dots' }; // hand-drawn
 }
 interface EraserToolOptions { thickness?: number; mode?: 'full-stroke' | 'partial-stroke' }
 interface TextToolOptions { color?: string | Color4; fontSize?: number; fontFamily?: string }
@@ -46,6 +47,8 @@ interface ConnectorToolOptions {                                              //
   color?: string | Color4;
   thickness?: number;
   arrow?: 'end' | 'both' | 'none';
+  routing?: 'straight' | 'elbow';
+  sketch?: boolean;                   // hand-drawn
 }
 ```
 
@@ -78,6 +81,8 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `group()`, `ungroup()`, `hasGroups` | Grouped components select/move together; saved in SVG |
 | `align(edge)`, `distribute(direction)` | `'left' \| 'center' \| 'right' \| 'top' \| 'middle' \| 'bottom'`; `'horizontal' \| 'vertical'` |
 | `lock()`, `unlockAll()`, `lockedCount` | Locked components can't be selected, moved or erased; saved in SVG |
+| `addConnected(direction)` | Copy of the selected shape in `'right'\|'down'\|'left'\|'up'`, linked by an arrow, selected (Ctrl/⌘+arrows) |
+| `selectConnected(direction)` | Select the linked shape in that direction (Alt+arrows) |
 | `editText()` | Edit the selected note/text, arrow label, or shape text (adds a centered, grouped text). Same as double-click |
 
 Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.

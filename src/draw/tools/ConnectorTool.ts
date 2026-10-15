@@ -135,6 +135,16 @@ export default class ConnectorTool extends BaseTool {
     this.noteUpdated();
   }
 
+  /** Whether new arrows are hand-drawn (like Excalidraw). */
+  public getSketch(): boolean {
+    return this.style.sketch ?? false;
+  }
+
+  public setSketch(sketch: boolean) {
+    this.style = { ...this.style, sketch };
+    this.noteUpdated();
+  }
+
   private noteUpdated() {
     this.editor.notifier.dispatch(EditorEventType.ToolUpdated, {
       kind: EditorEventType.ToolUpdated,

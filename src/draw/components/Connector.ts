@@ -12,8 +12,10 @@ import type Editor from '../Editor';
 import type EditorImage from '../image/EditorImage';
 import { EditorImageEventType } from '../image/EditorImage';
 import { type EditorLocalization } from '../localization';
-import { pathToRenderable } from '../rendering/RenderablePathSpec';
+import type RenderablePathSpec from '../rendering/RenderablePathSpec';
+import { pathFromRenderable, pathToRenderable } from '../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../rendering/renderers/AbstractRenderer';
+import { sketchParts, sketchSeedOf } from '../rendering/sketch';
 import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 import { assertIsString } from '../util/assertions';
 
@@ -51,6 +53,8 @@ export interface ConnectorStyle {
   label?: string;
   /** Default: `'straight'`. */
   routing?: ConnectorRouting;
+  /** Hand-drawn look (like Excalidraw). Default: `false`. */
+  sketch?: boolean;
 }
 
 /**
@@ -73,6 +77,10 @@ export default class Connector extends AbstractComponent implements RestyleableC
   // The points of an 'elbow' route, from start to end (null for straight connectors, or
   // before the route is known).
   private route: IVec2[] | null = null;
+  // The last elbow route, and what it was computed from (relative to its start), to skip
+  // computing it again when everything around it just moved together.
+  private routeCache: { key: string; origin: IVec2; route: IVec2[] } | null = null;
+  private sketchCache: { key: string; parts: RenderablePathSpec[] } | null = null;
 
   /** The points the line goes through, from start to end. */
   public getPoints(): IVec2[] {
@@ -367,12 +375,30 @@ export default class Connector extends AbstractComponent implements RestyleableC
       .slice(0, 150);
 
     const options = { margin, gap: Math.max(4, this.style.thickness * 1.5) };
+
+    const origin = Vec2.ofXY('rect' in startEnd ? startEnd.rect.topLeft : startEnd.point);
+    const relative = (r: Rect2) => [r.x - origin.x, r.y - origin.y, r.w, r.h].map((v) => v.toFixed(2)).join(',');
+    const describeEnd = (end: RouteEnd) =>
+      'rect' in end ? `${relative(end.rect)}:${end.side ?? ''}` : relative(new Rect2(end.point.x, end.point.y, 0, 0));
+    const key = [
+      describeEnd(startEnd),
+      describeEnd(endEnd),
+      margin,
+      ...obstacles.map(relative).sort(),
+    ].join('|');
+    const cache = this.routeCache;
+    if (cache?.key === key) {
+      const offset = origin.minus(cache.origin);
+      return cache.route.map((p) => Vec2.ofXY(p).plus(offset));
+    }
+
     const withoutSide = (end: RouteEnd): RouteEnd => ('rect' in end ? { rect: end.rect } : end);
     // If the chosen sides are blocked, use any side.
-    return (
+    const route =
       routeOrthogonal(startEnd, endEnd, obstacles, options) ??
-      routeOrthogonal(withoutSide(startEnd), withoutSide(endEnd), obstacles, options)
-    );
+      routeOrthogonal(withoutSide(startEnd), withoutSide(endEnd), obstacles, options);
+    this.routeCache = route ? { key, origin, route } : null;
+    return route;
   }
 
   public override onAddToImage(image: EditorImage): void {
@@ -427,6 +453,11 @@ export default class Connector extends AbstractComponent implements RestyleableC
     this.scheduleUpdate();
   }
 
+  public override getProportionalRenderingTime(): number {
+    // The line and arrowheads, and the label (see TextComponent).
+    return 4 + (this.style.label ? 8 : 0);
+  }
+
   public override render(canvas: AbstractRenderer, _visibleRect?: Rect2): void {
     canvas.startObject(this.contentBBox);
 
@@ -467,29 +498,46 @@ export default class Connector extends AbstractComponent implements RestyleableC
     const lineEnd = linePoints[linePoints.length - 1];
     pathString += ` L${lineEnd.x},${lineEnd.y}`;
 
-    canvas.drawPath(
+    const parts: RenderablePathSpec[] = [
       pathToRenderable(Path.fromString(pathString), {
         fill: Color4.transparent,
         stroke: { color, width: thickness },
       }),
-    );
+    ];
 
-    const drawArrowhead = (tip: IVec2, dir: IVec2) => {
+    const arrowhead = (tip: IVec2, dir: IVec2) => {
       const base = tip.minus(dir.times(arrowSize));
       const side = dir.orthog().times(arrowSize * 0.5);
       const a = base.plus(side);
       const b = base.minus(side);
-      canvas.drawPath(
-        pathToRenderable(Path.fromString(`M${tip.x},${tip.y} L${a.x},${a.y} L${b.x},${b.y} Z`), {
-          fill: color,
-          stroke: { color, width: Math.min(thickness, 2) },
-        }),
-      );
+      return pathToRenderable(Path.fromString(`M${tip.x},${tip.y} L${a.x},${a.y} L${b.x},${b.y} Z`), {
+        fill: color,
+        stroke: { color, width: Math.min(thickness, 2) },
+      });
     };
 
     if (length > 0) {
-      if (hasEndArrow) drawArrowhead(last, endUnit);
-      if (hasStartArrow) drawArrowhead(first, startUnit);
+      if (hasEndArrow) parts.push(arrowhead(last, endUnit));
+      if (hasStartArrow) parts.push(arrowhead(first, startUnit));
+    }
+
+    if (this.style.sketch) {
+      // Computing the hand-drawn lines is slow: only when the shape of the line changes (not
+      // when it just moves, e.g. while dragging).
+      const origin = points[0];
+      const toLocal = Mat33.translation(origin.times(-1));
+      const toCanvas = Mat33.translation(origin);
+      const localParts = parts.map((part) => pathToRenderable(pathFromRenderable(part).transformedBy(toLocal), part.style));
+      const key = `${localParts.map((part) => part.path.toString()).join('|')}|${color.toHexString()}|${thickness}`;
+      if (this.sketchCache?.key !== key) {
+        const sketched = sketchParts(localParts, { scale: thickness / 2, seed: sketchSeedOf(this.getId()), fillStyle: 'solid' });
+        this.sketchCache = { key, parts: sketched };
+      }
+      for (const part of this.sketchCache.parts) {
+        canvas.drawPath(pathToRenderable(pathFromRenderable(part).transformedBy(toCanvas), part.style));
+      }
+    } else {
+      for (const part of parts) canvas.drawPath(part);
     }
 
     const labelRect = this.labelRect();
@@ -576,7 +624,13 @@ export default class Connector extends AbstractComponent implements RestyleableC
   }
 
   protected createClone(): AbstractComponent {
-    return new Connector(this.start, this.end, this.style);
+    const clone = new Connector(this.start, this.end, this.style);
+    // Previews (e.g. while dragging) keep the elbow route until it is computed again.
+    clone.route = this.route?.slice() ?? null;
+    clone.routeCache = this.routeCache;
+    clone.sketchCache = this.sketchCache;
+    clone.recomputeBBox();
+    return clone;
   }
 
   protected serializeToJSON() {
@@ -594,6 +648,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
       arrow: this.style.arrow,
       ...(this.style.label ? { label: this.style.label } : {}),
       ...(this.style.routing === 'elbow' ? { routing: 'elbow' } : {}),
+      ...(this.style.sketch ? { sketch: true } : {}),
     };
   }
 
@@ -623,6 +678,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
       arrow,
       label: typeof json.label === 'string' ? json.label : undefined,
       routing: json.routing === 'elbow' ? 'elbow' : 'straight',
+      sketch: json.sketch === true,
     });
   }
 }

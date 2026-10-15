@@ -62,6 +62,7 @@ export { openAICompatibleRequest, type OpenAICompatibleOptions } from './ai/open
 export { default as layoutGraph, type LayoutEdge, type LayoutNode, type LayoutOptions } from './ai/layoutGraph';
 export { default as parseAIJSON } from './ai/parseJSON';
 export { default as buildChart, chartColors, type Chart, type ChartSeries, type ChartType } from './ai/charts';
+export { sketchParts, sketchPath, sketchSeedOf, type SketchFillStyle, type SketchOptions } from './rendering/sketch';
 export { diagramToMermaid, MermaidError, parseMermaid } from './ai/mermaid';
 export { default as layoutMindMap, type MindMapNode, type PlacedMindMapNode } from './ai/mindMap';
 export { default as svgToStrokes, parsePathData as parseSVGPathData } from './ai/svgToStrokes';

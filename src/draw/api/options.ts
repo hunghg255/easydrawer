@@ -5,6 +5,7 @@ import {
   type ShapeTypeName,
 } from '../components/builders/presets';
 import { type ComponentBuilderFactory } from '../components/builders/types';
+import { type SketchOptions } from '../rendering/sketch';
 
 /** A color: a {@link Color4} or any CSS color string (`'#ff0000'`, `'rgba(0,0,0,0.3)'`, `'red'`…). */
 export type ColorInput = Color4 | string;
@@ -61,6 +62,11 @@ export interface ShapeToolOptions {
   borderColor?: ColorInput;
   /** Border width. `0` for no border. */
   thickness?: number;
+  /**
+   * Hand-drawn style (like Excalidraw): `true`, or options such as
+   * `{ roughness: 2, fillStyle: 'cross-hatch' }`. Default: `false`.
+   */
+  sketch?: boolean | SketchOptions;
 }
 
 export interface EraserToolOptions {
@@ -99,6 +105,8 @@ export interface ConnectorToolOptions {
   arrow?: 'end' | 'both' | 'none';
   /** `'straight'` (default), or `'elbow'`: right-angle lines that go around other shapes. */
   routing?: 'straight' | 'elbow';
+  /** Hand-drawn style (like Excalidraw). Default: `false`. */
+  sketch?: boolean;
 }
 
 /** Maps each tool name to its options type. */

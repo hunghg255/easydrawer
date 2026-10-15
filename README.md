@@ -84,6 +84,14 @@ editor.selection.distribute('horizontal');
 editor.selection.lock();                 // locked objects can't be selected, moved or erased
 editor.selection.unlockAll();
 
+// Flowcharts from the keyboard: Ctrl/⌘+arrows add a linked shape, Enter types its text
+await editor.selection.addConnected('right');
+
+// Hand-drawn style (like Excalidraw)
+editor.tools.configure('shape', { sketch: true });
+editor.tools.configure('connector', { sketch: true });
+editor.ai.setSketch(true);
+
 // Frames: named areas to present as slides or export
 await editor.frames.add({ title: 'Intro' });   // around the visible area; addAroundSelection()
 await editor.frames.goTo(0);                   // fit a frame to the screen

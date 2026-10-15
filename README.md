@@ -109,7 +109,7 @@ editor.onZoomChange((zoom) => console.log(`${Math.round(zoom * 100)}%`));
 ## AI features
 
 Give the editor a function that calls a language model (through your own server, which keeps the API key),
-then generate diagrams from text and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
+then generate diagrams from text or code, charts and pictures, and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
 
 ```ts
 const editor = new Editor(element, {
@@ -119,6 +119,9 @@ const editor = new Editor(element, {
 await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
 await editor.ai.editDiagram('Add a confirmation email after the payment'); // the selected diagram, even hand-drawn
 await editor.ai.editSelection('remove the error step'); // diagram edit, or a command for anything else
+await editor.ai.diagramFromCode('CREATE TABLE users (…); CREATE TABLE orders (…);'); // ER diagram
+await editor.ai.generateChart('Revenue per quarter, 2023 vs 2024'); // bar / line / pie chart
+await editor.ai.generateIllustration('A lighthouse at sunset'); // picture made of editable shapes
 await editor.ai.brainstorm();    // ideas around the selected sticky note
 await editor.ai.organizeNotes(); // sort sticky notes into themed columns
 await editor.ai.runCommand('Color the notes about marketing in blue'); // anything, in plain language

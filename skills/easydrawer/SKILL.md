@@ -71,6 +71,9 @@ editor.selection.distribute('horizontal');             // or 'vertical'
 // AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
 await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
 await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.diagramFromCode(sqlOrCode);              // SQL → ER diagram (kind 'entity' + details), classes, flowchart
+await editor.ai.generateChart('…'); editor.ai.drawChart({ type: 'bar', title, labels, series: [{ name, values }] });
+await editor.ai.generateIllustration('…');             // SVG from the model → editable strokes (svgToStrokes)
 await editor.ai.editDiagram('add a step …');          // change the selected diagram, AI-made or hand-drawn (readDiagram())
 await editor.ai.editSelection('…');                    // edits a selected diagram, else runs a command
 await editor.ai.brainstorm();                          // ideas as notes around the selected note

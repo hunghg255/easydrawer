@@ -37,6 +37,8 @@ const icons: Record<string, string> = {
   duplicate: 'M8 8h12v12H8z M4 16V4h12',
   lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
   unlock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 7.75-1.4',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3 M12 17h.01',
   ai: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 3v4 M17 5h4 M5 17v4 M3 19h4',
   group: 'M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h7v5H7z M10 12h7v5h-7z',
   ungroup: 'M4 5h8v6H4z M12 13h8v6h-8z',
@@ -60,17 +62,17 @@ const alignments = [
   { edge: 'bottom', title: 'Align bottom' },
 ] as const;
 
-const tools: Array<{ name: ToolName; title: string }> = [
-  { name: 'select', title: 'Select' },
-  { name: 'text', title: 'Text' },
-  { name: 'pen', title: 'Pen' },
-  { name: 'highlighter', title: 'Highlighter' },
-  { name: 'eraser', title: 'Eraser' },
-  { name: 'shape', title: 'Shapes' },
-  { name: 'laser', title: 'Laser pointer' },
-  { name: 'eyedropper', title: 'Eyedropper' },
-  { name: 'sticky', title: 'Sticky note' },
-  { name: 'connector', title: 'Connector (arrow between shapes)' },
+const tools: Array<{ name: ToolName; title: string; key?: string }> = [
+  { name: 'select', title: 'Select', key: 'V' },
+  { name: 'pen', title: 'Pen', key: 'P' },
+  { name: 'highlighter', title: 'Highlighter', key: 'M' },
+  { name: 'eraser', title: 'Eraser', key: 'E' },
+  { name: 'shape', title: 'Shapes', key: 'S' },
+  { name: 'connector', title: 'Connector (arrow between shapes)', key: 'C' },
+  { name: 'text', title: 'Text', key: 'T' },
+  { name: 'sticky', title: 'Sticky note', key: 'N' },
+  { name: 'laser', title: 'Laser pointer', key: 'K' },
+  { name: 'eyedropper', title: 'Eyedropper', key: 'I' },
 ];
 
 const shortcuts: Array<[string, string]> = [
@@ -142,7 +144,76 @@ const showHelp = ref(false);
 // AI panel
 const showAI = ref(false);
 const aiPrompt = ref('');
-type AIAction = 'diagram' | 'edit' | 'brainstorm' | 'organize' | 'command' | 'selection';
+type AIAction =
+  | 'diagram'
+  | 'chart'
+  | 'picture'
+  | 'code'
+  | 'edit'
+  | 'brainstorm'
+  | 'organize'
+  | 'command'
+  | 'selection';
+
+const showMenu = ref(false);
+
+// What the AI panel creates
+type AIMode = 'diagram' | 'chart' | 'picture' | 'code';
+const aiMode = ref<AIMode>('diagram');
+const aiModes: Array<{
+  id: AIMode;
+  label: string;
+  action: AIAction;
+  button: string;
+  placeholder: string;
+  examples: string[];
+}> = [
+  {
+    id: 'diagram',
+    label: 'Diagram',
+    action: 'diagram',
+    button: '✨ Generate diagram',
+    placeholder: 'Describe a process, a flowchart, an architecture…',
+    examples: [
+      'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
+      'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
+      'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
+    ],
+  },
+  {
+    id: 'chart',
+    label: 'Chart',
+    action: 'chart',
+    button: '📊 Draw chart',
+    placeholder: 'Data or a description, e.g. "revenue Q1–Q4: 10, 20, 15, 30"',
+    examples: [
+      'Revenue 2024 by quarter: Q1 120, Q2 150, Q3 135, Q4 190 (k$)',
+      'Thị phần trình duyệt: Chrome 65%, Safari 18%, Edge 5%, Firefox 3%, khác 9%',
+      'Monthly visitors Jan–Jun for web and mobile, mobile growing faster',
+    ],
+  },
+  {
+    id: 'picture',
+    label: 'Picture',
+    action: 'picture',
+    button: '🎨 Draw picture',
+    placeholder: 'What to draw, e.g. "a cat reading a book", "database icon"',
+    examples: ['A cute cat reading a book', 'Icon of a cloud database', 'A coffee cup with steam', 'Con thuyền trên biển lúc hoàng hôn'],
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    action: 'code',
+    button: '🧩 Code → diagram',
+    placeholder: 'Paste SQL (→ ERD), classes (→ class diagram) or code (→ flowchart)',
+    examples: [
+      'CREATE TABLE users (id INT PRIMARY KEY, email TEXT);\nCREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES users(id), total DECIMAL);\nCREATE TABLE order_items (id INT PRIMARY KEY, order_id INT REFERENCES orders(id), product TEXT, qty INT);',
+      'class Animal { name: string; speak(): void {} }\nclass Dog extends Animal { breed: string; fetch(): void {} }\nclass Owner { dogs: Dog[]; walk(dog: Dog) {} }',
+      'function login(user) {\n  if (!user.email) throw new Error("missing email");\n  const ok = checkPassword(user);\n  if (!ok) return showError();\n  return openDashboard();\n}',
+    ],
+  },
+];
+const currentAIMode = computed(() => aiModes.find((mode) => mode.id === aiMode.value)!);
 
 // ✨ in the floating toolbar: change the selection with AI.
 const showQuickAI = ref(false);
@@ -174,11 +245,6 @@ function openCommand() {
   void nextTick(() => commandInput.value?.focus());
 }
 const aiMessage = ref<{ kind: 'error' | 'info'; text: string } | null>(null);
-const aiExamples = [
-  'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
-  'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
-  'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
-];
 let aiAbort: AbortController | null = null;
 
 // Shown after the AI changed the drawing (the panel closes so the result is visible).
@@ -226,15 +292,28 @@ async function runAI(action: AIAction) {
         return;
       }
       const diagram = await instance.ai.generateDiagram(aiPrompt.value, { signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`✨ Added ${diagram.nodes.length} shapes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'chart' || action === 'picture' || action === 'code') {
+      if (!aiPrompt.value.trim()) {
+        aiMessage.value = { kind: 'info', text: 'Type something first, or pick an example.' };
+        return;
+      }
+      if (action === 'chart') {
+        const chart = await instance.ai.generateChart(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`📊 Added a ${chart.type} chart${chart.title ? `: ${chart.title}` : ''} — Ctrl/⌘+Z to undo.`);
+      } else if (action === 'picture') {
+        const strokes = await instance.ai.generateIllustration(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🎨 Added a picture (${strokes.length} shapes, grouped) — Ctrl/⌘+Z to undo.`);
+      } else {
+        const diagram = await instance.ai.diagramFromCode(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🧩 Added a diagram with ${diagram.nodes.length} boxes — Ctrl/⌘+Z to undo.`);
+      }
     } else if (action === 'edit') {
       if (!aiPrompt.value.trim()) {
         aiMessage.value = { kind: 'info', text: 'Describe the change, e.g. "add a step to send a confirmation email".' };
         return;
       }
       const diagram = await instance.ai.editDiagram(aiPrompt.value, { signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`✏️ Updated the diagram (${diagram.nodes.length} shapes) — Ctrl/⌘+Z to undo.`);
     } else if (action === 'selection') {
       const request = quickAIText.value.trim();
@@ -245,7 +324,6 @@ async function runAI(action: AIAction) {
       showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
     } else if (action === 'brainstorm') {
       const notes = await instance.ai.brainstorm({ signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`💡 Added ${notes.length} ideas — Ctrl/⌘+Z to undo.`);
     } else if (action === 'command') {
       const request = commandText.value.trim();
@@ -256,7 +334,6 @@ async function runAI(action: AIAction) {
       showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
     } else {
       const groups = await instance.ai.organizeNotes({ signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`🗂️ Sorted into ${groups.length} groups: ${groups.map((g) => g.title).join(', ')}.`);
     }
   } catch (error) {
@@ -410,7 +487,10 @@ onMounted(async () => {
   );
 
   // Hide the floating toolbar while dragging (e.g. moving the selection).
-  const onPointerDown = () => (pointerDown.value = true);
+  const onPointerDown = () => {
+    pointerDown.value = true;
+    showMenu.value = false;
+  };
   const onPointerUp = () => {
     pointerDown.value = false;
     updateQuickBar();
@@ -499,10 +579,15 @@ function setSelectMode(mode: 'rectangle' | 'lasso') {
   editor.value?.tools.configure('select', { mode });
 }
 
-function toggleBackground(type: BackgroundTypeName) {
-  background.value = background.value === type ? 'none' : type;
-  editor.value?.setBackground({ type: background.value });
+function setBackgroundType(type: BackgroundTypeName) {
+  background.value = type;
+  editor.value?.setBackground({ type });
 }
+
+// Tools with options in the flyout next to the rail
+const toolsWithOptions: ToolName[] = ['pen', 'highlighter', 'select', 'shape', 'sticky', 'connector', 'laser'];
+const hasToolOptions = computed(() => !!activeTool.value && toolsWithOptions.includes(activeTool.value));
+const activeToolTitle = computed(() => tools.find((tool) => tool.name === activeTool.value)?.title ?? '');
 
 function cycleStylusOnly() {
   stylusOnly.value = stylusOnly.value === 'auto' ? true : stylusOnly.value ? false : 'auto';
@@ -550,161 +635,94 @@ async function onImagesSelected(event: Event) {
   <div class="playground">
     <div ref="container" class="playground-canvas" />
 
-    <div class="playground-toolbar">
-      <div class="row">
-        <button
-          v-for="tool in tools"
-          :key="tool.name"
-          class="tool"
-          :class="{ active: activeTool === tool.name }"
-          :title="tool.title"
-          :aria-label="tool.title"
-          :aria-pressed="activeTool === tool.name"
-          @click="toggleTool(tool.name)"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons[tool.name]" /></svg>
-        </button>
+    <!-- Tools: a rail on the left (a bar at the bottom on phones) -->
+    <nav class="rail" aria-label="Tools">
+      <button
+        v-for="tool in tools"
+        :key="tool.name"
+        class="tool"
+        :class="{ active: activeTool === tool.name }"
+        :title="`${tool.title}${tool.key ? ` (${tool.key})` : ''}`"
+        :aria-label="tool.title"
+        :aria-pressed="activeTool === tool.name"
+        @click="toggleTool(tool.name)"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons[tool.name]" /></svg>
+      </button>
 
-        <span class="sep" />
+      <span class="sep" />
 
-        <button class="tool" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="editor?.undo()">
-          <svg viewBox="0 0 24 24"><path :d="icons.undo" /></svg>
-        </button>
-        <button class="tool" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="editor?.redo()">
-          <svg viewBox="0 0 24 24"><path :d="icons.redo" /></svg>
-        </button>
-        <button class="tool" title="Clear" aria-label="Clear" @click="editor?.clear()">
-          <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg>
-        </button>
+      <button class="tool" title="Undo (Ctrl/⌘ Z)" aria-label="Undo" :disabled="!canUndo" @click="editor?.undo()">
+        <svg viewBox="0 0 24 24"><path :d="icons.undo" /></svg>
+      </button>
+      <button class="tool" title="Redo (Ctrl/⌘ Shift Z)" aria-label="Redo" :disabled="!canRedo" @click="editor?.redo()">
+        <svg viewBox="0 0 24 24"><path :d="icons.redo" /></svg>
+      </button>
+      <button
+        class="tool"
+        :class="{ active: showMenu }"
+        title="More: background, images, open & save"
+        aria-label="More"
+        :aria-expanded="showMenu"
+        @click="showMenu = !showMenu"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.more" /></svg>
+      </button>
 
-        <span class="sep" />
+      <span class="sep" />
 
-        <button
-          v-for="type in (['solid', 'grid', 'dot'] as const)"
-          :key="type"
-          class="tool"
-          :class="{ active: background === type }"
-          :title="`${type} background`"
-          :aria-label="`${type} background`"
-          @click="toggleBackground(type)"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons[type]" /></svg>
-        </button>
+      <button
+        class="tool ai-button"
+        :class="{ active: showAI }"
+        title="AI: diagrams, charts, pictures, code → diagram"
+        aria-label="AI"
+        :aria-expanded="showAI"
+        @click="showAI = !showAI"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
+      </button>
+    </nav>
 
-        <span class="sep" />
-
-        <button class="tool" title="Insert image" aria-label="Insert image" @click="imageInput?.click()">
-          <svg viewBox="0 0 24 24"><path :d="icons.image" /></svg>
-        </button>
-        <button class="tool" title="Open SVG" aria-label="Open SVG" @click="svgInput?.click()">
-          <svg viewBox="0 0 24 24"><path :d="icons.open" /></svg>
-        </button>
-        <button class="tool text" title="Save SVG" @click="saveSvg">SVG</button>
-        <button class="tool text" title="Save PNG" @click="savePng">PNG</button>
-
-        <span class="sep" />
-
-        <button
-          class="tool text ai-button"
-          :class="{ active: showAI }"
-          title="AI: generate diagrams, organize notes"
-          aria-label="AI"
-          @click="showAI = !showAI"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
-          AI
-        </button>
-      </div>
-
-      <div v-if="showAI" class="row options ai-panel">
-        <form class="ai-form" @submit.prevent="runAI('diagram')">
-          <textarea
-            v-model="aiPrompt"
-            rows="2"
-            placeholder="Describe a diagram: a process, a flowchart, an architecture…"
-            :disabled="!!aiBusy"
-            @keydown.enter.exact.prevent="runAI('diagram')"
+    <!-- Options of the active tool, next to the rail -->
+    <div v-if="hasToolOptions && !showMenu" class="flyout" role="group" :aria-label="`${activeToolTitle} options`">
+      <template v-if="currentPen">
+        <div class="swatches">
+          <button
+            v-for="color in (activeTool === 'pen' ? inkColors : highlightColors)"
+            :key="color"
+            class="swatch"
+            :class="{ active: currentPen.color === color }"
+            :style="{ background: color }"
+            :aria-label="color"
+            @click="updatePen({ color })"
           />
-          <div class="ai-actions">
-            <button type="submit" class="ai-primary" :disabled="!!aiBusy">
-              {{ aiBusy === 'diagram' ? 'Drawing…' : '✨ Generate diagram' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy || !selectionHasDiagram"
-              title="Change the selected diagram as described above"
-              @click="runAI('edit')"
+          <button
+            v-for="color in recentColors"
+            :key="`recent-${color}`"
+            class="swatch"
+            :class="{ active: currentPen.color === color }"
+            :style="{ background: color }"
+            :aria-label="`Recent color ${color}`"
+            @click="updatePen({ color })"
+          />
+          <label class="swatch custom" title="Custom color">
+            <input
+              type="color"
+              aria-label="Custom color"
+              @input="updatePen({ color: ($event.target as HTMLInputElement).value })"
             >
-              {{ aiBusy === 'edit' ? 'Editing…' : '✏️ Edit selected diagram' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy || !selectionHasTopic"
-              title="Ideas around the selected sticky note"
-              @click="runAI('brainstorm')"
-            >
-              {{ aiBusy === 'brainstorm' ? 'Thinking…' : '💡 Brainstorm' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy"
-              title="Group the sticky notes (selected, or all) by theme"
-              @click="runAI('organize')"
-            >
-              {{ aiBusy === 'organize' ? 'Organizing…' : '🗂️ Organize sticky notes' }}
-            </button>
-            <button v-if="aiBusy" type="button" @click="cancelAI">Cancel</button>
-          </div>
-        </form>
-        <div class="ai-examples">
-          <span class="label">Try:</span>
-          <button v-for="example in aiExamples" :key="example" type="button" :disabled="!!aiBusy" @click="aiPrompt = example">
-            {{ example.length > 42 ? `${example.slice(0, 40)}…` : example }}
+          </label>
+          <button
+            class="tool small"
+            title="Pick a color from the drawing (I)"
+            aria-label="Pick a color from the drawing"
+            @click="editor?.tools.use('eyedropper')"
+          >
+            <svg viewBox="0 0 24 24"><path :d="icons.eyedropper" /></svg>
           </button>
         </div>
-        <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
-        <p class="ai-tip">
-          Tip: <button type="button" class="link" @click="openCommand">ask anything</button> with
-          <kbd>Ctrl/⌘ K</kbd> — "color the notes about marketing in blue", "what is missing?"…
-        </p>
-      </div>
-
-      <div v-if="currentPen" class="row options">
-        <button
-          v-for="color in (activeTool === 'pen' ? inkColors : highlightColors)"
-          :key="color"
-          class="swatch"
-          :class="{ active: currentPen.color === color }"
-          :style="{ background: color }"
-          :aria-label="color"
-          @click="updatePen({ color })"
-        />
-        <button
-          v-for="color in recentColors"
-          :key="`recent-${color}`"
-          class="swatch"
-          :class="{ active: currentPen.color === color }"
-          :style="{ background: color }"
-          :aria-label="`Recent color ${color}`"
-          @click="updatePen({ color })"
-        />
-        <button
-          class="tool"
-          title="Pick a color from the drawing (I)"
-          aria-label="Pick a color from the drawing"
-          @click="editor?.tools.use('eyedropper')"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons.eyedropper" /></svg>
-        </button>
-        <input
-          type="color"
-          class="color-input"
-          aria-label="Custom color"
-          @input="updatePen({ color: ($event.target as HTMLInputElement).value })"
-        >
-
         <label class="slider">
-          Size
+          <span>Size</span>
           <input
             type="range"
             min="1"
@@ -714,8 +732,7 @@ async function onImagesSelected(event: Event) {
             @input="updatePen({ thickness: Number(($event.target as HTMLInputElement).value) })"
           >
         </label>
-
-        <div class="segmented">
+        <div class="chips">
           <button
             v-for="item in penStyles"
             :key="item.style"
@@ -725,52 +742,95 @@ async function onImagesSelected(event: Event) {
             {{ item.label }}
           </button>
         </div>
-      </div>
+      </template>
 
-      <div v-if="activeTool === 'select'" class="row options">
-        <div class="segmented">
-          <button :class="{ active: selectMode === 'rectangle' }" @click="setSelectMode('rectangle')">
-            Rectangle
-          </button>
-          <button :class="{ active: selectMode === 'lasso' }" @click="setSelectMode('lasso')">
-            Lasso
+      <template v-else-if="activeTool === 'select'">
+        <div class="chips">
+          <button :class="{ active: selectMode === 'rectangle' }" @click="setSelectMode('rectangle')">Rectangle</button>
+          <button :class="{ active: selectMode === 'lasso' }" @click="setSelectMode('lasso')">Lasso</button>
+        </div>
+        <button v-if="lockedCount > 0" class="text-button" @click="unlockAll">
+          <svg viewBox="0 0 24 24"><path :d="icons.unlock" /></svg>
+          Unlock {{ lockedCount }} locked
+        </button>
+      </template>
+
+      <template v-else-if="activeTool === 'shape'">
+        <div class="shape-grid">
+          <button
+            v-for="shape in shapeNames"
+            :key="shape"
+            :class="{ active: shapeState.shape === shape }"
+            :title="shape"
+            @click="updateShape({ shape })"
+          >
+            {{ shape }}
           </button>
         </div>
-      </div>
+        <span class="label">Fill</span>
+        <div class="swatches">
+          <button
+            v-for="color in ['transparent', ...inkColors]"
+            :key="`fill-${color}`"
+            class="swatch"
+            :style="{ background: color }"
+            :aria-label="`Fill ${color}`"
+            @click="updateShape({ color })"
+          />
+        </div>
+        <span class="label">Border</span>
+        <div class="swatches">
+          <button
+            v-for="color in inkColors"
+            :key="`border-${color}`"
+            class="swatch"
+            :style="{ background: color }"
+            :aria-label="`Border ${color}`"
+            @click="updateShape({ borderColor: color })"
+          />
+        </div>
+        <label class="slider">
+          <span>Border</span>
+          <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            :value="shapeState.thickness"
+            @input="updateShape({ thickness: Number(($event.target as HTMLInputElement).value) })"
+          >
+        </label>
+      </template>
 
-      <div v-if="activeTool === 'select' && lockedCount > 0" class="row options">
-        <span class="label">{{ lockedCount }} locked</span>
-        <button class="tool text" title="Unlock all" @click="unlockAll">
-          <svg viewBox="0 0 24 24"><path :d="icons.unlock" /></svg>
-          Unlock all
-        </button>
-      </div>
-
-      <div v-if="activeTool === 'sticky'" class="row options">
+      <template v-else-if="activeTool === 'sticky'">
         <span class="label">Note color</span>
-        <button
-          v-for="color in noteColors"
-          :key="color"
-          class="swatch"
-          :class="{ active: stickyColor === color }"
-          :style="{ background: color }"
-          :aria-label="`Note ${color}`"
-          @click="setStickyColor(color)"
-        />
-        <span class="label">Click to add a note, click a note to edit it.</span>
-      </div>
+        <div class="swatches">
+          <button
+            v-for="color in noteColors"
+            :key="color"
+            class="swatch"
+            :class="{ active: stickyColor === color }"
+            :style="{ background: color }"
+            :aria-label="`Note ${color}`"
+            @click="setStickyColor(color)"
+          />
+        </div>
+        <p class="hint">Click to add a note, click a note to edit it.</p>
+      </template>
 
-      <div v-if="activeTool === 'connector'" class="row options">
-        <button
-          v-for="color in inkColors"
-          :key="`connector-${color}`"
-          class="swatch"
-          :class="{ active: connectorState.color === color }"
-          :style="{ background: color }"
-          :aria-label="color"
-          @click="updateConnector({ color })"
-        />
-        <div class="segmented">
+      <template v-else-if="activeTool === 'connector'">
+        <div class="swatches">
+          <button
+            v-for="color in inkColors"
+            :key="`connector-${color}`"
+            class="swatch"
+            :class="{ active: connectorState.color === color }"
+            :style="{ background: color }"
+            :aria-label="color"
+            @click="updateConnector({ color })"
+          />
+        </div>
+        <div class="chips">
           <button
             v-for="item in arrowModes"
             :key="item.mode"
@@ -781,7 +841,7 @@ async function onImagesSelected(event: Event) {
             {{ item.label }}
           </button>
         </div>
-        <div class="segmented">
+        <div class="chips">
           <button :class="{ active: connectorState.routing === 'straight' }" @click="updateConnector({ routing: 'straight' })">
             Straight
           </button>
@@ -789,67 +849,130 @@ async function onImagesSelected(event: Event) {
             Elbow
           </button>
         </div>
-        <span class="label">Drag from one shape to another — the arrow follows them.</span>
-      </div>
+        <p class="hint">Drag from one shape to another — the arrow follows them.</p>
+      </template>
 
-      <div v-if="activeTool === 'laser'" class="row options">
-        <span class="label">Point at things — the trail fades away and is never saved.</span>
-      </div>
+      <template v-else-if="activeTool === 'laser'">
+        <p class="hint">Point at things — the trail fades away and is never saved.</p>
+      </template>
+    </div>
 
-      <div v-if="activeTool === 'shape'" class="row options">
-        <div class="segmented wrap">
-          <button
-            v-for="shape in shapeNames"
-            :key="shape"
-            :class="{ active: shapeState.shape === shape }"
-            @click="updateShape({ shape })"
-          >
-            {{ shape }}
-          </button>
-        </div>
-        <span class="label">Fill</span>
+    <!-- ⋯ menu -->
+    <div v-if="showMenu" class="flyout menu" role="menu" aria-label="More">
+      <span class="label">Background</span>
+      <div class="chips">
         <button
-          v-for="color in ['transparent', ...inkColors]"
-          :key="`fill-${color}`"
-          class="swatch"
-          :style="{ background: color }"
-          :aria-label="`Fill ${color}`"
-          @click="updateShape({ color })"
-        />
-        <span class="label">Border</span>
-        <button
-          v-for="color in inkColors"
-          :key="`border-${color}`"
-          class="swatch"
-          :style="{ background: color }"
-          :aria-label="`Border ${color}`"
-          @click="updateShape({ borderColor: color })"
-        />
-        <label class="slider">
-          Border
-          <input
-            type="range"
-            min="0"
-            max="20"
-            step="1"
-            :value="shapeState.thickness"
-            @input="updateShape({ thickness: Number(($event.target as HTMLInputElement).value) })"
-          >
-        </label>
+          v-for="type in (['none', 'solid', 'grid', 'dot'] as const)"
+          :key="type"
+          :class="{ active: background === type }"
+          @click="setBackgroundType(type)"
+        >
+          {{ type }}
+        </button>
       </div>
-
-      <div v-if="background !== 'none'" class="row options">
-        <span class="label">Background</span>
+      <div v-if="background !== 'none'" class="swatches">
         <button
           v-for="color in backgroundColors"
           :key="color"
           class="swatch"
           :style="{ background: color }"
-          :aria-label="color"
+          :aria-label="`Background ${color}`"
           @click="editor?.setBackground({ color })"
         />
       </div>
+      <span class="sep-h" />
+      <button class="menu-item" role="menuitem" @click="imageInput?.click()">
+        <svg viewBox="0 0 24 24"><path :d="icons.image" /></svg> Insert image
+      </button>
+      <button class="menu-item" role="menuitem" @click="svgInput?.click()">
+        <svg viewBox="0 0 24 24"><path :d="icons.open" /></svg> Open SVG
+      </button>
+      <button class="menu-item" role="menuitem" @click="saveSvg">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Save as SVG
+      </button>
+      <button class="menu-item" role="menuitem" @click="savePng">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Save as PNG
+      </button>
+      <span class="sep-h" />
+      <button class="menu-item" role="menuitem" @click="cycleStylusOnly">
+        <svg viewBox="0 0 24 24"><path :d="icons.pen" /></svg>
+        Fingers: <b>{{ stylusOnly === 'auto' ? 'auto' : stylusOnly ? 'pan only' : 'draw' }}</b>
+      </button>
+      <button class="menu-item" role="menuitem" @click="showHelp = true; showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.help" /></svg> Keyboard shortcuts
+      </button>
+      <button class="menu-item danger" role="menuitem" aria-label="Clear" @click="editor?.clear(); showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg> Clear drawing
+      </button>
     </div>
+
+    <!-- AI panel (right side; a bottom sheet on phones) -->
+    <aside v-if="showAI" class="ai-panel" aria-label="AI">
+      <header class="ai-header">
+        <b>✨ AI</b>
+        <button class="tool small" aria-label="Close AI panel" @click="showAI = false">✕</button>
+      </header>
+      <div class="chips ai-modes" role="tablist">
+        <button
+          v-for="mode in aiModes"
+          :key="mode.id"
+          role="tab"
+          :aria-selected="aiMode === mode.id"
+          :class="{ active: aiMode === mode.id }"
+          @click="aiMode = mode.id; aiMessage = null"
+        >
+          {{ mode.label }}
+        </button>
+      </div>
+      <form class="ai-form" @submit.prevent="runAI(currentAIMode.action)">
+        <textarea
+          v-model="aiPrompt"
+          :rows="aiMode === 'code' ? 8 : 3"
+          :class="{ code: aiMode === 'code' }"
+          :placeholder="currentAIMode.placeholder"
+          :disabled="!!aiBusy"
+          @keydown.enter.exact="aiMode !== 'code' && ($event.preventDefault(), runAI(currentAIMode.action))"
+        />
+        <div class="ai-actions">
+          <button type="submit" class="ai-primary" :disabled="!!aiBusy">
+            {{ aiBusy === currentAIMode.action ? 'Working…' : currentAIMode.button }}
+          </button>
+          <button v-if="aiBusy" type="button" @click="cancelAI">Cancel</button>
+        </div>
+      </form>
+      <div class="ai-examples">
+        <button
+          v-for="example in currentAIMode.examples"
+          :key="example"
+          type="button"
+          :disabled="!!aiBusy"
+          @click="aiPrompt = example"
+        >
+          {{ example.length > 60 ? `${example.slice(0, 58)}…` : example }}
+        </button>
+      </div>
+      <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
+
+      <div class="ai-section">
+        <span class="label">With the selection</span>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasDiagram" @click="runAI('edit')">
+          ✏️ {{ aiBusy === 'edit' ? 'Editing…' : 'Edit selected diagram (uses the text above)' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasTopic" @click="runAI('brainstorm')">
+          💡 {{ aiBusy === 'brainstorm' ? 'Thinking…' : 'Brainstorm around the selected note' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy" @click="runAI('organize')">
+          🗂️ {{ aiBusy === 'organize' ? 'Organizing…' : 'Organize sticky notes by theme' }}
+        </button>
+      </div>
+      <p class="ai-tip">
+        <button type="button" class="link" @click="openCommand">Ask anything</button>
+        with <kbd>Ctrl/⌘ K</kbd> — "color the notes about marketing in blue"…
+      </p>
+    </aside>
+
+    <input ref="svgInput" type="file" accept="image/svg+xml" hidden @change="onSvgSelected">
+    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onImagesSelected">
 
     <div
       ref="quickBar"
@@ -1010,15 +1133,8 @@ async function onImagesSelected(event: Event) {
       </div>
     </div>
 
-    <button class="help-button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" @click="showHelp = !showHelp">?</button>
 
-    <button class="stylus-mode" title="Palm rejection" @click="cycleStylusOnly">
-      Fingers:
-      <b>{{ stylusOnly === 'auto' ? 'auto' : stylusOnly ? 'pan only' : 'draw' }}</b>
-    </button>
 
-    <input ref="svgInput" type="file" accept="image/svg+xml" hidden @change="onSvgSelected">
-    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onImagesSelected">
   </div>
 </template>
 
@@ -1036,59 +1152,57 @@ async function onImagesSelected(event: Event) {
   inset: 0;
 }
 
-.playground-toolbar {
+/* Shared panel look */
+.rail,
+.flyout,
+.ai-panel {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 10;
-  max-width: calc(100% - 16px);
   box-sizing: border-box;
-  padding: 8px;
   background: #fff;
   color: #374151;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
-.row {
+/* Tool rail on the left */
+.rail {
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-}
-
-.options {
-  margin-top: 8px;
-  padding-top: 8px;
-  gap: 8px;
-  border-top: 1px dashed #e5e7eb;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 14px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 .tool {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
   color: inherit;
   touch-action: manipulation;
 }
 
-.tool.text {
-  width: auto;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 600;
+.tool.small {
+  width: 30px;
+  height: 30px;
 }
 
-.tool svg {
+.tool svg,
+.menu-item svg,
+.text-button svg {
   width: 20px;
   height: 20px;
   fill: none;
@@ -1103,27 +1217,68 @@ async function onImagesSelected(event: Event) {
 }
 
 @media (hover: hover) {
-  .tool:not(:disabled):hover {
+  .tool:not(:disabled):hover,
+  .menu-item:hover,
+  .text-button:not(:disabled):hover {
     background: #f3f4f6;
   }
 }
 
 .tool.active,
-.segmented button.active {
+.chips button.active,
+.shape-grid button.active {
   background: #e8eefc;
   color: #1d4ed8;
 }
 
+.rail .ai-button {
+  color: #4f46e5;
+}
+
+.rail .ai-button.active {
+  background: #eef2ff;
+}
+
 .sep {
-  width: 1px;
-  height: 20px;
-  margin: 0 4px;
-  background: #d1d5db;
+  flex-shrink: 0;
+  width: 22px;
+  height: 1px;
+  margin: 4px auto;
+  background: #e5e7eb;
+}
+
+.sep-h {
+  display: block;
+  height: 1px;
+  margin: 2px 0;
+  background: #f3f4f6;
+}
+
+/* Options of the active tool, and the ⋯ menu: next to the rail */
+.flyout {
+  left: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 232px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .swatch {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px #d1d5db;
@@ -1135,53 +1290,122 @@ async function onImagesSelected(event: Event) {
   box-shadow: 0 0 0 2px #2563eb;
 }
 
-.color-input {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: none;
+.swatch.custom {
+  position: relative;
+  overflow: hidden;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  cursor: pointer;
 }
 
-.slider,
-.label {
+.swatch.custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.slider {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   color: #6b7280;
 }
 
-.segmented {
+.slider input {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.chips {
   display: flex;
-  padding: 2px;
-  border-radius: 8px;
-  background: #f3f4f6;
-}
-
-.segmented.wrap {
   flex-wrap: wrap;
-  justify-content: center;
+  gap: 4px;
 }
 
-.segmented button {
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+.chips button,
+.shape-grid button {
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #f3f4f6;
+  font-size: 12px;
   text-transform: capitalize;
   touch-action: manipulation;
 }
 
-.ai-button svg {
-  margin-right: 4px;
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 
+.shape-grid button {
+  padding: 6px 2px;
+  font-size: 11px;
+}
+
+.text-button,
+.menu-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.text-button:disabled {
+  opacity: 0.45;
+}
+
+.menu-item.danger {
+  color: #dc2626;
+}
+
+/* AI panel on the right */
 .ai-panel {
+  top: 12px;
+  right: 12px;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 48px);
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  width: min(560px, calc(100vw - 48px));
-  margin-left: auto;
-  margin-right: auto;
+  gap: 10px;
+  width: 340px;
+  padding: 12px;
+  overflow-y: auto;
+  border-radius: 14px;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+}
+
+.ai-modes button {
+  flex: 1;
+  text-transform: none;
 }
 
 .ai-form {
@@ -1201,6 +1425,12 @@ async function onImagesSelected(event: Event) {
   resize: vertical;
 }
 
+.ai-form textarea.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
 .ai-actions,
 .ai-examples {
   display: flex;
@@ -1209,9 +1439,8 @@ async function onImagesSelected(event: Event) {
   align-items: center;
 }
 
-.ai-actions button,
-.ai-examples button {
-  padding: 6px 10px;
+.ai-actions button {
+  padding: 7px 12px;
   border-radius: 8px;
   background: #f3f4f6;
   font-size: 13px;
@@ -1219,6 +1448,7 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-actions .ai-primary {
+  flex: 1;
   background: #4f46e5;
   color: #fff;
   font-weight: 600;
@@ -1230,9 +1460,20 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-examples button {
+  padding: 5px 9px;
+  border-radius: 8px;
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
+  text-align: left;
+}
+
+.ai-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed #e5e7eb;
 }
 
 .ai-tip {
@@ -1511,33 +1752,6 @@ async function onImagesSelected(event: Event) {
   white-space: nowrap;
 }
 
-.help-button {
-  position: absolute;
-  right: 12px;
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 44px);
-  z-index: 10;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  font-weight: 600;
-}
-
-.stylus-mode {
-  position: absolute;
-  right: 12px;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  z-index: 10;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  font-size: 13px;
-}
-
 /* Tablets & phones: larger touch targets */
 @media (pointer: coarse) {
   .tool {
@@ -1551,8 +1765,14 @@ async function onImagesSelected(event: Event) {
   }
 
   .swatch {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .chips button,
+  .shape-grid button {
+    padding: 9px 12px;
+    font-size: 14px;
   }
 
   .quick-bar .swatch.small {
@@ -1564,15 +1784,51 @@ async function onImagesSelected(event: Event) {
     width: 44px;
     height: 44px;
   }
+}
 
-  .segmented button {
-    padding: 10px 14px;
-    font-size: 15px;
+/* Phones: tools at the bottom, panels above them */
+@media (max-width: 640px) {
+  .rail {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: none;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
-  .slider input {
-    width: 180px;
-    height: 32px;
+  .sep {
+    width: 1px;
+    height: 22px;
+    margin: auto 4px;
+  }
+
+  .flyout {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px);
+    transform: none;
+    width: auto;
+    max-height: 45vh;
+  }
+
+  .ai-panel {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px);
+    width: auto;
+    max-height: 60vh;
+  }
+
+  .zoom-controls {
+    top: 8px;
+    bottom: auto;
+    left: 8px;
   }
 }
 </style>

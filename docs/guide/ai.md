@@ -5,6 +5,10 @@ EasyDrawer can ask a language model to draw for you:
 - **Text → diagram**: describe a process, a flowchart or an architecture, and get shapes with text and arrows
   that stay attached to them. Decisions get labeled branches ("yes" / "no").
 - **Edit a diagram with words**: "add a step to send a confirmation email after the payment".
+- **Code / SQL → diagram**: paste SQL tables (→ ER diagram), classes (→ class diagram) or a function
+  (→ flowchart).
+- **Charts**: "sales per quarter, 2023 vs 2024" → a bar, line or pie chart with labels and a legend.
+- **Pictures**: "a cat sleeping on a laptop" → a simple illustration made of editable shapes.
 - **Brainstorm**: ideas about a sticky note, as new notes around it.
 - **Organize sticky notes**: after a brainstorm, sort the notes into themed, colored columns with titles.
 - **Commands**: ask for anything in plain language — "color the notes about marketing in blue", "align the
@@ -116,6 +120,49 @@ runs anything else as a [command](#commands). In the playground, it's the ✨ bu
 to the selection.
 
 New diagrams are placed next to what is already drawn, never on top of it.
+
+## Code / SQL → diagram
+
+```ts
+await editor.ai.diagramFromCode(`
+CREATE TABLE users (id INT PRIMARY KEY, email TEXT);
+CREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES users(id));
+`);
+```
+
+SQL tables become **entity** boxes (a bold title and one line per column) linked by their foreign keys;
+classes and interfaces become a class diagram; other code becomes a flowchart of its logic. The result is
+a normal diagram: select it and use `editDiagram()` to change it. You can also draw entity boxes yourself
+with `drawDiagram()`: `{ id: 'users', label: 'users', kind: 'entity', details: ['id INT PK', 'email TEXT'] }`.
+
+## Charts
+
+```ts
+await editor.ai.generateChart('Revenue per quarter in k$, 2023 vs 2024');
+
+// Or without AI:
+editor.ai.drawChart({
+  type: 'bar', // 'bar' | 'line' | 'pie'
+  title: 'Revenue',
+  labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+  series: [{ name: '2024', values: [120, 150, 170, 210] }],
+  unit: 'k$',
+});
+```
+
+The chart is placed in free space, grouped, and made of shapes and text. Its data is saved in the group's
+metadata (`getMetadata().chart`). `buildChart(chart, origin, scale)` returns the components without adding
+them.
+
+## Pictures
+
+```ts
+await editor.ai.generateIllustration('A lighthouse at sunset', { size: 260 });
+```
+
+The model writes a small SVG, which is converted to editable strokes (`svgToStrokes(svg)` is exported too):
+paths, rectangles, circles, ellipses, lines, polygons and transforms are supported. Free models draw simple
+pictures; bigger models draw better ones.
 
 ## Brainstorm
 

@@ -60,6 +60,8 @@ export { AIError, type AIMessage, type AIRequest, type AIRequestHandler, type AI
 export { openAICompatibleRequest, type OpenAICompatibleOptions } from './ai/openAICompatible';
 export { default as layoutGraph, type LayoutEdge, type LayoutNode, type LayoutOptions } from './ai/layoutGraph';
 export { default as parseAIJSON } from './ai/parseJSON';
+export { default as buildChart, chartColors, type Chart, type ChartSeries, type ChartType } from './ai/charts';
+export { default as svgToStrokes, parsePathData as parseSVGPathData } from './ai/svgToStrokes';
 export * from './api/options';
 export {
   penStyles,

@@ -1,18 +1,20 @@
 import { Color4, type IVec2, Mat33, Path, Rect2, Vec2 } from '~/math';
 
+import buildChart, { type Chart, validateChart } from './charts';
 import layoutGraph from './layoutGraph';
 import parseAIJSON from './parseJSON';
+import svgToStrokes from './svgToStrokes';
 import { AIError, type AIMessage, type AIRequestHandler } from './types';
+import type Command from '../commands/Command';
+import Erase from '../commands/Erase';
+import uniteCommands from '../commands/uniteCommands';
 import type AbstractComponent from '../components/AbstractComponent';
 import Connector from '../components/Connector';
-import { type RouteSide } from '../components/util/routeOrthogonal';
 import ImageComponent from '../components/ImageComponent';
 import StickyNote from '../components/StickyNote';
 import Stroke from '../components/Stroke';
 import TextComponent from '../components/TextComponent';
-import type Command from '../commands/Command';
-import Erase from '../commands/Erase';
-import uniteCommands from '../commands/uniteCommands';
+import { type RouteSide } from '../components/util/routeOrthogonal';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
@@ -20,13 +22,19 @@ import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 
 /** Colors the AI can choose for diagram nodes and note groups. */
 export type AIColorName = 'blue' | 'green' | 'yellow' | 'pink' | 'purple' | 'gray';
-export type DiagramNodeKind = 'process' | 'decision' | 'terminal' | 'io';
+/**
+ * Kinds of diagram nodes. `'entity'` is a box with a title and a list of `details` (e.g. a
+ * database table and its columns, or a class and its members).
+ */
+export type DiagramNodeKind = 'process' | 'decision' | 'terminal' | 'io' | 'entity';
 
 export interface DiagramNode {
   id: string;
   label: string;
   kind: DiagramNodeKind;
   color?: AIColorName;
+  /** For `'entity'` nodes: lines below the title (columns, fields, methods…). */
+  details?: string[];
 }
 
 export interface DiagramEdge {
@@ -60,7 +68,7 @@ interface AIOptions {
 }
 
 const colorNames: AIColorName[] = ['blue', 'green', 'yellow', 'pink', 'purple', 'gray'];
-const nodeKinds: DiagramNodeKind[] = ['process', 'decision', 'terminal', 'io'];
+const nodeKinds: DiagramNodeKind[] = ['process', 'decision', 'terminal', 'io', 'entity'];
 
 const shapeColors: Record<AIColorName, { fill: string; border: string }> = {
   blue: { fill: '#dbeafe', border: '#1d4ed8' },
@@ -85,21 +93,55 @@ const defaultKindColors: Record<DiagramNodeKind, AIColorName> = {
   process: 'blue',
   decision: 'yellow',
   io: 'purple',
+  entity: 'blue',
 };
 
 const diagramPrompt = `You convert descriptions into diagrams (flowcharts, processes, architectures, mind maps).
 Answer with ONE JSON object and nothing else:
 {"direction":"down","nodes":[{"id":"n1","label":"Start","kind":"terminal","color":"green"}],"edges":[{"from":"n1","to":"n2","label":""}]}
 Rules:
-- "kind": "terminal" (start/end), "process" (a step or a thing), "decision" (a question or condition), "io" (input/output, data).
+- "kind": "terminal" (start/end), "process" (a step or a thing), "decision" (a question or condition), "io" (input/output, data),
+  "entity" (a box with a title and "details": a list of lines, e.g. a table and its columns).
 - "color": one of ${colorNames.join(', ')}. Optional.
 - Edges leaving a decision have short labels (e.g. "yes"/"no"). Other edge labels are usually empty.
 - "direction": "right" for timelines and short pipelines, otherwise "down".
 - At most 25 nodes. Labels are short (at most 6 words), in the same language as the description.`;
 
+const codeDiagramPrompt = `You turn source code or SQL into a diagram.
+Answer with ONE JSON object and nothing else:
+{"direction":"right","nodes":[{"id":"users","label":"users","kind":"entity","details":["id: int PK","email: text"]}],"edges":[{"from":"orders","to":"users","label":"user_id"}]}
+Choose the diagram from the input:
+- SQL (CREATE TABLE, schemas): an entity-relationship diagram. One "entity" node per table, "label" = table name,
+  "details" = its columns as "name: type" with PK / FK. One edge per foreign key, from the table with the key to the
+  referenced table, "label" = the key column. "direction": "right".
+- Classes, interfaces, structs, types: a class diagram. One "entity" node per class, "details" = fields
+  ("+ name: type") then methods ("+ name(): type"). Edges for inheritance ("extends"/"implements") and use ("uses").
+  "direction": "down".
+- Other code (functions, scripts, handlers): a flowchart of its logic with "kind" "terminal" (start/end),
+  "process", "decision" (conditions, labeled edges "yes"/"no"…) and "io" (input/output, calls to other systems).
+  "direction": "down".
+At most 25 nodes. Short labels.`;
+
+const chartPrompt = `You turn data or a description into a chart.
+Answer with ONE JSON object and nothing else:
+{"type":"bar","title":"Revenue 2024","unit":"","labels":["Q1","Q2","Q3","Q4"],"series":[{"name":"Revenue","values":[10,20,15,30]}]}
+Rules:
+- "type": "pie" for parts of a whole, "line" for a trend over time, otherwise "bar".
+- One value per label in each series. Numbers only (no units in values; put the unit in "unit", e.g. "%", "k$").
+- Use the numbers given. Without numbers, use realistic example numbers.
+- Title, labels and series names in the same language as the request.`;
+
+const illustrationPrompt = `You draw simple, clean, flat vector illustrations and icons.
+Answer with ONLY an SVG document and nothing else, like:
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">…</svg>
+Rules:
+- Use only <path>, <circle>, <ellipse>, <rect>, <line>, <polyline>, <polygon> and <g>, with fill and stroke colors.
+- Friendly flat style, a few harmonious colors, at most 60 elements.
+- No text, gradients, filters, images, masks, CSS or scripts.`;
+
 const editDiagramPrompt = `${diagramPrompt}
 You are EDITING an existing diagram: answer with the complete updated diagram.
-Keep the ids, labels, kinds and colors of the nodes that should not change.`;
+Keep the ids, labels, kinds, colors and "details" of the nodes that should not change.`;
 
 const brainstormPrompt = `You help people brainstorm.
 Answer with ONE JSON object and nothing else: {"ideas":["first idea","second idea"]}
@@ -152,6 +194,9 @@ export function validateDiagram (json: any): Diagram {
       label: shortText(raw?.label ?? raw?.text, 80) || '…',
       kind: oneOf(raw?.kind ?? raw?.type, nodeKinds, 'process'),
       color: raw?.color ? oneOf(raw.color, colorNames, 'blue') : undefined,
+      ...(Array.isArray(raw?.details)
+        ? { details: raw.details.slice(0, 24).map((d: unknown) => shortText(d, 60)).filter((d: string) => d !== '') }
+        : {}),
     });
   }
   if (nodes.length === 0) {
@@ -307,6 +352,19 @@ export default class EditorAI {
     this.requestHandler = handler;
   }
 
+  /** Sends `messages` to the AI and returns the text of its answer. */
+  public async requestText(messages: AIMessage[], options: AIOptions = {}): Promise<string> {
+    if (!this.requestHandler) {
+      throw new AIError('AI is not configured: give a request handler with the "ai" editor setting.');
+    }
+    try {
+      return await this.requestHandler({ messages, json: false, signal: options.signal });
+    } catch (error) {
+      if (error instanceof AIError) throw error;
+      throw new AIError(`AI request failed: ${(error as Error)?.message ?? error}`, error);
+    }
+  }
+
   /** Sends `messages` to the AI and returns the JSON object of its answer. */
   public async requestJSON(messages: AIMessage[], options: AIOptions = {}): Promise<any> {
     if (!this.requestHandler) {
@@ -394,8 +452,23 @@ export default class EditorAI {
     };
     const lineHeight = textStyle.size * 1.25;
 
+    const titleStyle: TextRenderingStyle = { ...textStyle, fontWeight: 'bold' };
+    const detailStyle: TextRenderingStyle = { ...textStyle, size: 13 * scale, fontFamily: 'monospace' };
+    const headerHeight = 36 * scale;
+    const detailHeight = 18 * scale;
+
     // Sizes
     const sized = diagram.nodes.map((node) => {
+      if (node.kind === 'entity') {
+        const details = node.details ?? [];
+        const width = Math.max(
+          160 * scale,
+          TextComponent.measureTextWidth(node.label, titleStyle) + 36 * scale,
+          ...details.map((d) => TextComponent.measureTextWidth(d, detailStyle) + 28 * scale),
+        );
+        const height = headerHeight + (details.length > 0 ? details.length * detailHeight + 14 * scale : 0);
+        return { node, lines: [node.label], width, height };
+      }
       const lines = wrapText(node.label, textStyle, 170 * scale);
       const textWidth = Math.max(...lines.map((line) => TextComponent.measureTextWidth(line, textStyle)));
       let width = Math.max(130 * scale, textWidth + 36 * scale);
@@ -429,7 +502,7 @@ export default class EditorAI {
       const colors = shapeColors[node.color ?? defaultKindColors[node.kind]];
 
       const shape = new Stroke([
-        pathToRenderable(nodePath(node.kind, width, height).transformedBy(Mat33.translation(nodeCenter)), {
+        pathToRenderable(nodePath(node.kind === 'entity' ? 'process' : node.kind, width, height).transformedBy(Mat33.translation(nodeCenter)), {
           fill: Color4.fromHex(colors.fill),
           stroke: { color: Color4.fromHex(colors.border), width: 2 * scale },
         }),
@@ -444,6 +517,42 @@ export default class EditorAI {
       });
       shapeById.set(node.id, shape);
       created.push(shape);
+
+      if (node.kind === 'entity') {
+        // Title, a line, and the details below it.
+        const top = nodeCenter.y - height / 2;
+        const left = nodeCenter.x - width / 2;
+        const titleWidth = TextComponent.measureTextWidth(node.label, titleStyle);
+        const title = TextComponent.fromLines(
+          [node.label],
+          Mat33.translation(Vec2.of(nodeCenter.x - titleWidth / 2, top + headerHeight / 2 + titleStyle.size * 0.35)),
+          titleStyle,
+        );
+        title.setGroupDirectly(groupId);
+        created.push(title);
+
+        const details = node.details ?? [];
+        if (details.length > 0) {
+          const separator = new Stroke([
+            pathToRenderable(Path.fromString(`M${left},${top + headerHeight} L${left + width},${top + headerHeight}`), {
+              fill: Color4.transparent,
+              stroke: { color: Color4.fromHex(colors.border), width: 1.5 * scale },
+            }),
+          ]);
+          separator.setGroupDirectly(groupId);
+          created.push(separator);
+        }
+        for (const [i, detail] of details.entries()) {
+          const line = TextComponent.fromLines(
+            [detail],
+            Mat33.translation(Vec2.of(left + 14 * scale, top + headerHeight + 7 * scale + (i + 1) * detailHeight - 4 * scale)),
+            detailStyle,
+          );
+          line.setGroupDirectly(groupId);
+          created.push(line);
+        }
+        continue;
+      }
 
       // Centered lines of text
       const textTop = nodeCenter.y - (lines.length * lineHeight) / 2;
@@ -532,6 +641,105 @@ export default class EditorAI {
   }
 
   /**
+   * Turns source code or SQL into a diagram: an entity-relationship diagram for SQL tables,
+   * a class diagram for classes and types, or a flowchart of the logic for other code.
+   */
+  public async diagramFromCode(code: string, options: AIOptions = {}): Promise<Diagram> {
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: codeDiagramPrompt },
+        { role: 'user', content: code.slice(0, 12000) },
+      ],
+      options,
+    );
+    const diagram = validateDiagram(json);
+    await this.drawDiagram(diagram);
+    return diagram;
+  }
+
+  /**
+   * Asks the AI for a chart (bar, line or pie) of the data or description in `prompt`
+   * (e.g. "revenue Q1–Q4: 10, 20, 15, 30", or pasted table data) and draws it.
+   */
+  public async generateChart(prompt: string, options: AIOptions = {}): Promise<Chart> {
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: chartPrompt },
+        { role: 'user', content: prompt.slice(0, 8000) },
+      ],
+      options,
+    );
+    const chart = validateChart(json);
+    await this.drawChart(chart);
+    return chart;
+  }
+
+  /**
+   * Draws a chart (as returned by {@link generateChart}) next to what is already drawn.
+   * The chart is made of normal shapes and text, grouped.
+   */
+  public async drawChart(chart: Chart) {
+    const editor = this.editor;
+    const scale = editor.viewport.getSizeOfPixelOnCanvas();
+    const { size } = buildChart(chart, Vec2.zero, scale);
+    const box = new Rect2(-size.x / 2, -size.y / 2, size.x, size.y);
+    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, new Set());
+    const { components } = buildChart(chart, Vec2.ofXY(center).minus(size.times(0.5)), scale);
+
+    const groupId = `group-${components[0]?.getId()}`;
+    for (const component of components) {
+      component.setGroupDirectly(groupId);
+    }
+    components[0]?.setMetadata({ chart: chart.type });
+    await this.addAndShow(components);
+  }
+
+  /**
+   * Asks the AI to draw an illustration or icon described by `prompt` (e.g. "a cat reading a
+   * book", "database icon"), as editable shapes, next to what is already drawn.
+   *
+   * @returns the new strokes.
+   */
+  public async generateIllustration(prompt: string, options: AIOptions & { size?: number } = {}): Promise<Stroke[]> {
+    const answer = await this.requestText(
+      [
+        { role: 'system', content: illustrationPrompt },
+        { role: 'user', content: prompt.slice(0, 2000) },
+      ],
+      options,
+    );
+    const svg = answer.match(/<svg[\S\s]*<\/svg>/i)?.[0];
+    if (!svg) {
+      throw new AIError('The AI answer does not contain an SVG image.');
+    }
+
+    const strokes = svgToStrokes(svg).slice(0, 400);
+    if (strokes.length === 0) {
+      throw new AIError('The SVG from the AI has nothing that can be drawn.');
+    }
+
+    // Scale to `size` screen pixels, next to the rest of the drawing.
+    const editor = this.editor;
+    const bbox = Rect2.union(...strokes.map((s) => s.getBBox()));
+    const targetSize = (options.size ?? 260) * editor.viewport.getSizeOfPixelOnCanvas();
+    const factor = targetSize / Math.max(bbox.w, bbox.h, 1e-6);
+    const box = new Rect2((-bbox.w * factor) / 2, (-bbox.h * factor) / 2, bbox.w * factor, bbox.h * factor);
+    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, new Set());
+    const transform = Mat33.translation(Vec2.ofXY(center))
+      .rightMul(Mat33.scaling2D(factor))
+      .rightMul(Mat33.translation(bbox.center.times(-1)));
+
+    const placed = strokes.map((stroke) => stroke.transformedPreview(transform) as Stroke);
+    const groupId = `group-${placed[0].getId()}`;
+    for (const stroke of placed) {
+      stroke.setGroupDirectly(groupId);
+    }
+    placed[0].setMetadata({ illustration: prompt.slice(0, 80) });
+    await this.addAndShow(placed);
+    return placed;
+  }
+
+  /**
    * Reads a diagram from `components` (by default the selection, or everything): diagrams
    * drawn by {@link drawDiagram}, and hand-made ones — shapes with text inside, sticky notes,
    * connectors, and arrows/lines drawn between two shapes.
@@ -569,17 +777,27 @@ export default class EditorAI {
 
     // Nodes: shapes made by drawDiagram, shapes with text or attached connectors, notes, and
     // texts with attached connectors. Other strokes may be hand-drawn arrows (see below).
-    type NodeSource = { component: AbstractComponent; label: string; meta: Readonly<Record<string, string>> };
+    type NodeSource = {
+      component: AbstractComponent;
+      label: string;
+      details?: string[];
+      meta: Readonly<Record<string, string>>;
+    };
     const sources: NodeSource[] = [];
     const nodeOf = new Map<AbstractComponent, number>();
-    const addNode = (component: AbstractComponent, label: string) => {
+    const addNode = (component: AbstractComponent, label: string, details?: string[]) => {
       nodeOf.set(component, sources.length);
-      sources.push({ component, label, meta: component.getMetadata() });
+      sources.push({ component, label, details, meta: component.getMetadata() });
     };
     for (const stroke of strokes) {
       const labels = labelsOf.get(stroke)!;
       if (stroke.getMetadata().diagramNode || labels.length > 0 || connectedIds.has(stroke.getId())) {
-        addNode(stroke, labels.map((t) => t.getText()).join(' '));
+        if (stroke.getMetadata().kind === 'entity') {
+          // Title, then one text per detail line.
+          addNode(stroke, labels[0]?.getText() ?? '', labels.slice(1).map((t) => t.getText()));
+        } else {
+          addNode(stroke, labels.map((t) => t.getText()).join(' '));
+        }
         for (const label of labels) nodeOf.set(label, nodeOf.get(stroke)!);
       }
     }
@@ -593,6 +811,13 @@ export default class EditorAI {
     if (sources.length === 0) return null;
 
     const parts = new Set<AbstractComponent>(nodeOf.keys());
+    // Everything grouped with a node (e.g. the line under the title of an entity) is part of it.
+    const nodeGroups = new Set<string | null>(sources.map((s) => s.component.getGroupId()).filter((g) => g !== null));
+    for (const component of all) {
+      if (component.getGroupId() !== null && nodeGroups.has(component.getGroupId()) && !(component instanceof Connector)) {
+        parts.add(component);
+      }
+    }
     const edges: DiagramEdge[] = [];
     const edgeKeys = new Set<string>();
     const addEdge = (from: number | undefined, to: number | undefined, label?: string) => {
@@ -637,11 +862,12 @@ export default class EditorAI {
       }
     }
 
-    const nodes: DiagramNode[] = sources.map(({ label, meta }, i) => ({
+    const nodes: DiagramNode[] = sources.map(({ label, details, meta }, i) => ({
       id: `n${i + 1}`,
       label: shortText(label, 80) || '…',
       kind: oneOf(meta.kind, nodeKinds, label.trim().endsWith('?') ? 'decision' : 'process'),
       color: meta.color ? oneOf(meta.color, colorNames, 'blue') : undefined,
+      ...(details ? { details } : {}),
     }));
 
     // Direction: from the metadata, or from how the nodes are laid out.
@@ -798,7 +1024,7 @@ export default class EditorAI {
       const result: Record<string, unknown> = { ...item, id: shortIdOf.get(component) };
       for (const key of ['from', 'to'] as const) {
         if (typeof item[key] === 'string') {
-          const target = editor.image.lookupElement(item[key] as string);
+          const target = editor.image.lookupElement(item[key]);
           result[key] = target ? shortIdOf.get(target) : undefined;
         }
       }

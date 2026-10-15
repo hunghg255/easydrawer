@@ -1,6 +1,8 @@
 # EasyDrawer
 
-A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, SVG/PNG export.
+A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, sticky notes, arrows that
+stay attached, frames for presenting, and SVG/PNG export. AI features draw diagrams, mind maps, charts and pictures
+from text, and turn SQL or code into diagrams; Mermaid diagrams can be imported and exported without AI.
 Works with mouse, touch and styluses (Apple Pencil, Wacom, Surface Pen), with palm rejection on tablets.
 
 - [Documentation & playground](https://easydrawer.vercel.app/) — source in [`docs/`](./docs) (`pnpm dev`); the playground is at [`/playground`](https://easydrawer.vercel.app/playground)

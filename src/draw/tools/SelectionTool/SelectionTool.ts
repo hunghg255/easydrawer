@@ -262,8 +262,11 @@ export default class SelectionTool extends BaseTool {
     const textTool = toolController.getToolByName('text') as TextTool | null;
     if (!textTool) return false;
     this.clearSelection();
-    textTool.setEnabled(true);
-    textTool.editText(target as TextComponent);
+    // After this event: enabled now, the text tool would also receive it (and start a new text).
+    setTimeout(() => {
+      textTool.setEnabled(true);
+      textTool.editText(target as TextComponent);
+    }, 0);
     return true;
   }
 

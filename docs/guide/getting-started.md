@@ -80,3 +80,5 @@ document.querySelector('#undo').addEventListener('click', () => editor.undo());
 - [Natural ink](./natural-ink) — tune how strokes look
 - [Tablets & stylus](./tablets) — Apple Pencil and palm rejection
 - [Saving & loading](./saving)
+- [AI features](./ai) — diagrams, mind maps, charts and pictures from text; Mermaid import/export
+- [Frames & presenting](./frames) — slides, presentations and PDF export

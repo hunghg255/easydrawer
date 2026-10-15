@@ -96,6 +96,8 @@ const shortcuts: Array<[string, string]> = [
   ['Delete', 'Delete selection'],
   ['Ctrl/⌘ + G', 'Group (Ctrl/⌘ + Shift + G: ungroup)'],
   ['Double click', 'Edit a note or text'],
+  ['Ctrl/⌘ + K', 'Ask AI to do something'],
+  ['→ / Space, ←, Esc', 'Next / previous frame, stop (while presenting)'],
   ['− / =', 'Thinner / thicker pen'],
   ['Ctrl/⌘ + wheel, pinch', 'Zoom'],
   ['Arrows, two fingers', 'Pan'],

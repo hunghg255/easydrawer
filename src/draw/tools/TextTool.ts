@@ -32,6 +32,8 @@ export default class TextTool extends BaseTool {
   private textMeasuringCtx: CanvasRenderingContext2D | null = null;
 
   private removeExistingCommand: Erase | null = null;
+  // The text being edited (its group and metadata are kept).
+  private editedComponent: TextComponent | null = null;
 
   public constructor(
     private editor: Editor,
@@ -144,6 +146,12 @@ export default class TextTool extends BaseTool {
         this.textStyle,
       );
 
+      if (this.editedComponent) {
+        textComponent.setGroupDirectly(this.editedComponent.getGroupId());
+        const metadata = this.editedComponent.getMetadata();
+        if (Object.keys(metadata).length > 0) textComponent.setMetadata({ ...metadata });
+      }
+
       const action = EditorImage.addComponent(textComponent);
       if (this.removeExistingCommand) {
         // Unapply so that `removeExistingCommand` can be added to the undo stack.
@@ -155,6 +163,7 @@ export default class TextTool extends BaseTool {
         this.editor.dispatch(action);
       }
     }
+    this.editedComponent = null;
   }
 
   private updateTextInput() {
@@ -312,6 +321,7 @@ export default class TextTool extends BaseTool {
     // Create and temporarily apply removeExistingCommand.
     this.removeExistingCommand = new Erase([targetNode]);
     this.removeExistingCommand.apply(this.editor);
+    this.editedComponent = targetNode;
 
     this.startTextInput(targetNode.getBaselinePos(), targetNode.getText());
 

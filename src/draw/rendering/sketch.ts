@@ -27,6 +27,11 @@ export interface SketchOptions {
 
 let generator: RoughGenerator | null = null;
 
+/** A random seed for {@link sketchPath}. */
+export function newSketchSeed () {
+  return RoughGenerator.newSeed();
+}
+
 /** A seed for {@link sketchPath} from a string (e.g. a component ID), so it looks the same each time. */
 export function sketchSeedOf (text: string) {
   let hash = 0;
@@ -96,4 +101,55 @@ export function sketchParts (parts: RenderablePathSpec[], options: SketchOptions
     const seed = options.seed === undefined ? undefined : options.seed + i;
     return sketchPath(path, part.style, { ...options, seed });
   });
+}
+
+interface SketchSource {
+  parts: Array<{ d: string; fill: string; stroke?: string; width?: number }>;
+  options: SketchOptions;
+}
+
+/**
+ * What a hand-drawn shape is drawn from (the clean parts and the options, including the
+ * seed), as a string to keep in the component's metadata (`sketchSource`): see
+ * {@link sketchFromSource}. @internal
+ */
+export function sketchSourceOf (parts: RenderablePathSpec[], options: SketchOptions & { seed: number }): string {
+  const source: SketchSource = {
+    parts: parts.map((part) => ({
+      d: pathFromRenderable(part).toString(),
+      fill: part.style.fill.toHexString(),
+      ...(part.style.stroke ? { stroke: part.style.stroke.color.toHexString(), width: part.style.stroke.width } : {}),
+    })),
+    options,
+  };
+  return JSON.stringify(source);
+}
+
+/**
+ * Draws a hand-drawn shape again after `transform` (e.g. resizing it): the clean shape is
+ * transformed, then drawn by hand with the same seed and line widths, so the lines don't get
+ * thicker or stretched. @internal
+ *
+ * @returns the new parts and source, or `null` if `source` can't be read.
+ */
+export function sketchFromSource (source: string, transform: Mat33): { parts: RenderablePathSpec[]; source: string } | null {
+  let parsed: SketchSource;
+  try {
+    parsed = JSON.parse(source);
+    if (!Array.isArray(parsed.parts)) return null;
+  } catch {
+    return null;
+  }
+
+  const clean = parsed.parts.map((part) =>
+    pathToRenderable(Path.fromString(part.d).transformedBy(transform), {
+      fill: Color4.fromHex(part.fill),
+      ...(part.stroke ? { stroke: { color: Color4.fromHex(part.stroke), width: part.width ?? 1 } } : {}),
+    }),
+  );
+  const options = parsed.options ?? {};
+  return {
+    parts: sketchParts(clean, options),
+    source: JSON.stringify({ parts: clean.map((part, i) => ({ ...parsed.parts[i], d: part.path.toString() })), options }),
+  };
 }

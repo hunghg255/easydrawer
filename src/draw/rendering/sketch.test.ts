@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { Color4, Path } from '~/math';
+import { Color4, Mat33, Path, Vec2 } from '~/math';
 
 import { pathFromRenderable, pathToRenderable } from './RenderablePathSpec';
-import { sketchParts, sketchPath, sketchSeedOf } from './sketch';
+import { sketchFromSource, sketchParts, sketchPath, sketchSeedOf, sketchSourceOf } from './sketch';
 import TextComponent from '../components/TextComponent';
 
 const square = Path.fromString('M0,0 L100,0 L100,60 L0,60 Z');
@@ -62,6 +62,24 @@ describe('sketchPath', () => {
     expect(parts.some((part) => part.style.stroke?.color.eq(Color4.red))).toBe(true);
     expect(parts.some((part) => part.style.stroke?.color.eq(Color4.blue))).toBe(true);
     expect(pathFromRenderable(parts[0]).bbox.w).toBeGreaterThan(0);
+  });
+
+  it('draws a shape again after it is resized, with the same line width', () => {
+    const clean = [pathToRenderable(square, { fill: Color4.transparent, stroke: { color: Color4.black, width: 2 } })];
+    const source = sketchSourceOf(clean, { seed: 7 });
+    const stretched = sketchFromSource(source, Mat33.scaling2D(Vec2.of(3, 1)))!;
+    const bbox = stretched.parts.map((part) => pathFromRenderable(part).bbox).reduce((a, b) => a.union(b));
+    expect(bbox.w).toBeGreaterThan(290);
+    expect(bbox.w).toBeLessThan(310);
+    for (const part of stretched.parts) expect(part.style.stroke?.width).toBe(2);
+
+    // And back: the same as at first (same seed).
+    const back = sketchFromSource(stretched.source, Mat33.scaling2D(Vec2.of(1 / 3, 1)))!;
+    const first = sketchParts(clean, { seed: 7 }).map((part) => pathFromRenderable(part).bbox);
+    const again = back.parts.map((part) => pathFromRenderable(part).bbox);
+    expect(again.length).toBe(first.length);
+    expect(again[0].x).toBeCloseTo(first[0].x, 3);
+    expect(sketchFromSource('not json', Mat33.identity)).toBeNull();
   });
 
   it('gives a stable seed for a string', () => {

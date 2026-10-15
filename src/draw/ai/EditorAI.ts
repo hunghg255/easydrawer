@@ -21,7 +21,7 @@ import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
 import type RenderablePathSpec from '../rendering/RenderablePathSpec';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
-import { sketchParts, type SketchOptions } from '../rendering/sketch';
+import { newSketchSeed, sketchParts, sketchSourceOf, type SketchOptions } from '../rendering/sketch';
 import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 
 /** Colors the AI can choose for diagram nodes and note groups. */
@@ -379,8 +379,10 @@ export default class EditorAI {
   // A shape, hand-drawn if `sketch` is set (filled with a solid color, so that text stays readable).
   private shapeStroke(parts: RenderablePathSpec[]) {
     if (!this.sketch) return new Stroke(parts);
-    const scale = this.editor.viewport.getSizeOfPixelOnCanvas();
-    const stroke = new Stroke(sketchParts(parts, { fillStyle: 'solid', ...this.sketch, scale }));
+    const options = { fillStyle: 'solid' as const, ...this.sketch, scale: this.editor.viewport.getSizeOfPixelOnCanvas(), seed: newSketchSeed() };
+    const stroke = new Stroke(sketchParts(parts, options));
+    // To draw it again when it's resized (see Stroke).
+    stroke.setMetadata({ sketch: '1', sketchSource: sketchSourceOf(parts, options) });
     return stroke;
   }
 
@@ -551,6 +553,7 @@ export default class EditorAI {
       const groupId = `group-${shape.getId()}`;
       shape.setGroupDirectly(groupId);
       shape.setMetadata({
+        ...shape.getMetadata(),
         diagramNode: node.id,
         kind: node.kind,
         direction: diagram.direction,
@@ -945,7 +948,7 @@ export default class EditorAI {
     ]);
     const groupId = `group-${shape.getId()}`;
     shape.setGroupDirectly(groupId);
-    shape.setMetadata({ mindmap: String(depth), color, ...(side !== 0 ? { side: side < 0 ? 'left' : 'right' } : {}) });
+    shape.setMetadata({ ...shape.getMetadata(), mindmap: String(depth), color, ...(side !== 0 ? { side: side < 0 ? 'left' : 'right' } : {}) });
 
     const components: AbstractComponent[] = [shape];
     const lines = wrapText(label, style, (depth === 0 ? 300 : 190) * scale);

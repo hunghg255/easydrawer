@@ -17,6 +17,8 @@ import SerializableCommand from '../../commands/SerializableCommand';
 import uniteCommands from '../../commands/uniteCommands';
 import type AbstractComponent from '../../components/AbstractComponent';
 import Connector from '../../components/Connector';
+import Stroke from '../../components/Stroke';
+import TextComponent from '../../components/TextComponent';
 import type Editor from '../../Editor';
 import EditorImage from '../../image/EditorImage';
 import { type EditorLocalization } from '../../localization';
@@ -30,6 +32,8 @@ const updateChunkSize = 100;
 const maxPreviewElemCount = 500;
 // Selections at least this slow to draw (see getProportionalRenderingTime) are moved as an image.
 const minSnapshotRenderingWeight = 150;
+// While transforming, connectors attached to the selection are routed again at most this often (ms).
+const connectorPreviewInterval = 50;
 // Largest image (in pixels) of a selection being moved.
 const maxSnapshotSize = 4096;
 
@@ -38,6 +42,33 @@ const snapDistance = 6;
 const snapGuideColor = Color4.fromHex('#ec4899');
 
 // @internal
+
+/**
+ * The transformation of `elem` when the selection (`all`) is transformed by `full`: the same,
+ * except for the text of a shape (text grouped with a shape that contains it), which keeps its
+ * size when the shape is resized and moves with the shape's center. With `undoing`, the
+ * elements are where `full` moved them.
+ */
+function transformOfElement (elem: AbstractComponent, all: AbstractComponent[], full: Mat33, undoing: boolean): Mat33 {
+  const groupId = elem.getGroupId();
+  if (!(elem instanceof TextComponent) || groupId === null) return full;
+
+  // Rotating (or flipping) turns the text with the shape.
+  const x = full.transformVec3(Vec2.unitX);
+  const y = full.transformVec3(Vec2.unitY);
+  if (Math.abs(x.y) > 1e-9 || Math.abs(y.x) > 1e-9 || x.x <= 0 || y.y <= 0) return full;
+
+  const textCenter = elem.getBBox().center;
+  const host = all.find(
+    (c) => c instanceof Stroke && c.getGroupId() === groupId && c.getMetadata().frame === undefined && c.getBBox().containsPoint(textCenter),
+  );
+  if (!host) return full;
+
+  const center = host.getBBox().center;
+  const before = undoing ? full.inverse().transformVec2(center) : center;
+  const after = undoing ? center : full.transformVec2(center);
+  return Mat33.translation(after.minus(before));
+}
 export default class Selection {
   // Child items (menus and selection handles)
   private childwidgets: SelectionBoxChild[];
@@ -354,7 +385,8 @@ export default class Selection {
       } else {
         this.selectedElemIds = selectedElems.map((elem) => elem.getId());
         this.transformCommands = selectedElems.map((elem) => {
-          return elem.setZIndexAndTransformBy(this.fullTransform, elem.getZIndex() + deltaZIndex);
+          const transform = transformOfElement(elem, selectedElems, this.fullTransform, false);
+          return elem.setZIndexAndTransformBy(transform, elem.getZIndex() + deltaZIndex);
         });
       }
     }
@@ -364,6 +396,9 @@ export default class Selection {
         return;
       }
 
+      const elems = this.selectedElemIds
+        .map((id) => editor.image.lookupElement(id))
+        .filter((elem) => elem !== null);
       this.transformCommands = this.selectedElemIds
         .map((id) => {
           const elem = editor.image.lookupElement(id);
@@ -386,7 +421,8 @@ export default class Selection {
             originalZIndex = elem.getZIndex() - this.deltaZIndex;
           }
 
-          return elem.setZIndexAndTransformBy(this.fullTransform, targetZIndex, originalZIndex);
+          const transform = transformOfElement(elem, elems, this.fullTransform, isUndoing);
+          return elem.setZIndexAndTransformBy(transform, targetZIndex, originalZIndex);
         })
         .filter(
           // Remove all null commands
@@ -451,6 +487,10 @@ export default class Selection {
     wetInkRenderer.pushTransform(this.transform);
 
     const snapshot = this.getDragSnapshot();
+    const viewportVisibleRect = this.editor.viewport.visibleRect.union(this.region);
+    const visibleRect = viewportVisibleRect.transformedBoundingBox(this.transform.inverse());
+    // The text of shapes keeps its size when they're resized (see transformOfElement).
+    const ownTransform: AbstractComponent[] = [];
     if (snapshot) {
       // An image of the selection, moved instead of drawn again.
       wetInkRenderer.drawImage({
@@ -458,22 +498,33 @@ export default class Selection {
         base64Url: '',
         transform: Mat33.translation(snapshot.rect.topLeft).rightMul(Mat33.scaling2D(1 / snapshot.pixelsPerUnit)),
       });
+      ownTransform.push(...snapshot.notIncluded);
     } else {
-      const viewportVisibleRect = this.editor.viewport.visibleRect.union(this.region);
-      const visibleRect = viewportVisibleRect.transformedBoundingBox(this.transform.inverse());
-
       for (const elem of this.drawnWhileDragging()) {
-        elem.render(wetInkRenderer, visibleRect);
+        if (elem instanceof TextComponent && elem.getGroupId() !== null) {
+          ownTransform.push(elem);
+        } else {
+          elem.render(wetInkRenderer, visibleRect);
+        }
       }
     }
 
     wetInkRenderer.popTransform();
+
+    for (const elem of ownTransform) {
+      wetInkRenderer.pushTransform(transformOfElement(elem, this.selectedElems, this.transform, false));
+      elem.render(wetInkRenderer, viewportVisibleRect);
+      wetInkRenderer.popTransform();
+    }
 
     this.renderAttachedConnectors();
     this.renderSnapGuides();
 
     this.updateUI();
   }
+
+  // The last previews of connectors routed while transforming (see renderAttachedConnectors).
+  private connectorPreviews = new Map<Connector, { time: number; preview: Connector }>();
 
   // Connectors (attached to the selection) whose ends all move with it: when it is only
   // moved, they move with it (no need to route them again).
@@ -496,12 +547,22 @@ export default class Selection {
 
   // While a selection that is slow to draw is transformed, an image of it is moved instead of
   // drawing everything again for each frame (made at the start, and again if the zoom changes).
-  private dragSnapshot: { canvas: HTMLCanvasElement; rect: Rect2; pixelsPerUnit: number; connectors: Set<Connector> } | null = null;
+  private dragSnapshot: {
+    canvas: HTMLCanvasElement;
+    rect: Rect2;
+    pixelsPerUnit: number;
+    connectors: Set<Connector>;
+    notIncluded: AbstractComponent[];
+  } | null = null;
 
   private getDragSnapshot() {
     // When moving the selection, the connectors that move with it are in the image too.
     const connectors = this.backgroundDragging ? this.connectorsMovingWithSelection() : [];
-    const elems = [...this.drawnWhileDragging(), ...connectors];
+    // When resizing, the text of shapes is drawn on its own (it keeps its size).
+    const notIncluded = this.backgroundDragging
+      ? []
+      : this.drawnWhileDragging().filter((elem) => elem instanceof TextComponent && elem.getGroupId() !== null);
+    const elems = [...this.drawnWhileDragging().filter((elem) => !notIncluded.includes(elem)), ...connectors];
     const weight = elems.reduce((total, elem) => total + elem.getProportionalRenderingTime(), 0);
     if (elems.length === 0 || weight < minSnapshotRenderingWeight) {
       return null;
@@ -533,7 +594,7 @@ export default class Selection {
       elem.render(renderer, rect);
     }
 
-    this.dragSnapshot = { canvas, rect, pixelsPerUnit, connectors: new Set(connectors) };
+    this.dragSnapshot = { canvas, rect, pixelsPerUnit, connectors: new Set(connectors), notIncluded };
     return this.dragSnapshot;
   }
 
@@ -638,8 +699,10 @@ export default class Selection {
 
     // When dragging, connectors with all their ends in the selection just move with it:
     // no need to route them again (which is slow with many connectors).
-    const isTranslation =
-      Vec2.unitX.eq(transform.transformVec3(Vec2.unitX), 1e-9) && Vec2.unitY.eq(transform.transformVec3(Vec2.unitY), 1e-9);
+    // Moved, or resized without rotating: routes stay made of horizontal and vertical lines.
+    const x = transform.transformVec3(Vec2.unitX);
+    const y = transform.transformVec3(Vec2.unitY);
+    const isTranslation = Math.abs(x.y) < 1e-9 && Math.abs(y.x) < 1e-9 && x.x > 0 && y.y > 0;
     const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
     const rigid = new Set(isTranslation ? this.connectorsMovingWithSelection() : []);
     const toRoute: Connector[] = [];
@@ -678,7 +741,15 @@ export default class Selection {
         ...[...moved.values(), ...movedObstacles].filter((elem) => elem.getBBox().intersects(region)),
       ],
     };
+    // Routing is slow: each connector is routed again at most every few frames (e.g. while
+    // resizing many shapes), drawn as it was in between.
+    const now = performance.now();
     for (const connector of toRoute) {
+      const last = this.connectorPreviews.get(connector);
+      if (last && now - last.time < connectorPreviewInterval) {
+        last.preview.render(renderer);
+        continue;
+      }
       // Free ends of selected connectors move with the selection. Attached ends follow
       // their components.
       const preview = (
@@ -686,6 +757,7 @@ export default class Selection {
       ) as Connector;
       preview.updateEnds(lookup);
       preview.render(renderer);
+      this.connectorPreviews.set(connector, { time: now, preview });
     }
   }
 
@@ -907,6 +979,7 @@ export default class Selection {
 
   public onDragEnd() {
     this.dragSnapshot = null;
+    this.connectorPreviews.clear();
     if (this.backgroundDragging) {
       this.transformers.drag.onDragEnd();
     } else if (this.activeHandle) {
@@ -922,6 +995,7 @@ export default class Selection {
 
   public onDragCancel() {
     this.dragSnapshot = null;
+    this.connectorPreviews.clear();
     this.backgroundDragging = false;
     this.activeHandle = null;
     this.setTransform(Mat33.identity);

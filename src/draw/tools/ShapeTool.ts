@@ -16,7 +16,7 @@ import EditorImage from '../image/EditorImage';
 import { type KeyPressEvent, type PointerEvt } from '../inputEvents';
 import type Pointer from '../Pointer';
 import { PointerDevice } from '../Pointer';
-import { sketchParts, type SketchOptions } from '../rendering/sketch';
+import { newSketchSeed, sketchParts, sketchSourceOf, type SketchOptions } from '../rendering/sketch';
 import { EditorEventType, type StrokeDataPoint } from '../types';
 import { type MutableReactiveValue, ReactiveValue } from '../util/ReactiveValue';
 
@@ -284,10 +284,11 @@ export default class ShapeTool extends BaseTool {
 
       let stroke = this.autocorrectedShape ?? this.builder.build();
       if (this.sketch && stroke instanceof Stroke) {
-        stroke = new Stroke(
-          sketchParts(stroke.getParts(), { ...this.sketch, scale: this.editor.viewport.getSizeOfPixelOnCanvas() }),
-        );
-        stroke.setMetadata({ sketch: '1' });
+        const options = { ...this.sketch, scale: this.editor.viewport.getSizeOfPixelOnCanvas(), seed: newSketchSeed() };
+        const clean = stroke.getParts();
+        stroke = new Stroke(sketchParts(clean, options));
+        // To draw it again when it's resized (see Stroke).
+        stroke.setMetadata({ sketch: '1', sketchSource: sketchSourceOf(clean, options) });
       }
       this.previewStroke();
 

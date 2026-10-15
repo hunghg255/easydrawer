@@ -148,7 +148,8 @@ export default class EditorSelection {
       copy = shape.clone().transformedPreview(Mat33.translation(offset));
       // Not in the group of the shape and its text.
       copy.setGroupDirectly(null);
-      const { diagramNode: _node, mindmap: _mindmap, ...metadata } = shape.getMetadata();
+      // (The copy's own metadata: e.g. its hand-drawn source was moved with it.)
+      const { diagramNode: _node, mindmap: _mindmap, ...metadata } = copy.getMetadata();
       copy.setMetadata(Object.keys(metadata).length > 0 ? metadata : null);
     }
 

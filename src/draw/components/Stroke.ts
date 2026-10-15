@@ -34,6 +34,7 @@ import {
   styleToJSON,
 } from '../rendering/RenderingStyle';
 import { type StrokeStyle } from '../rendering/RenderingStyle';
+import { sketchFromSource } from '../rendering/sketch';
 import type Viewport from '../Viewport';
 
 interface StrokePart extends RenderablePathSpec {
@@ -95,8 +96,13 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
   public constructor(parts: RenderablePathSpec[], initialZIndex?: number) {
     super('stroke', initialZIndex);
 
+    this.setParts(parts);
+  }
+
+  private setParts(parts: RenderablePathSpec[]) {
     this.approximateRenderingTime = 0;
     this.parts = [];
+    this.contentBBox = undefined as unknown as Rect2;
 
     for (const section of parts) {
       const path = pathFromRenderable(section);
@@ -590,6 +596,16 @@ export default class Stroke extends AbstractComponent implements RestyleableComp
   }
 
   protected applyTransformation(affineTransfm: Mat33): void {
+    // Hand-drawn shapes are drawn again from their clean shape (see sketchFromSource), so that
+    // resizing doesn't stretch the lines.
+    const sketchSource = this.getMetadata().sketchSource;
+    const sketched = sketchSource ? sketchFromSource(sketchSource, affineTransfm) : null;
+    if (sketched) {
+      this.setMetadata({ ...this.getMetadata(), sketchSource: sketched.source });
+      this.setParts(sketched.parts);
+      return;
+    }
+
     this.contentBBox = Rect2.empty;
     let isFirstPart = true;
 

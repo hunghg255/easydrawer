@@ -43,6 +43,9 @@ const icons: Record<string, string> = {
   group: 'M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h7v5H7z M10 12h7v5h-7z',
   ungroup: 'M4 5h8v6H4z M12 13h8v6h-8z',
   align: 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
+  frame: 'M3 7h18 M3 17h18 M7 3v18 M17 3v18',
+  play: 'M7 4l13 8-13 8z',
+  mermaid: 'M8 3H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2 M16 3h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2',
   'align-left': 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
   'align-center': 'M12 3v18 M6 7h12v4H6z M8.5 14h7v4h-7z',
   'align-right': 'M20 3v18 M4 7h12v4H4z M9 14h7v4H9z',
@@ -146,6 +149,9 @@ const showAI = ref(false);
 const aiPrompt = ref('');
 type AIAction =
   | 'diagram'
+  | 'mindmap'
+  | 'mermaid'
+  | 'expand'
   | 'chart'
   | 'picture'
   | 'code'
@@ -158,7 +164,7 @@ type AIAction =
 const showMenu = ref(false);
 
 // What the AI panel creates
-type AIMode = 'diagram' | 'chart' | 'picture' | 'code';
+type AIMode = 'diagram' | 'mindmap' | 'chart' | 'picture' | 'code' | 'mermaid';
 const aiMode = ref<AIMode>('diagram');
 const aiModes: Array<{
   id: AIMode;
@@ -179,6 +185,14 @@ const aiModes: Array<{
       'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
       'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
     ],
+  },
+  {
+    id: 'mindmap',
+    label: 'Mind map',
+    action: 'mindmap',
+    button: '🧠 Generate mind map',
+    placeholder: 'A topic, e.g. "launching a mobile app" — then select a topic to grow it',
+    examples: ['Launching a mobile app', 'Kế hoạch du lịch Đà Nẵng 4 ngày', 'Learning machine learning from scratch'],
   },
   {
     id: 'chart',
@@ -212,6 +226,18 @@ const aiModes: Array<{
       'function login(user) {\n  if (!user.email) throw new Error("missing email");\n  const ok = checkPassword(user);\n  if (!ok) return showError();\n  return openDashboard();\n}',
     ],
   },
+  {
+    id: 'mermaid',
+    label: 'Mermaid',
+    action: 'mermaid',
+    button: '🧜 Draw Mermaid (no AI)',
+    placeholder: 'Paste a Mermaid flowchart, erDiagram or classDiagram',
+    examples: [
+      'flowchart TD\n  A([Start]) --> B{Logged in?}\n  B -->|yes| C[Dashboard]\n  B -->|no| D[/Login form/] --> B',
+      'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  CUSTOMER {\n    int id PK\n    string email\n  }\n  ORDER {\n    int id PK\n    int customer_id FK\n  }',
+      'classDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  class Animal {\n    +String name\n    +speak()\n  }\n  class Dog {\n    +fetch()\n  }',
+    ],
+  },
 ];
 const currentAIMode = computed(() => aiModes.find((mode) => mode.id === aiMode.value)!);
 
@@ -229,6 +255,7 @@ function toggleQuickAI() {
 const aiBusy = ref<AIAction | null>(null);
 const selectionHasDiagram = ref(false);
 const selectionHasTopic = ref(false);
+const selectionHasMindMap = ref(false);
 
 // Command palette (Ctrl/⌘+K while the drawing has focus)
 const showCommand = ref(false);
@@ -293,12 +320,18 @@ async function runAI(action: AIAction) {
       }
       const diagram = await instance.ai.generateDiagram(aiPrompt.value, { signal: aiAbort.signal });
       showAIToast(`✨ Added ${diagram.nodes.length} shapes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
-    } else if (action === 'chart' || action === 'picture' || action === 'code') {
+    } else if (action === 'mindmap' || action === 'mermaid' || action === 'chart' || action === 'picture' || action === 'code') {
       if (!aiPrompt.value.trim()) {
         aiMessage.value = { kind: 'info', text: 'Type something first, or pick an example.' };
         return;
       }
-      if (action === 'chart') {
+      if (action === 'mindmap') {
+        const mindMap = await instance.ai.generateMindMap(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🧠 Added a mind map with ${mindMap.children?.length ?? 0} branches — select a topic and “Grow” it.`);
+      } else if (action === 'mermaid') {
+        const diagram = await instance.ai.drawMermaid(aiPrompt.value);
+        showAIToast(`🧜 Drew ${diagram.nodes.length} boxes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+      } else if (action === 'chart') {
         const chart = await instance.ai.generateChart(aiPrompt.value, { signal: aiAbort.signal });
         showAIToast(`📊 Added a ${chart.type} chart${chart.title ? `: ${chart.title}` : ''} — Ctrl/⌘+Z to undo.`);
       } else if (action === 'picture') {
@@ -322,6 +355,9 @@ async function runAI(action: AIAction) {
       quickAIText.value = '';
       showQuickAI.value = false;
       showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
+    } else if (action === 'expand') {
+      const topics = await instance.ai.expandMindMap({ signal: aiAbort.signal });
+      showAIToast(`🌿 Added ${topics.length} sub-topics — Ctrl/⌘+Z to undo.`);
     } else if (action === 'brainstorm') {
       const notes = await instance.ai.brainstorm({ signal: aiAbort.signal });
       showAIToast(`💡 Added ${notes.length} ideas — Ctrl/⌘+Z to undo.`);
@@ -353,6 +389,112 @@ async function runAI(action: AIAction) {
 
 function cancelAI() {
   aiAbort?.abort();
+}
+
+// The selected diagram (or the whole drawing) as Mermaid text: copied, and shown in the panel.
+async function copyMermaid() {
+  const text = editor.value?.ai.toMermaid();
+  if (!text) {
+    aiMessage.value = { kind: 'info', text: 'There is no diagram to export: draw boxes with text and arrows between them.' };
+    return;
+  }
+  aiMode.value = 'mermaid';
+  aiPrompt.value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    showAIToast('📋 Copied as Mermaid — paste it in GitHub, Notion, Obsidian…');
+  } catch {
+    showAIToast('🧜 The Mermaid text is in the AI panel.');
+  }
+}
+
+// Frames and presentation
+const root = ref<HTMLElement>();
+const frameCount = ref(0);
+const presenting = ref<number | null>(null);
+
+async function addFrame() {
+  showMenu.value = false;
+  const frame = await editor.value?.frames.add();
+  if (frame) showAIToast(`▢ Added “${frame.title}” — double-click its title to rename it. ▶ Present in the ⋯ menu.`);
+}
+
+async function frameSelection() {
+  showMenu.value = false;
+  const frame = await editor.value?.frames.addAroundSelection();
+  if (frame) showAIToast(`▣ Added “${frame.title}” around the selection.`);
+}
+
+async function showSlide(index: number) {
+  const instance = editor.value;
+  if (!instance) return;
+  const count = instance.frames.list().length;
+  if (count === 0) {
+    stopPresentation();
+    return;
+  }
+  presenting.value = Math.min(Math.max(index, 0), count - 1);
+  await instance.frames.goTo(presenting.value, { padding: 8 });
+}
+
+async function startPresentation() {
+  showMenu.value = false;
+  showAI.value = false;
+  const instance = editor.value;
+  if (!instance) return;
+  if (instance.frames.list().length === 0) {
+    showAIToast('Add a frame first: ⋯ → Add frame.');
+    return;
+  }
+  instance.selection.clear();
+  presenting.value = 0;
+  try {
+    await root.value?.requestFullscreen?.();
+  } catch {
+    // Not available (e.g. iOS Safari): present in the page.
+  }
+  await nextTick();
+  await showSlide(0);
+}
+
+function stopPresentation() {
+  presenting.value = null;
+  if (document.fullscreenElement) void document.exitFullscreen?.();
+}
+
+function nextSlide(step: number) {
+  if (presenting.value === null) return;
+  const count = editor.value?.frames.list().length ?? 0;
+  const next = presenting.value + step;
+  if (next >= count) {
+    stopPresentation();
+    return;
+  }
+  void showSlide(next);
+}
+
+// Each frame as a page, printed to PDF by the browser.
+function exportFramesPDF() {
+  showMenu.value = false;
+  const instance = editor.value;
+  if (!instance) return;
+  const frames = instance.frames.list();
+  if (frames.length === 0) return;
+  const images = frames.map((_, i) => instance.frames.toDataURL(i, { pixelRatio: 2 }));
+  const landscape = frames.filter((f) => f.rect.w >= f.rect.h).length >= frames.length / 2;
+  const page = window.open('', '_blank');
+  if (!page) {
+    showAIToast('⚠️ Allow pop-ups to export a PDF.');
+    return;
+  }
+  page.document.write(`<!doctype html><title>Frames</title><style>
+    @page { size: ${landscape ? 'landscape' : 'portrait'}; margin: 0 }
+    body { margin: 0 }
+    img { display: block; width: 100vw; height: 100vh; object-fit: contain; page-break-after: always; break-after: page }
+  </style>${images.map((src) => `<img src="${src}">`).join('')}`);
+  page.document.close();
+  page.addEventListener('load', () => page.print());
+  setTimeout(() => page.print(), 600);
 }
 const stickyColor = ref(noteColors[0]);
 const connectorState = ref({
@@ -422,6 +564,8 @@ onMounted(async () => {
     ai: { request: playgroundAIRequest },
   });
   editor.value = instance;
+  // For debugging and browser tests in development.
+  if (import.meta.env.DEV) (window as any).__editor = instance;
 
   loadRecentColors();
 
@@ -441,6 +585,21 @@ onMounted(async () => {
 
   const onKeyDown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null;
+    if (presenting.value !== null) {
+      const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ' ': 1, Enter: 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[event.key];
+      if (step) {
+        nextSlide(step);
+      } else if (event.key === 'Escape') {
+        stopPresentation();
+      } else if (event.key === 'Home') {
+        void showSlide(0);
+      } else if (event.key === 'End') {
+        void showSlide(Infinity);
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (target?.closest('input, textarea, [contenteditable="true"]')) return;
     if (event.key === '?') {
       showHelp.value = !showHelp.value;
@@ -448,8 +607,23 @@ onMounted(async () => {
       showHelp.value = false;
     }
   };
-  window.addEventListener('keydown', onKeyDown);
-  cleanups.push(() => window.removeEventListener('keydown', onKeyDown));
+  window.addEventListener('keydown', onKeyDown, true);
+  cleanups.push(() => window.removeEventListener('keydown', onKeyDown, true));
+
+  // Presenting: keep the slide fitted to the screen, and stop when leaving fullscreen.
+  const onResize = () => {
+    if (presenting.value !== null) setTimeout(() => presenting.value !== null && void showSlide(presenting.value), 120);
+  };
+  const onFullscreenChange = () => {
+    if (!document.fullscreenElement && presenting.value !== null) presenting.value = null;
+    onResize();
+  };
+  window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  cleanups.push(() => {
+    window.removeEventListener('resize', onResize);
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+  });
 
   cleanups.push(
     instance.tools.onChange((name) => {
@@ -467,6 +641,7 @@ onMounted(async () => {
     instance.onChange(() => {
       canUndo.value = instance.canUndo();
       canRedo.value = instance.canRedo();
+      frameCount.value = instance.frames.list().length;
     }),
     instance.onZoomChange((value) => (zoom.value = value)),
     instance.selection.onChange((items) => {
@@ -474,6 +649,7 @@ onMounted(async () => {
       selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
       selectionHasDiagram.value = items.length > 0 && instance.ai.readDiagram(items) !== null;
       selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
+      selectionHasMindMap.value = items.some((item) => item.getMetadata().mindmap !== undefined);
       selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
       selectionHasGroups.value = instance.selection.hasGroups;
       if (items.length === 0) {
@@ -632,7 +808,7 @@ async function onImagesSelected(event: Event) {
 </script>
 
 <template>
-  <div class="playground">
+  <div ref="root" class="playground" :class="{ presenting: presenting !== null }">
     <div ref="container" class="playground-canvas" />
 
     <!-- Tools: a rail on the left (a bar at the bottom on phones) -->
@@ -893,6 +1069,23 @@ async function onImagesSelected(event: Event) {
       <button class="menu-item" role="menuitem" @click="savePng">
         <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Save as PNG
       </button>
+      <button class="menu-item" role="menuitem" @click="copyMermaid(); showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.mermaid" /></svg> Copy diagram as Mermaid
+      </button>
+      <span class="sep-h" />
+      <span class="label">Frames · slides</span>
+      <button class="menu-item" role="menuitem" @click="addFrame">
+        <svg viewBox="0 0 24 24"><path :d="icons.frame" /></svg> Add frame (this view)
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="selectionCount === 0" @click="frameSelection">
+        <svg viewBox="0 0 24 24"><path :d="icons.frame" /></svg> Frame the selection
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="frameCount === 0" @click="startPresentation">
+        <svg viewBox="0 0 24 24"><path :d="icons.play" /></svg> Present{{ frameCount > 0 ? ` (${frameCount})` : '' }}
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="frameCount === 0" @click="exportFramesPDF">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Frames → PDF
+      </button>
       <span class="sep-h" />
       <button class="menu-item" role="menuitem" @click="cycleStylusOnly">
         <svg viewBox="0 0 24 24"><path :d="icons.pen" /></svg>
@@ -927,11 +1120,11 @@ async function onImagesSelected(event: Event) {
       <form class="ai-form" @submit.prevent="runAI(currentAIMode.action)">
         <textarea
           v-model="aiPrompt"
-          :rows="aiMode === 'code' ? 8 : 3"
-          :class="{ code: aiMode === 'code' }"
+          :rows="aiMode === 'code' || aiMode === 'mermaid' ? 8 : 3"
+          :class="{ code: aiMode === 'code' || aiMode === 'mermaid' }"
           :placeholder="currentAIMode.placeholder"
           :disabled="!!aiBusy"
-          @keydown.enter.exact="aiMode !== 'code' && ($event.preventDefault(), runAI(currentAIMode.action))"
+          @keydown.enter.exact="aiMode !== 'code' && aiMode !== 'mermaid' && ($event.preventDefault(), runAI(currentAIMode.action))"
         />
         <div class="ai-actions">
           <button type="submit" class="ai-primary" :disabled="!!aiBusy">
@@ -957,6 +1150,12 @@ async function onImagesSelected(event: Event) {
         <span class="label">With the selection</span>
         <button class="text-button" :disabled="!!aiBusy || !selectionHasDiagram" @click="runAI('edit')">
           ✏️ {{ aiBusy === 'edit' ? 'Editing…' : 'Edit selected diagram (uses the text above)' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasMindMap" @click="runAI('expand')">
+          🌿 {{ aiBusy === 'expand' ? 'Growing…' : 'Grow the selected mind map topic' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy" @click="copyMermaid">
+          🧜 Copy {{ selectionHasDiagram ? 'selected diagram' : 'diagram' }} as Mermaid
         </button>
         <button class="text-button" :disabled="!!aiBusy || !selectionHasTopic" @click="runAI('brainstorm')">
           💡 {{ aiBusy === 'brainstorm' ? 'Thinking…' : 'Brainstorm around the selected note' }}
@@ -1083,6 +1282,17 @@ async function onImagesSelected(event: Event) {
     </div>
 
     <div v-if="aiToast" class="ai-toast" role="status">{{ aiToast }}</div>
+
+    <!-- Presentation: click or arrow keys for the next frame, Esc to stop -->
+    <template v-if="presenting !== null">
+      <div class="present-overlay" @click="nextSlide(1)" />
+      <div class="present-controls" role="toolbar" aria-label="Presentation">
+        <button aria-label="Previous slide" :disabled="presenting === 0" @click="nextSlide(-1)">‹</button>
+        <span>{{ presenting + 1 }} / {{ frameCount }}</span>
+        <button aria-label="Next slide" @click="nextSlide(1)">›</button>
+        <button aria-label="Stop presenting" @click="stopPresentation">✕</button>
+      </div>
+    </template>
 
     <div v-if="showCommand" class="command-backdrop" @click.self="showCommand = false">
       <form class="command" @submit.prevent="runAI('command')">
@@ -1269,6 +1479,10 @@ async function onImagesSelected(event: Event) {
   border-radius: 14px;
 }
 
+.flyout.menu {
+  gap: 4px;
+}
+
 .swatches {
   display: flex;
   flex-wrap: wrap;
@@ -1404,7 +1618,7 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-modes button {
-  flex: 1;
+  flex: 1 0 28%;
   text-transform: none;
 }
 
@@ -1564,6 +1778,68 @@ async function onImagesSelected(event: Event) {
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
+}
+
+.playground.presenting > :not(.playground-canvas, .present-overlay, .present-controls) {
+  display: none !important;
+}
+
+.playground.presenting {
+  height: 100dvh;
+}
+
+.present-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  cursor: pointer;
+}
+
+.present-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 4px);
+  transform: translateX(-50%);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.85);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+.present-controls:hover,
+.present-controls:focus-within {
+  opacity: 1;
+}
+
+.present-controls button {
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.present-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.present-controls button:disabled {
+  opacity: 0.4;
+}
+
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .ai-toast {

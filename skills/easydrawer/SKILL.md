@@ -66,11 +66,14 @@ editor.selection.lock(); editor.selection.unlockAll(); // locked = can't be sele
 editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+Shift+G
 editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
 editor.selection.distribute('horizontal');             // or 'vertical'
+// Frames (slides): editor.frames.add({ title }) / addAroundSelection() / list() / goTo(i) / toDataURL(i)
 // Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
 
 // AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
 await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
 await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.generateMindMap('topic'); await editor.ai.expandMindMap(); // grows the selected topic
+await editor.ai.drawMermaid(text); editor.ai.toMermaid();  // flowchart / erDiagram / classDiagram, no AI
 await editor.ai.diagramFromCode(sqlOrCode);              // SQL → ER diagram (kind 'entity' + details), classes, flowchart
 await editor.ai.generateChart('…'); editor.ai.drawChart({ type: 'bar', title, labels, series: [{ name, values }] });
 await editor.ai.generateIllustration('…');             // SVG from the model → editable strokes (svgToStrokes)

@@ -81,6 +81,11 @@ editor.selection.align('left');          // center, right, top, middle, bottom
 editor.selection.distribute('horizontal');
 editor.selection.lock();                 // locked objects can't be selected, moved or erased
 editor.selection.unlockAll();
+
+// Frames: named areas to present as slides or export
+await editor.frames.add({ title: 'Intro' });   // around the visible area; addAroundSelection()
+await editor.frames.goTo(0);                   // fit a frame to the screen
+editor.frames.toDataURL(0);                    // PNG of a frame
 ```
 
 ### Document
@@ -119,6 +124,8 @@ const editor = new Editor(element, {
 await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
 await editor.ai.editDiagram('Add a confirmation email after the payment'); // the selected diagram, even hand-drawn
 await editor.ai.editSelection('remove the error step'); // diagram edit, or a command for anything else
+await editor.ai.generateMindMap('Launching a mobile app'); // then select a topic: expandMindMap()
+await editor.ai.drawMermaid('flowchart TD\n  A --> B{OK?}'); // and editor.ai.toMermaid() — no AI needed
 await editor.ai.diagramFromCode('CREATE TABLE users (…); CREATE TABLE orders (…);'); // ER diagram
 await editor.ai.generateChart('Revenue per quarter, 2023 vs 2024'); // bar / line / pie chart
 await editor.ai.generateIllustration('A lighthouse at sunset'); // picture made of editable shapes

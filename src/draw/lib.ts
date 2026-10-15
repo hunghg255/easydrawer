@@ -43,6 +43,7 @@ export { default as UndoRedoHistory } from './UndoRedoHistory';
 
 // Simplified API: named tools and plain-object options
 export { default as EditorTools, type ToolTypeMap } from './api/EditorTools';
+export { default as EditorFrames, type Frame } from './api/EditorFrames';
 export { default as EditorSelection } from './api/EditorSelection';
 
 // AI features (editor.ai)
@@ -61,6 +62,8 @@ export { openAICompatibleRequest, type OpenAICompatibleOptions } from './ai/open
 export { default as layoutGraph, type LayoutEdge, type LayoutNode, type LayoutOptions } from './ai/layoutGraph';
 export { default as parseAIJSON } from './ai/parseJSON';
 export { default as buildChart, chartColors, type Chart, type ChartSeries, type ChartType } from './ai/charts';
+export { diagramToMermaid, MermaidError, parseMermaid } from './ai/mermaid';
+export { default as layoutMindMap, type MindMapNode, type PlacedMindMapNode } from './ai/mindMap';
 export { default as svgToStrokes, parsePathData as parseSVGPathData } from './ai/svgToStrokes';
 export * from './api/options';
 export {

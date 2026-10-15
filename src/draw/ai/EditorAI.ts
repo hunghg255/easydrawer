@@ -2,6 +2,8 @@ import { Color4, type IVec2, Mat33, Path, Rect2, Vec2 } from '~/math';
 
 import buildChart, { type Chart, validateChart } from './charts';
 import layoutGraph from './layoutGraph';
+import { diagramToMermaid, parseMermaid } from './mermaid';
+import layoutMindMap, { type MindMapNode, validateMindMap } from './mindMap';
 import parseAIJSON from './parseJSON';
 import svgToStrokes from './svgToStrokes';
 import { AIError, type AIMessage, type AIRequestHandler } from './types';
@@ -79,6 +81,8 @@ const shapeColors: Record<AIColorName, { fill: string; border: string }> = {
   gray: { fill: '#f3f4f6', border: '#4b5563' },
 };
 
+const mindMapColors: AIColorName[] = ['blue', 'green', 'yellow', 'pink', 'purple'];
+
 const noteColors: Record<AIColorName, string> = {
   yellow: '#fde68a',
   green: '#bbf7d0',
@@ -143,6 +147,18 @@ const editDiagramPrompt = `${diagramPrompt}
 You are EDITING an existing diagram: answer with the complete updated diagram.
 Keep the ids, labels, kinds, colors and "details" of the nodes that should not change.`;
 
+const mindMapPrompt = `You make mind maps.
+Answer with ONE JSON object and nothing else:
+{"label":"Central topic","children":[{"label":"Branch","children":[{"label":"Sub-topic"}]}]}
+Rules:
+- 4 to 7 branches, each with 2 to 4 sub-topics. A third level only when it really helps.
+- Labels are short (at most 5 words), in the same language as the request.`;
+
+const expandMindMapPrompt = `You extend a mind map.
+Answer with ONE JSON object and nothing else: {"children":["first sub-topic","second sub-topic"]}
+Give short (at most 5 words), concrete and varied sub-topics of the LAST topic of the path, different from the
+existing ones, in the same language as the topics.`;
+
 const brainstormPrompt = `You help people brainstorm.
 Answer with ONE JSON object and nothing else: {"ideas":["first idea","second idea"]}
 Give short, concrete and varied ideas (at most 12 words each), in the same language as the topic.`;
@@ -159,6 +175,8 @@ Actions (most of them apply to the selected items):
 {"type":"addNote","text":"...","color":"yellow|green|blue|pink|purple|gray"}
 {"type":"generateDiagram","prompt":"description of a new diagram"}
 {"type":"editDiagram","instruction":"what to change in the selected diagram"}
+{"type":"mindMap","topic":"the central topic, with any details"} draw a new mind map
+{"type":"expandMindMap"} add sub-topics to the selected mind map topic
 {"type":"brainstorm"} ideas around the selected sticky note
 {"type":"organizeNotes"} sort sticky notes into themed columns
 For questions about the board, use no actions and answer in "message".
@@ -641,6 +659,294 @@ export default class EditorAI {
   }
 
   /**
+   * Draws a [Mermaid](https://mermaid.js.org) diagram (`flowchart`/`graph`, `erDiagram` or
+   * `classDiagram`) with editable shapes and connectors. No AI needed.
+   *
+   * @throws `MermaidError` if the text can't be read.
+   * @returns the diagram that was drawn.
+   */
+  public async drawMermaid(text: string, options: { center?: IVec2 } = {}): Promise<Diagram> {
+    const diagram = parseMermaid(text);
+    await this.drawDiagram(diagram, options);
+    return diagram;
+  }
+
+  /**
+   * The selected diagram (or the whole drawing) as [Mermaid](https://mermaid.js.org) text, or
+   * `null` if there is no diagram. See {@link readDiagram}.
+   */
+  public toMermaid(components?: AbstractComponent[]): string | null {
+    const result = this.readDiagram(components);
+    return result ? diagramToMermaid(result.diagram) : null;
+  }
+
+  /**
+   * Asks the AI for a mind map about `topic` and draws it: the topic in the middle, colored
+   * branches on both sides. Select a topic and use {@link expandMindMap} to grow it.
+   */
+  public async generateMindMap(topic: string, options: AIOptions = {}): Promise<MindMapNode> {
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: mindMapPrompt },
+        { role: 'user', content: topic.slice(0, 4000) },
+      ],
+      options,
+    );
+    const mindMap = validateMindMap(json);
+    await this.drawMindMap(mindMap);
+    return mindMap;
+  }
+
+  /** Draws a mind map (as returned by {@link generateMindMap}) next to what is already drawn. */
+  public async drawMindMap(mindMap: MindMapNode, options: { center?: IVec2 } = {}) {
+    const editor = this.editor;
+    const scale = editor.viewport.getSizeOfPixelOnCanvas();
+    const layout = layoutMindMap(mindMap, (node, depth) => this.mindMapNodeSize(node.label, depth), {
+      levelGap: 56 * scale,
+      siblingGap: 14 * scale,
+    });
+
+    const box = Rect2.union(...layout.map((n) => new Rect2(n.x - n.width / 2, n.y - n.height / 2, n.width, n.height)));
+    const center = this.findFreeSpot(box, options.center ?? editor.viewport.visibleRect.center, new Set());
+    const offset = Vec2.ofXY(center);
+
+    const created: AbstractComponent[] = [];
+    const shapes: Stroke[] = [];
+    for (const placed of layout) {
+      const color = mindMapColors[(placed.branch + mindMapColors.length) % mindMapColors.length];
+      const { components, shape } = this.buildMindMapNode(placed.node.label, placed.depth, offset.plus(Vec2.of(placed.x, placed.y)), color, placed.side);
+      created.push(...components);
+      shapes.push(shape);
+      if (placed.parent >= 0) {
+        created.push(this.mindMapLink(shapes[placed.parent], shape, color, placed.depth));
+      }
+    }
+    await this.addAndShow(created);
+  }
+
+  /**
+   * Asks the AI for sub-topics of the selected mind map topic (drawn by {@link drawMindMap})
+   * and adds them next to it.
+   *
+   * @returns the shapes of the new topics.
+   */
+  public async expandMindMap(options: AIOptions & { count?: number } = {}): Promise<Stroke[]> {
+    const editor = this.editor;
+    const image = editor.image;
+    const all = image.getAllComponents();
+    const isTopic = (c: AbstractComponent): c is Stroke => c instanceof Stroke && c.getMetadata().mindmap !== undefined;
+
+    // The selected topic (its shape, or its text).
+    let topic: Stroke | undefined;
+    for (const item of editor.selection.items) {
+      if (isTopic(item)) {
+        topic = item;
+        break;
+      }
+      const groupId = item.getGroupId();
+      topic ??= groupId === null ? undefined : all.find((c): c is Stroke => isTopic(c) && c.getGroupId() === groupId);
+    }
+    if (!topic) {
+      throw new AIError('Select a topic of a mind map first.');
+    }
+
+    const labelOf = (shape: Stroke) => {
+      const groupId = shape.getGroupId();
+      return all
+        .filter((c): c is TextComponent => c instanceof TextComponent && groupId !== null && c.getGroupId() === groupId)
+        .map((t) => t.getText())
+        .join(' ');
+    };
+    const links = all.filter((c): c is Connector => c instanceof Connector);
+    const parentOf = (shape: Stroke) => {
+      const link = links.find((l) => l.getEnd().targetId === shape.getId());
+      const parent = link ? image.lookupElement(link.getStart().targetId ?? '') : null;
+      return parent && isTopic(parent) ? parent : null;
+    };
+    const childrenOf = (shape: Stroke) =>
+      links
+        .filter((l) => l.getStart().targetId === shape.getId())
+        .map((l) => image.lookupElement(l.getEnd().targetId ?? ''))
+        .filter((c): c is Stroke => c !== null && isTopic(c));
+
+    const path: string[] = [];
+    for (let node: Stroke | null = topic; node && path.length < 8; node = parentOf(node)) {
+      path.unshift(labelOf(node));
+    }
+    const existing = childrenOf(topic);
+    const count = Math.min(Math.max(options.count ?? 4, 1), 8);
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: expandMindMapPrompt },
+        {
+          role: 'user',
+          content:
+            `Path: ${path.join(' > ').slice(0, 1000)}\n` +
+            (existing.length > 0 ? `Existing sub-topics: ${existing.map(labelOf).join('; ').slice(0, 1000)}\n` : '') +
+            `Give ${count} sub-topics.`,
+        },
+      ],
+      options,
+    );
+    const labels: string[] = (Array.isArray(json?.children) ? json.children : Array.isArray(json?.ideas) ? json.ideas : [])
+      .map((child: any) => shortText(typeof child === 'string' ? child : child?.label, 80))
+      .filter((label: string) => label !== '')
+      .slice(0, count);
+    if (labels.length === 0) {
+      throw new AIError('The AI did not return any sub-topics.');
+    }
+
+    // Rebuild the tree of the whole mind map from the board, add the new topics, and lay it out
+    // again around its central topic (which doesn't move).
+    let root = topic;
+    for (let parent = parentOf(root), i = 0; parent && parent !== topic && i < 50; parent = parentOf(parent), i++) root = parent;
+    const rootDepth = Number(root.getMetadata().mindmap) || 0;
+    // The size of a screen pixel when the mind map was drawn.
+    const mapScale = (root.getBBox().h / this.mindMapNodeSize(labelOf(root), rootDepth, 1).height) || this.editor.viewport.getSizeOfPixelOnCanvas();
+
+    type TreeNode = MindMapNode & { shape?: Stroke; children: TreeNode[] };
+    const visited = new Set<Stroke>();
+    const treeOf = (shape: Stroke): TreeNode => {
+      visited.add(shape);
+      const children = childrenOf(shape)
+        .filter((child) => !visited.has(child))
+        .sort((a, b) => a.getBBox().center.y - b.getBBox().center.y)
+        .map(treeOf);
+      const side = shape.getMetadata().side;
+      return { label: labelOf(shape), shape, children, ...(side === 'left' || side === 'right' ? { side } : {}) };
+    };
+    const tree = treeOf(root);
+    const findNode = (node: TreeNode): TreeNode | undefined => node.shape === topic ? node : node.children.map(findNode).find((n) => n);
+    const target = findNode(tree)!;
+
+    const rootSide = root.getMetadata().side === 'left' ? 'left' : 'right';
+    const newNodes: TreeNode[] = labels.map((label) => ({ label, children: [] }));
+    if (target === tree) {
+      // New branches go to the side with fewer topics.
+      const weight = (node: MindMapNode): number => 1 + (node.children ?? []).reduce((sum, child) => sum + weight(child), 0);
+      for (const node of newNodes) {
+        const right = tree.children.filter((c) => (c.side ?? rootSide) === 'right').reduce((sum, c) => sum + weight(c), 0);
+        const left = tree.children.filter((c) => (c.side ?? rootSide) === 'left').reduce((sum, c) => sum + weight(c), 0);
+        node.side = rootDepth > 0 ? rootSide : right <= left ? 'right' : 'left';
+        tree.children.push(node);
+      }
+    } else {
+      target.children.push(...newNodes);
+    }
+    // A detached part of a mind map stays on its side.
+    if (rootDepth > 0) {
+      for (const branch of tree.children) branch.side = rootSide;
+    }
+
+    const layout = layoutMindMap(
+      tree,
+      (node, d) => {
+        const shape = (node as TreeNode).shape;
+        return shape ? { width: shape.getBBox().w, height: shape.getBBox().h } : this.mindMapNodeSize(node.label, d + rootDepth, mapScale);
+      },
+      { levelGap: 56 * mapScale, siblingGap: 14 * mapScale },
+    );
+
+    const origin = root.getBBox().center;
+    const moves: Command[] = [];
+    const created: AbstractComponent[] = [];
+    const shapes = new Map<MindMapNode, Stroke>();
+    const colorOf = new Map<MindMapNode, AIColorName>();
+    const nextBranchColor = () =>
+      mindMapColors[(tree.children.length - newNodes.length + created.filter((c) => c instanceof Connector).length) % mindMapColors.length];
+    for (const placed of layout) {
+      const node = placed.node as TreeNode;
+      const center = origin.plus(Vec2.of(placed.x, placed.y));
+      if (node.shape) {
+        shapes.set(node, node.shape);
+        colorOf.set(node, oneOf(node.shape.getMetadata().color, colorNames, 'blue'));
+        const delta = center.minus(node.shape.getBBox().center);
+        if (delta.magnitude() > 1e-6 * mapScale) {
+          const groupId = node.shape.getGroupId();
+          const parts = groupId === null ? [node.shape] : all.filter((c) => c.getGroupId() === groupId);
+          moves.push(...parts.map((part) => part.transformBy(Mat33.translation(delta))));
+        }
+        continue;
+      }
+      const parent = layout[placed.parent].node;
+      const color = placed.depth + rootDepth === 1 ? nextBranchColor() : (colorOf.get(parent) ?? 'blue');
+      colorOf.set(node, color);
+      const { components, shape } = this.buildMindMapNode(node.label, placed.depth + rootDepth, center, color, placed.side, mapScale);
+      created.push(...components, this.mindMapLink(shapes.get(parent)!, shape, color, placed.depth + rootDepth, mapScale));
+      shapes.set(node, shape);
+    }
+
+    await this.addAndShow(created, [], [], moves);
+    return newNodes.map((node) => shapes.get(node)!);
+  }
+
+  private mindMapNodeSize(label: string, depth: number, scale = this.editor.viewport.getSizeOfPixelOnCanvas()) {
+    const style = this.mindMapTextStyle(depth, scale);
+    const lines = wrapText(label, style, (depth === 0 ? 300 : 190) * scale);
+    const textWidth = Math.max(...lines.map((line) => TextComponent.measureTextWidth(line, style)));
+    const padding = (depth === 0 ? 26 : depth === 1 ? 18 : 12) * scale;
+    return {
+      width: textWidth + padding * 2,
+      height: lines.length * style.size * 1.25 + padding * (depth === 0 ? 1.1 : 0.9),
+    };
+  }
+
+  private mindMapTextStyle(depth: number, scale: number): TextRenderingStyle {
+    return {
+      size: (depth === 0 ? 22 : depth === 1 ? 17 : 15) * scale,
+      fontFamily: 'sans-serif',
+      ...(depth <= 1 ? { fontWeight: 'bold' } : {}),
+      renderingStyle: { fill: Color4.fromHex(depth === 0 ? '#ffffff' : '#1f2937') },
+    };
+  }
+
+  // A topic: a rounded box with its text, grouped.
+  private buildMindMapNode(
+    label: string,
+    depth: number,
+    center: IVec2,
+    color: AIColorName,
+    side: number,
+    scale = this.editor.viewport.getSizeOfPixelOnCanvas(),
+  ) {
+    const style = this.mindMapTextStyle(depth, scale);
+    const { width, height } = this.mindMapNodeSize(label, depth, scale);
+    const colors = shapeColors[color];
+    const fill = depth === 0 ? '#1e293b' : depth === 1 ? colors.fill : '#ffffff';
+    const border = depth === 0 ? '#1e293b' : colors.border;
+    const shape = new Stroke([
+      pathToRenderable(nodePath(depth === 0 ? 'terminal' : 'process', width, height).transformedBy(Mat33.translation(center)), {
+        fill: Color4.fromHex(fill),
+        stroke: { color: Color4.fromHex(border), width: (depth <= 1 ? 2.5 : 1.5) * scale },
+      }),
+    ]);
+    const groupId = `group-${shape.getId()}`;
+    shape.setGroupDirectly(groupId);
+    shape.setMetadata({ mindmap: String(depth), color, ...(side !== 0 ? { side: side < 0 ? 'left' : 'right' } : {}) });
+
+    const components: AbstractComponent[] = [shape];
+    const lines = wrapText(label, style, (depth === 0 ? 300 : 190) * scale);
+    const lineHeight = style.size * 1.25;
+    const textTop = center.y - (lines.length * lineHeight) / 2;
+    for (const [i, line] of lines.entries()) {
+      const lineWidth = TextComponent.measureTextWidth(line, style);
+      const baseline = textTop + (i + 1) * lineHeight - (lineHeight - style.size) / 2 - style.size * 0.18;
+      const text = TextComponent.fromLines([line], Mat33.translation(Vec2.of(center.x - lineWidth / 2, baseline)), style);
+      text.setGroupDirectly(groupId);
+      components.push(text);
+    }
+    return { components, shape };
+  }
+
+  private mindMapLink(from: Stroke, to: Stroke, color: AIColorName, depth: number, scale = this.editor.viewport.getSizeOfPixelOnCanvas()) {
+    return new Connector(
+      { point: from.getBBox().center, targetId: from.getId() },
+      { point: to.getBBox().center, targetId: to.getId() },
+      { color: Color4.fromHex(shapeColors[color].border), thickness: (depth === 1 ? 3 : 2) * scale, arrow: 'none' },
+    );
+  }
+
+  /**
    * Turns source code or SQL into a diagram: an entity-relationship diagram for SQL tables,
    * a class diagram for classes and types, or a flowchart of the logic for other code.
    */
@@ -1106,6 +1412,11 @@ export default class EditorAI {
           if (typeof action.instruction !== 'string') continue;
           await this.editDiagram(action.instruction, options);
           break;
+        case 'mindMap':
+          if (typeof action.topic !== 'string') continue;
+          await this.generateMindMap(action.topic, options);
+          break;
+        case 'expandMindMap': await this.expandMindMap(options); break;
         case 'brainstorm': await this.brainstorm(options); break;
         case 'organizeNotes': await this.organizeNotes(options); break;
         default:

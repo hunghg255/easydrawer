@@ -83,6 +83,19 @@ Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
 `StickyNote` (`getText()`, `setText(text)` → command, `StickyNote.centeredAt(point, { text, color })`),
 `Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`).
 
+## `editor.frames`
+
+| Member | Description |
+| --- | --- |
+| `add({ rect?, title? })` | Frame (border + title, grouped, saved in SVG) around `rect` or most of the visible area (async, undoable) |
+| `addAroundSelection({ title?, padding? })` | Frame around the selected items |
+| `list()` | `[{ id, title, rect, parts }]` in the order they were added |
+| `goTo(frameOrIndex, { padding? })` | Fit a frame to the screen (slides) |
+| `contentsOf(frame)` | Components inside a frame |
+| `toDataURL(frameOrIndex, { pixelRatio?, background?, format? })` | Image of a frame |
+
+Clicking inside a frame selects what is in it; its border or title selects the frame.
+
 ## `Editor` methods
 
 | Method | Description |
@@ -110,7 +123,7 @@ Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
 
 ## Exports
 
-`Editor`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
+`Editor`, `parseMermaid`, `diagramToMermaid`, `layoutMindMap`, `buildChart`, `svgToStrokes`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
 `penStyles`, `shapeTypes`,
 `naturalPenBuilderFactory`, `makeNaturalPenBuilder`, `makeHighlighterBuilder`, `EditorEventType`,
 types `ToolName`, `PenStyleName`, `ShapeTypeName`, `BackgroundTypeName`, `ColorInput`,

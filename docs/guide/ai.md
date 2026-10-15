@@ -7,6 +7,9 @@ EasyDrawer can ask a language model to draw for you:
 - **Edit a diagram with words**: "add a step to send a confirmation email after the payment".
 - **Code / SQL → diagram**: paste SQL tables (→ ER diagram), classes (→ class diagram) or a function
   (→ flowchart).
+- **Mind maps**: a topic → a colored mind map; select a topic and **grow** it with more ideas.
+- **Mermaid** (no AI needed): paste a Mermaid flowchart, ER or class diagram to draw it, and export any diagram
+  as Mermaid for GitHub, Notion or Obsidian.
 - **Charts**: "sales per quarter, 2023 vs 2024" → a bar, line or pie chart with labels and a legend.
 - **Pictures**: "a cat sleeping on a laptop" → a simple illustration made of editable shapes.
 - **Brainstorm**: ideas about a sticky note, as new notes around it.
@@ -120,6 +123,41 @@ runs anything else as a [command](#commands). In the playground, it's the ✨ bu
 to the selection.
 
 New diagrams are placed next to what is already drawn, never on top of it.
+
+## Mind maps
+
+```ts
+await editor.ai.generateMindMap('Launching a mobile app');
+
+// With a topic of the mind map selected: 4 sub-topics, and the mind map is laid out again
+await editor.ai.expandMindMap({ count: 4 });
+
+// Or without AI:
+await editor.ai.drawMindMap({
+  label: 'Trip',
+  children: [{ label: 'Food', children: [{ label: 'Street food' }] }, { label: 'Places' }],
+});
+```
+
+The central topic is in the middle, with the branches split between both sides, one color per branch. Topics
+are normal shapes with text, linked by connectors: move them, recolor them, or edit their text.
+
+## Mermaid (no AI needed)
+
+```ts
+await editor.ai.drawMermaid(`flowchart TD
+  A([Start]) --> B{Logged in?}
+  B -->|yes| C[Dashboard]
+  B -->|no| D[/Login form/] --> B`);
+
+const text = editor.ai.toMermaid(); // the selected diagram (or the whole drawing), or null
+```
+
+`drawMermaid` reads `flowchart`/`graph` (all node shapes, `-->`, `---`, `-.->`, `==>`, labels, `A & B` and
+chains), `erDiagram` (entities with their attributes, and relationships) and `classDiagram` (classes, members,
+annotations and relations). Subgraphs and styles are ignored. `toMermaid` writes an `erDiagram` for tables, a
+`classDiagram` for other boxes with details, and a `flowchart` otherwise (with the colors). `parseMermaid(text)` and
+`diagramToMermaid(diagram)` are also exported, to convert without drawing.
 
 ## Code / SQL → diagram
 

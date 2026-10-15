@@ -4,6 +4,7 @@ import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
 import EditorAI from './ai/EditorAI';
 import { type AISettings } from './ai/types';
+import EditorFrames from './api/EditorFrames';
 import EditorSelection from './api/EditorSelection';
 import EditorTools from './api/EditorTools';
 import {
@@ -335,6 +336,9 @@ export class Editor {
    */
   public readonly selection: EditorSelection;
 
+  /** Frames: named areas of the drawing, to present as slides or export. See {@link EditorFrames}. */
+  public readonly frames: EditorFrames;
+
   /** AI features: generate diagrams from text, organize sticky notes. See {@link EditorAI}. */
   public readonly ai: EditorAI;
 
@@ -507,6 +511,7 @@ export class Editor {
     this.toolController = new ToolController(this, this.localization);
     this.tools = new EditorTools(this);
     this.selection = new EditorSelection(this);
+    this.frames = new EditorFrames(this);
     this.ai = new EditorAI(this);
 
     // TODO: Make this pipeline configurable (e.g. allow users to add global input stabilization)

@@ -6,7 +6,6 @@ import type {
   Editor,
   PenStyleName,
   ShapeTypeName,
-  StickyNote,
   ToolName,
 } from 'easydrawer';
 
@@ -95,7 +94,7 @@ const shortcuts: Array<[string, string]> = [
   ['Ctrl/⌘ + A', 'Select all'],
   ['Delete', 'Delete selection'],
   ['Ctrl/⌘ + G', 'Group (Ctrl/⌘ + Shift + G: ungroup)'],
-  ['Double click', 'Edit a note or text'],
+  ['Double click', 'Edit the text of a note, text, arrow or shape'],
   ['Ctrl/⌘ + K', 'Ask AI to do something'],
   ['→ / Space, ←, Esc', 'Next / previous frame, stop (while presenting)'],
   ['− / =', 'Thinner / thicker pen'],
@@ -739,12 +738,11 @@ function updateConnector(options: Partial<{ color: string; arrow: 'end' | 'both'
   editor.value?.tools.configure('connector', options);
 }
 
-function editNote() {
-  const instance = editor.value;
-  const note = instance?.selection.items[0];
-  if (!instance || !note) return;
-  instance.selection.clear();
-  instance.tools.sticky.edit(note as StickyNote);
+// The text of a note or text, the label of an arrow, or the text in a shape (like a double-click).
+function editSelectedText() {
+  if (editor.value && !editor.value.selection.editText()) {
+    showAIToast('This item has no text to edit.');
+  }
 }
 
 async function unlockAll() {
@@ -1199,7 +1197,13 @@ async function onImagesSelected(event: Event) {
       >
         <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
       </button>
-      <button v-if="selectionCount === 1 && selectionHasNote" class="tool" title="Edit text" aria-label="Edit text" @click="editNote">
+      <button
+        v-if="selectionUnits === 1"
+        class="tool"
+        title="Edit text — of a note, an arrow, a text or a shape (or double-click it)"
+        aria-label="Edit text"
+        @click="editSelectedText"
+      >
         <svg viewBox="0 0 24 24"><path :d="icons.text" /></svg>
       </button>
       <button

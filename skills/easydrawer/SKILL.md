@@ -67,7 +67,8 @@ editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+S
 editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
 editor.selection.distribute('horizontal');             // or 'vertical'
 // Frames (slides): editor.frames.add({ title }) / addAroundSelection() / list() / goTo(i) / toDataURL(i)
-// Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
+// Double-click with the select tool: edit a note/text, an arrow's label, or a shape's text (editor.selection.editText()).
+// connector.setLabel('yes') → command. Hand-drawn boxes + text + connectors are diagrams like AI-made ones. Dragged selections snap to nearby objects.
 
 // AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
 await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step

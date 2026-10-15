@@ -3,6 +3,8 @@ import { type IVec2, Mat33, Rect2, Vec2 } from '~/math';
 import { type ColorInput, toColor4 } from './options';
 import AbstractComponent from '../components/AbstractComponent';
 import { isRestylableComponent } from '../components/RestylableComponent';
+import StickyNote from '../components/StickyNote';
+import TextComponent from '../components/TextComponent';
 import type Command from '../commands/Command';
 import Erase from '../commands/Erase';
 import uniteCommands from '../commands/uniteCommands';
@@ -46,6 +48,24 @@ export default class EditorSelection {
   public set(components: AbstractComponent[]) {
     this.tool.setEnabled(true);
     this.tool.setSelection(components);
+  }
+
+  /**
+   * Edits the text of the selected item: a sticky note or text, the label of an arrow, or the
+   * text of a shape (added centered in it if it has none). Like a double click with the select
+   * tool.
+   *
+   * @returns whether there was something to edit.
+   */
+  public editText(): boolean {
+    const items = this.items;
+    if (new Set(items.map((item) => item.getGroupId() ?? item.getId())).size !== 1) return false;
+    // Notes and texts first (e.g. the text of a shape and its outline are selected together).
+    const priority = (item: AbstractComponent) => (item instanceof StickyNote ? 0 : item instanceof TextComponent ? 1 : 2);
+    for (const item of [...items].sort((a, b) => priority(a) - priority(b))) {
+      if (this.tool.editTextOf(item)) return true;
+    }
+    return false;
   }
 
   /** Selects everything that isn't locked. */

@@ -8,7 +8,9 @@ import ToPointerAutoscroller from './ToPointerAutoscroller';
 import { SelectionMode } from './types';
 import showSelectionContextMenu from './util/showSelectionContextMenu';
 import type AbstractComponent from '../../components/AbstractComponent';
+import Connector from '../../components/Connector';
 import StickyNote from '../../components/StickyNote';
+import Stroke from '../../components/Stroke';
 import TextComponent from '../../components/TextComponent';
 import type Editor from '../../Editor';
 import {
@@ -25,8 +27,7 @@ import { EditorEventType } from '../../types';
 import { MutableReactiveValue } from '../../util/ReactiveValue';
 import Viewport from '../../Viewport';
 import BaseTool from '../BaseTool';
-import type StickyNoteTool from '../StickyNoteTool';
-import type TextTool from '../TextTool';
+import type ConnectorTool from '../ConnectorTool';
 import {
   duplicateSelectionShortcut,
   groupSelectionShortcut,
@@ -47,6 +48,8 @@ import {
   stretchXYSelectionShortcutId,
   shrinkXYSelectionShortcutId,
 } from '../keybindings';
+import type StickyNoteTool from '../StickyNoteTool';
+import type TextTool from '../TextTool';
 
 export const cssPrefix = 'selection-tool-';
 
@@ -241,33 +244,74 @@ export default class SelectionTool extends BaseTool {
     return isDouble;
   }
 
-  /** Opens the editor of the sticky note or text at `canvasPos`, if any. */
-  private editTextAt(canvasPos: IVec2): boolean {
-    const radius = this.editor.viewport.getSizeOfPixelOnCanvas() * 4;
-    const region = Rect2.fromCorners(canvasPos.minus(Vec2.of(radius, radius)), canvasPos.plus(Vec2.of(radius, radius)));
-    const target = this.editor.image
-      .getComponentsIntersecting(region)
-      .findLast((c) => (c instanceof StickyNote || c instanceof TextComponent) && c.isEditable());
-    if (!target) return false;
-
+  /**
+   * Edits the text of `component`: the text of a sticky note or text, the label of an arrow,
+   * or the text of a shape (the text grouped with it, or a new one centered in it).
+   *
+   * @returns whether there was something to edit.
+   */
+  public editTextOf(component: AbstractComponent): boolean {
     const toolController = this.editor.toolController;
-    if (target instanceof StickyNote) {
+    // Later: enabled during a pointer event, the text tool would also receive it (and start a new text).
+    const withTextTool = (action: (tool: TextTool) => void) => {
+      const textTool = toolController.getToolByName('text') as TextTool | null;
+      if (!textTool) return false;
+      this.clearSelection();
+      setTimeout(() => {
+        textTool.setEnabled(true);
+        action(textTool);
+      }, 0);
+      return true;
+    };
+
+    if (component instanceof StickyNote) {
       const stickyTool = toolController.getToolByName('sticky') as StickyNoteTool | null;
       if (!stickyTool) return false;
       this.clearSelection();
-      stickyTool.edit(target);
+      stickyTool.edit(component);
       return true;
     }
+    if (component instanceof TextComponent) {
+      return withTextTool((tool) => tool.editText(component));
+    }
+    if (component instanceof Connector) {
+      const connectorTool = toolController.getToolByName('connector') as ConnectorTool | null;
+      if (!connectorTool) return false;
+      this.clearSelection();
+      connectorTool.editLabel(component);
+      return true;
+    }
+    // Frames are renamed with their title.
+    if (component instanceof Stroke && component.getMetadata().frame === undefined) {
+      const groupId = component.getGroupId();
+      const groupText =
+        groupId === null
+          ? undefined
+          : this.editor.image.getAllComponents().find((c): c is TextComponent => c instanceof TextComponent && c.getGroupId() === groupId);
+      return withTextTool((tool) => (groupText ? tool.editText(groupText) : tool.addTextIn(component)));
+    }
+    return false;
+  }
 
-    const textTool = toolController.getToolByName('text') as TextTool | null;
-    if (!textTool) return false;
-    this.clearSelection();
-    // After this event: enabled now, the text tool would also receive it (and start a new text).
-    setTimeout(() => {
-      textTool.setEnabled(true);
-      textTool.editText(target as TextComponent);
-    }, 0);
-    return true;
+  // Double click/tap: edits the note, text, arrow label or shape text at `canvasPos`.
+  private editTextAt(canvasPos: IVec2): boolean {
+    const radius = this.editor.viewport.getSizeOfPixelOnCanvas() * 4;
+    const region = Rect2.fromCorners(canvasPos.minus(Vec2.of(radius, radius)), canvasPos.plus(Vec2.of(radius, radius)));
+    const nearby = this.editor.image.getComponentsIntersecting(region).filter((c) => c.isEditable());
+    const minSize = this.editor.viewport.getSizeOfPixelOnCanvas() * 20;
+
+    const target =
+      nearby.findLast((c) => c instanceof StickyNote || c instanceof TextComponent) ??
+      nearby.findLast((c) => c instanceof Connector && c.intersectsRect(region)) ??
+      nearby.findLast(
+        (c) =>
+          c instanceof Stroke &&
+          c.getMetadata().frame === undefined &&
+          c.getBBox().containsPoint(canvasPos) &&
+          c.getBBox().w > minSize &&
+          c.getBBox().h > minSize,
+      );
+    return target ? this.editTextOf(target) : false;
   }
 
   public override onPointerMove(event: PointerEvt): void {

@@ -6,13 +6,16 @@ import type RestyleableComponent from './RestylableComponent';
 import { type ComponentStyle, createRestyleComponentCommand } from './RestylableComponent';
 import TextComponent from './TextComponent';
 import routeOrthogonal, { type RouteEnd, type RouteSide } from './util/routeOrthogonal';
-import type SerializableCommand from '../commands/SerializableCommand';
+import SerializableCommand from '../commands/SerializableCommand';
+import UnresolvedSerializableCommand from '../commands/UnresolvedCommand';
 import type Editor from '../Editor';
 import type EditorImage from '../image/EditorImage';
 import { EditorImageEventType } from '../image/EditorImage';
+import { type EditorLocalization } from '../localization';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
 import type AbstractRenderer from '../rendering/renderers/AbstractRenderer';
 import type TextRenderingStyle from '../rendering/TextRenderingStyle';
+import { assertIsString } from '../util/assertions';
 
 const componentKind = 'connector';
 
@@ -181,6 +184,71 @@ export default class Connector extends AbstractComponent implements RestyleableC
   public getLabel(): string {
     return this.style.label ?? '';
   }
+
+  /** Where the label is (or would be) drawn: the center of its box. */
+  public getLabelCenter(): IVec2 {
+    const rect = this.labelRect();
+    return rect ? rect.center : this.labelPosition(0, 0);
+  }
+
+  /** The size of the label's text (in canvas units). */
+  public getLabelFontSize(): number {
+    return this.labelStyle.size;
+  }
+
+  /** Returns a command that changes the text shown on the line (`''` for none). */
+  public setLabel(label: string): SerializableCommand {
+    return new Connector.SetLabelCommand(this.getId(), this.getLabel(), label, this);
+  }
+
+  private static setLabelCommandId = 'connector-set-label';
+  private static SetLabelCommand = class extends UnresolvedSerializableCommand {
+    public constructor(
+      componentID: string,
+      private oldLabel: string,
+      private newLabel: string,
+      component?: AbstractComponent,
+    ) {
+      super(Connector.setLabelCommandId, componentID, component);
+    }
+
+    private setLabel(editor: Editor, label: string) {
+      this.resolveComponent(editor.image);
+      const connector = this.component as Connector;
+      // The bounding box changes with the label.
+      editor.image.updateComponent(connector, () => {
+        connector.style = { ...connector.style, label: label || undefined };
+      });
+      editor.image.queueRerenderOf(connector);
+      editor.queueRerender();
+    }
+
+    public apply(editor: Editor) {
+      this.setLabel(editor, this.newLabel);
+    }
+
+    public unapply(editor: Editor) {
+      this.setLabel(editor, this.oldLabel);
+    }
+
+    public description(_editor: Editor, localizationTable: EditorLocalization) {
+      return localizationTable.editedConnectorLabel;
+    }
+
+    protected serializeToJSON() {
+      return { id: this.componentID, oldLabel: this.oldLabel, newLabel: this.newLabel };
+    }
+
+    static {
+      SerializableCommand.register(Connector.setLabelCommandId, (json: any, editor: Editor) => {
+        assertIsString(json.id);
+        assertIsString(json.oldLabel);
+        assertIsString(json.newLabel);
+        const elem = editor.image.lookupElement(json.id) ?? undefined;
+        return new Connector.SetLabelCommand(json.id, json.oldLabel, json.newLabel, elem);
+      });
+    }
+  };
 
   // Returns the component an end is attached to, if it's in the image.
   private targetOf(end: ConnectorEnd, image: ComponentLookup | null) {

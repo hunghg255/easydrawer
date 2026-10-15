@@ -2,8 +2,10 @@ import { Rect2, Mat33, Vec2, Color4, type IVec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import { type ToolLocalization } from './localization';
+import type Command from '../commands/Command';
 import Erase from '../commands/Erase';
 import uniteCommands from '../commands/uniteCommands';
+import type AbstractComponent from '../components/AbstractComponent';
 import TextComponent from '../components/TextComponent';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
@@ -34,6 +36,8 @@ export default class TextTool extends BaseTool {
   private removeExistingCommand: Erase | null = null;
   // The text being edited (its group and metadata are kept).
   private editedComponent: TextComponent | null = null;
+  // The shape a new text is typed in (see addTextIn).
+  private attachTo: AbstractComponent | null = null;
 
   public constructor(
     private editor: Editor,
@@ -140,19 +144,34 @@ export default class TextTool extends BaseTool {
 				this.editor.viewport.screenToCanvasTransform.transformVec3(scrollCorrectionScreen);
       const scrollTransform = Mat33.translation(scrollCorrectionCanvas);
 
-      const textComponent = TextComponent.fromLines(
+      let textComponent = TextComponent.fromLines(
         content.split('\n'),
         scrollTransform.rightMul(this.contentTransform.get()),
         this.textStyle,
       );
+      const extraCommands: Command[] = [];
 
       if (this.editedComponent) {
         textComponent.setGroupDirectly(this.editedComponent.getGroupId());
         const metadata = this.editedComponent.getMetadata();
         if (Object.keys(metadata).length > 0) textComponent.setMetadata({ ...metadata });
+      } else if (this.attachTo) {
+        // Centered in the shape, and grouped with it.
+        const shape = this.attachTo;
+        const offset = shape.getBBox().center.minus(textComponent.getBBox().center);
+        textComponent = TextComponent.fromLines(
+          content.split('\n'),
+          Mat33.translation(offset).rightMul(scrollTransform).rightMul(this.contentTransform.get()),
+          this.textStyle,
+        );
+        const groupId = shape.getGroupId() ?? `group-${shape.getId()}`;
+        textComponent.setGroupDirectly(groupId);
+        if (shape.getGroupId() === null) extraCommands.push(shape.setGroup(groupId));
       }
 
-      const action = EditorImage.addComponent(textComponent);
+      const action = extraCommands.length > 0
+        ? uniteCommands([EditorImage.addComponent(textComponent), ...extraCommands])
+        : EditorImage.addComponent(textComponent);
       if (this.removeExistingCommand) {
         // Unapply so that `removeExistingCommand` can be added to the undo stack.
         this.removeExistingCommand.unapply(this.editor);
@@ -164,6 +183,23 @@ export default class TextTool extends BaseTool {
       }
     }
     this.editedComponent = null;
+    this.attachTo = null;
+  }
+
+  /**
+   * Starts typing a new text in `shape` (e.g. a label in a hand-drawn box). The text is
+   * centered in the shape and grouped with it, like the labels of AI-made diagrams.
+   */
+  public addTextIn(shape: AbstractComponent) {
+    this.flushInput();
+    this.removeExistingCommand = null;
+    const box = shape.getBBox();
+    const pixel = this.editor.viewport.getSizeOfPixelOnCanvas();
+    this.startTextInput(
+      Vec2.of(box.x + Math.min(box.w * 0.15, 24 * pixel), box.center.y + (this.textStyle.size * pixel) / 3),
+      '',
+    );
+    this.attachTo = shape;
   }
 
   private updateTextInput() {
@@ -258,6 +294,8 @@ export default class TextTool extends BaseTool {
 
         this.removeExistingCommand?.unapply(this.editor);
         this.removeExistingCommand = null;
+        this.editedComponent = null;
+        this.attachTo = null;
       }
     });
 

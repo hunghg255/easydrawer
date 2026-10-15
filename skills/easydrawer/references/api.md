@@ -78,10 +78,13 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `group()`, `ungroup()`, `hasGroups` | Grouped components select/move together; saved in SVG |
 | `align(edge)`, `distribute(direction)` | `'left' \| 'center' \| 'right' \| 'top' \| 'middle' \| 'bottom'`; `'horizontal' \| 'vertical'` |
 | `lock()`, `unlockAll()`, `lockedCount` | Locked components can't be selected, moved or erased; saved in SVG |
+| `editText()` | Edit the selected note/text, arrow label, or shape text (adds a centered, grouped text). Same as double-click |
 
 Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
 `StickyNote` (`getText()`, `setText(text)` → command, `StickyNote.centeredAt(point, { text, color })`),
-`Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`).
+`Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`, `getLabel()`, `setLabel(text)` → command;
+`editor.tools.connector.editLabel(connector)` shows a text box).
+Hand-drawn shapes with grouped text + connectors are diagrams just like AI-made ones (`editor.ai.readDiagram()`).
 
 ## `editor.frames`
 

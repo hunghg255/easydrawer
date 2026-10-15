@@ -44,6 +44,7 @@ const stop = editor.selection.onChange((items) => placeToolbar(editor.selection.
 | `align(edge)` | Align to the selection's `'left'`, `'center'`, `'right'`, `'top'`, `'middle'` or `'bottom'` (groups move as one) |
 | `distribute(direction)` | Equal gaps, `'horizontal'` or `'vertical'` (3+ items; the outermost don't move) |
 | `lock()` | Lock the selection: locked components can't be selected, moved or erased |
+| `editText()` | Edit the text of the selected item: a note or text, an arrow's label, or a shape's text (added in it if it has none). Like a double click. Returns `false` if there is nothing to edit |
 | `unlockAll()` | Unlock everything. Returns the number of unlocked components. |
 | `lockedCount` | Number of locked components |
 

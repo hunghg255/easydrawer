@@ -109,6 +109,18 @@ A stylus with an eraser end (Surface Pen, Wacom) erases automatically.
 editor.tools.configure('select', { mode: 'lasso' });
 ```
 
+**Double-click** (or double-tap) to edit text:
+
+| On | Does |
+| --- | --- |
+| A sticky note or a text | Edits its text |
+| An arrow (connector) | Adds or edits its label |
+| A shape (rectangle, ellipse, hand-drawn box…) | Edits its text, or types a new one centered in it and grouped with it |
+| A frame's title | Renames the frame |
+
+From code, `editor.selection.editText()` does the same for the selected item (the playground's **T** button in
+the floating toolbar).
+
 ### Laser pointer
 
 | Option | Type |
@@ -154,6 +166,22 @@ between — also when a shape is moved into its way later. The side can be fixed
 editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both', routing: 'elbow' });
 editor.tools.use('connector');
 ```
+
+Double-click an arrow with the select tool to type its label (<kbd>Enter</kbd> saves, <kbd>Esc</kbd> cancels).
+From code:
+
+```ts
+await editor.dispatch(connector.setLabel('yes')); // undoable; '' removes the label
+connector.getLabel();
+editor.tools.connector.editLabel(connector);    // shows the text box
+```
+
+### Hand-drawn or AI-made: the same diagram
+
+Diagrams made by the [AI features](./ai), from [Mermaid](./ai#mermaid-no-ai-needed), or by hand are made of the
+same things: shapes, texts grouped with them, and connectors. So you can mix them: draw a box, double-click it to
+type its text, connect it to an AI-made box with the connector tool and label the arrow. The AI can then edit the
+whole diagram (`editor.ai.editDiagram`), and `editor.ai.toMermaid()` exports it.
 
 <ClientOnly>
   <DrawingDemo

@@ -47,7 +47,7 @@ The simplest way: restore the last drawing (if any) and keep saving it to `local
 const stopAutosave = await editor.autosave({ key: 'my-drawing' });
 ```
 
-Options: `key` (default `'easydrawer'`), `delay` in ms (default `400`), and `storage` (any object with
+Options: `key` (default `'easydrawer'`), `delay` in ms (default `1000`), and `storage` (any object with
 `getItem`/`setItem`, e.g. `sessionStorage`).
 
 To save somewhere else, use `onChange`, which is called after every change (draw, erase, undo, redo…):

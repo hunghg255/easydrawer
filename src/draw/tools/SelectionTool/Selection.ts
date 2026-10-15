@@ -21,12 +21,17 @@ import type Editor from '../../Editor';
 import EditorImage from '../../image/EditorImage';
 import { type EditorLocalization } from '../../localization';
 import type Pointer from '../../Pointer';
+import CanvasRenderer from '../../rendering/renderers/CanvasRenderer';
 import { assertIsNumberArray, assertIsStringArray } from '../../util/assertions';
 import describeTransformation from '../../util/describeTransformation';
 import Viewport from '../../Viewport';
 
 const updateChunkSize = 100;
 const maxPreviewElemCount = 500;
+// Selections at least this slow to draw (see getProportionalRenderingTime) are moved as an image.
+const minSnapshotRenderingWeight = 150;
+// Largest image (in pixels) of a selection being moved.
+const maxSnapshotSize = 4096;
 
 // Distance (in screen pixels) within which a dragged selection snaps to other objects.
 const snapDistance = 6;
@@ -445,13 +450,21 @@ export default class Selection {
     wetInkRenderer.clear();
     wetInkRenderer.pushTransform(this.transform);
 
-    const viewportVisibleRect = this.editor.viewport.visibleRect.union(this.region);
-    const visibleRect = viewportVisibleRect.transformedBoundingBox(this.transform.inverse());
+    const snapshot = this.getDragSnapshot();
+    if (snapshot) {
+      // An image of the selection, moved instead of drawn again.
+      wetInkRenderer.drawImage({
+        image: snapshot.canvas,
+        base64Url: '',
+        transform: Mat33.translation(snapshot.rect.topLeft).rightMul(Mat33.scaling2D(1 / snapshot.pixelsPerUnit)),
+      });
+    } else {
+      const viewportVisibleRect = this.editor.viewport.visibleRect.union(this.region);
+      const visibleRect = viewportVisibleRect.transformedBoundingBox(this.transform.inverse());
 
-    for (const elem of this.selectedElems) {
-      // Attached connectors are drawn separately (see renderAttachedConnectors).
-      if (elem instanceof Connector && elem.isAttached()) continue;
-      elem.render(wetInkRenderer, visibleRect);
+      for (const elem of this.drawnWhileDragging()) {
+        elem.render(wetInkRenderer, visibleRect);
+      }
     }
 
     wetInkRenderer.popTransform();
@@ -460,6 +473,68 @@ export default class Selection {
     this.renderSnapGuides();
 
     this.updateUI();
+  }
+
+  // Connectors (attached to the selection) whose ends all move with it: when it is only
+  // moved, they move with it (no need to route them again).
+  private connectorsMovingWithSelection(): Connector[] {
+    const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
+    const selectedConnectors = this.selectedElems.filter((elem): elem is Connector => elem instanceof Connector && elem.isAttached());
+    return [...this.attachedConnectors, ...selectedConnectors].filter((connector) => {
+      const ends = [connector.getStart(), connector.getEnd()];
+      const allAttachedEndsMove = ends.every((end) => !end.targetId || selectedIds.has(end.targetId));
+      const freeEndsMove = selectedConnectors.includes(connector) || ends.every((end) => end.targetId);
+      return allAttachedEndsMove && freeEndsMove;
+    });
+  }
+
+  // What is drawn with the selection while it's transformed. Attached connectors are drawn
+  // separately (see renderAttachedConnectors).
+  private drawnWhileDragging() {
+    return this.selectedElems.filter((elem) => !(elem instanceof Connector && elem.isAttached()));
+  }
+
+  // While a selection that is slow to draw is transformed, an image of it is moved instead of
+  // drawing everything again for each frame (made at the start, and again if the zoom changes).
+  private dragSnapshot: { canvas: HTMLCanvasElement; rect: Rect2; pixelsPerUnit: number; connectors: Set<Connector> } | null = null;
+
+  private getDragSnapshot() {
+    // When moving the selection, the connectors that move with it are in the image too.
+    const connectors = this.backgroundDragging ? this.connectorsMovingWithSelection() : [];
+    const elems = [...this.drawnWhileDragging(), ...connectors];
+    const weight = elems.reduce((total, elem) => total + elem.getProportionalRenderingTime(), 0);
+    if (elems.length === 0 || weight < minSnapshotRenderingWeight) {
+      return null;
+    }
+
+    const pixelsPerUnit = this.editor.viewport.getScaleFactor() * this.editor.display.getDevicePixelRatio();
+    if (this.dragSnapshot?.pixelsPerUnit === pixelsPerUnit) {
+      return this.dragSnapshot;
+    }
+
+    // A few pixels around, for antialiasing and thick lines.
+    const rect = Rect2.union(...elems.map((elem) => elem.getBBox())).grownBy(4 / this.editor.viewport.getScaleFactor());
+    const size = rect.size.times(pixelsPerUnit);
+    if (size.x < 1 || size.y < 1 || size.x > maxSnapshotSize || size.y > maxSnapshotSize) {
+      return null;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(size.x);
+    canvas.height = Math.ceil(size.y);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    const viewport = new Viewport(() => {});
+    viewport.updateScreenSize(Vec2.of(canvas.width, canvas.height));
+    viewport.resetTransform(Mat33.scaling2D(pixelsPerUnit).rightMul(Mat33.translation(rect.topLeft.times(-1))));
+    const renderer = new CanvasRenderer(ctx, viewport);
+    for (const elem of elems) {
+      elem.render(renderer, rect);
+    }
+
+    this.dragSnapshot = { canvas, rect, pixelsPerUnit, connectors: new Set(connectors) };
+    return this.dragSnapshot;
   }
 
   // Recompute this' region from the selected elements.
@@ -566,15 +641,12 @@ export default class Selection {
     const isTranslation =
       Vec2.unitX.eq(transform.transformVec3(Vec2.unitX), 1e-9) && Vec2.unitY.eq(transform.transformVec3(Vec2.unitY), 1e-9);
     const selectedIds = new Set(this.selectedElems.map((elem) => elem.getId()));
-    const movesRigidly = (connector: Connector) => {
-      const ends = [connector.getStart(), connector.getEnd()];
-      const allAttachedEndsMove = ends.every((end) => !end.targetId || selectedIds.has(end.targetId));
-      const freeEndsMove = selectedConnectors.includes(connector) || ends.every((end) => end.targetId);
-      return isTranslation && allAttachedEndsMove && freeEndsMove;
-    };
+    const rigid = new Set(isTranslation ? this.connectorsMovingWithSelection() : []);
     const toRoute: Connector[] = [];
     for (const connector of connectors) {
-      if (movesRigidly(connector)) {
+      if (this.dragSnapshot?.connectors.has(connector)) {
+        // Drawn in the image of the selection.
+      } else if (rigid.has(connector)) {
         connector.transformedPreview(transform).render(renderer);
       } else {
         toRoute.push(connector);
@@ -834,6 +906,7 @@ export default class Selection {
   }
 
   public onDragEnd() {
+    this.dragSnapshot = null;
     if (this.backgroundDragging) {
       this.transformers.drag.onDragEnd();
     } else if (this.activeHandle) {
@@ -848,6 +921,7 @@ export default class Selection {
   }
 
   public onDragCancel() {
+    this.dragSnapshot = null;
     this.backgroundDragging = false;
     this.activeHandle = null;
     this.setTransform(Mat33.identity);

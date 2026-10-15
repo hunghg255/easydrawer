@@ -2238,24 +2238,44 @@ export class Editor {
     }
 
     let timeout: ReturnType<typeof setTimeout> | null = null;
+    let idleCallback: number | null = null;
+    let pending = false;
     const save = () => {
       timeout = null;
+      idleCallback = null;
+      pending = false;
       try {
-        storage!.setItem(key, this.toSVGString());
+        storage.setItem(key, this.toSVGString());
       } catch (error) {
         console.warn('easydrawer: could not autosave the drawing', error);
       }
     };
+    // Exporting a big drawing takes a while: when the browser is idle (not while drawing).
+    const saveWhenIdle = () => {
+      timeout = null;
+      if (typeof requestIdleCallback === 'function') {
+        idleCallback = requestIdleCallback(save, { timeout: 2000 });
+      } else {
+        save();
+      }
+    };
+    const cancel = () => {
+      if (timeout) clearTimeout(timeout);
+      if (idleCallback !== null && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleCallback);
+      timeout = null;
+      idleCallback = null;
+    };
 
     const stopListening = this.onChange(() => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(save, delay);
+      cancel();
+      pending = true;
+      timeout = setTimeout(saveWhenIdle, delay);
     });
 
     return () => {
       stopListening();
-      if (timeout) {
-        clearTimeout(timeout);
+      if (pending) {
+        cancel();
         save();
       }
     };

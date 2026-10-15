@@ -79,8 +79,12 @@ export default class Connector extends AbstractComponent implements RestyleableC
   private route: IVec2[] | null = null;
   // The last elbow route, and what it was computed from (relative to its start), to skip
   // computing it again when everything around it just moved together.
-  private routeCache: { key: string; origin: IVec2; route: IVec2[] } | null = null;
+  private routeCache: { key: number[][]; sides: string; origin: IVec2; route: IVec2[] } | null = null;
   private sketchCache: { key: string; parts: RenderablePathSpec[] } | null = null;
+  // The boxes of the ends and where the line touched them, last time (see updateEnds).
+  private straightCache: { startBox: Rect2; endBox: Rect2; start: IVec2; end: IVec2 } | null = null;
+  // While scheduleUpdate takes this out of the image and adds it back.
+  private updatingInImage = false;
 
   /** The points the line goes through, from start to end. */
   public getPoints(): IVec2[] {
@@ -331,10 +335,33 @@ export default class Connector extends AbstractComponent implements RestyleableC
     }
 
     // Each end points towards the center of the other end's component (or the other end).
-    const startRef = startTarget?.getBBox().center ?? this.start.point;
-    const endRef = endTarget?.getBBox().center ?? this.end.point;
-    const newStart = startTarget ? this.anchorOn(startTarget, endRef) : this.start.point;
-    const newEnd = endTarget ? this.anchorOn(endTarget, startRef) : this.end.point;
+    // Finding where the line leaves a shape is slow: when both ends just moved together (e.g.
+    // dragged together), move the line with them.
+    const boxOf = (end: ConnectorEnd, target: AbstractComponent | null) =>
+      target ? target.getBBox() : new Rect2(end.point.x, end.point.y, 0, 0);
+    const startBox = boxOf(this.start, startTarget);
+    const endBox = boxOf(this.end, endTarget);
+    const cache = this.straightCache;
+    const tolerance = 1e-6 * Math.max(1, startBox.maxDimension, endBox.maxDimension);
+    const offset = cache ? startBox.topLeft.minus(cache.startBox.topLeft) : Vec2.zero;
+    const movedTogether =
+      !!cache &&
+      Vec2.ofXY(startBox.size).eq(cache.startBox.size, tolerance) &&
+      Vec2.ofXY(endBox.size).eq(cache.endBox.size, tolerance) &&
+      endBox.topLeft.minus(cache.endBox.topLeft).eq(offset, tolerance * 10);
+
+    let newStart: IVec2;
+    let newEnd: IVec2;
+    if (cache && movedTogether) {
+      newStart = Vec2.ofXY(cache.start).plus(offset);
+      newEnd = Vec2.ofXY(cache.end).plus(offset);
+    } else {
+      const startRef = startTarget?.getBBox().center ?? this.start.point;
+      const endRef = endTarget?.getBBox().center ?? this.end.point;
+      newStart = startTarget ? this.anchorOn(startTarget, endRef) : this.start.point;
+      newEnd = endTarget ? this.anchorOn(endTarget, startRef) : this.end.point;
+    }
+    this.straightCache = { startBox, endBox, start: newStart, end: newEnd };
 
     const changed =
       !Vec2.ofXY(newStart).eq(this.start.point, 1e-6) || !Vec2.ofXY(newEnd).eq(this.end.point, 1e-6);
@@ -376,18 +403,26 @@ export default class Connector extends AbstractComponent implements RestyleableC
 
     const options = { margin, gap: Math.max(4, this.style.thickness * 1.5) };
 
+    // Everything relative to the start, to reuse the route when it all just moved.
     const origin = Vec2.ofXY('rect' in startEnd ? startEnd.rect.topLeft : startEnd.point);
-    const relative = (r: Rect2) => [r.x - origin.x, r.y - origin.y, r.w, r.h].map((v) => v.toFixed(2)).join(',');
+    const relative = (r: Rect2) => [r.x - origin.x, r.y - origin.y, r.w, r.h];
     const describeEnd = (end: RouteEnd) =>
-      'rect' in end ? `${relative(end.rect)}:${end.side ?? ''}` : relative(new Rect2(end.point.x, end.point.y, 0, 0));
+      'rect' in end ? relative(end.rect) : relative(new Rect2(end.point.x, end.point.y, 0, 0));
+    const sides = `${'side' in startEnd ? startEnd.side ?? '' : ''}|${'side' in endEnd ? endEnd.side ?? '' : ''}|${margin}`;
     const key = [
       describeEnd(startEnd),
       describeEnd(endEnd),
-      margin,
-      ...obstacles.map(relative).sort(),
-    ].join('|');
+      ...obstacles.map(relative).sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3]),
+    ];
     const cache = this.routeCache;
-    if (cache?.key === key) {
+    // Moving things adds tiny rounding errors.
+    const tolerance = margin * 0.01;
+    if (
+      cache &&
+      cache.sides === sides &&
+      cache.key.length === key.length &&
+      cache.key.every((values, i) => values.every((v, j) => Math.abs(v - key[i][j]) < tolerance))
+    ) {
       const offset = origin.minus(cache.origin);
       return cache.route.map((p) => Vec2.ofXY(p).plus(offset));
     }
@@ -397,7 +432,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
     const route =
       routeOrthogonal(startEnd, endEnd, obstacles, options) ??
       routeOrthogonal(withoutSide(startEnd), withoutSide(endEnd), obstacles, options);
-    this.routeCache = route ? { key, origin, route } : null;
+    this.routeCache = route ? { key, sides, origin, route } : null;
     return route;
   }
 
@@ -407,7 +442,8 @@ export default class Connector extends AbstractComponent implements RestyleableC
       image.notifier.on(EditorImageEventType.ComponentAdded, (event) => {
         if (event.kind !== EditorImageEventType.ComponentAdded) return;
         if (event.componentId === this.start.targetId || event.componentId === this.end.targetId) {
-          this.scheduleUpdate();
+          // Right away if the line no longer touches it.
+          this.scheduleUpdate(this.style.routing === 'elbow' && this.routeStillFits(image));
           return;
         }
 
@@ -415,7 +451,8 @@ export default class Connector extends AbstractComponent implements RestyleableC
         if (this.style.routing === 'elbow' && event.componentId !== this.getId()) {
           const component = image.lookupElement(event.componentId);
           if (component && !(component instanceof Connector) && component.getBBox().intersects(this.getBBox())) {
-            this.scheduleUpdate();
+            // Going around it can wait a moment.
+            this.scheduleUpdate(true);
           }
         }
       });
@@ -425,22 +462,53 @@ export default class Connector extends AbstractComponent implements RestyleableC
       const target = this.targetOf(end, image);
       if (target) target.keepIdInSVG = true;
     }
-    this.updateEnds(image);
+    if (this.updatingInImage) {
+      // Re-added by scheduleUpdate: already up to date.
+    } else if (this.style.routing === 'elbow' && this.route) {
+      // Re-added (e.g. after being dragged with the shapes it links): route again once
+      // everything else has been added too. Usually the cached route (see computeElbowRoute)
+      // can be used then, instead of computing a route around a half-empty image now. If the
+      // route still touches both of its shapes (they moved together), it can even wait until
+      // the browser is idle (finding routes is slow when many connectors are dropped at once).
+      this.scheduleUpdate(this.routeStillFits(image));
+    } else {
+      this.updateEnds(image);
+    }
+  }
+
+  // Whether the elbow route still starts and ends at the components it links.
+  private routeStillFits(image: ComponentLookup) {
+    const route = this.route;
+    if (!route || route.length < 2) return false;
+    const margin = Math.max(12, this.style.thickness * 8);
+    const touches = (end: ConnectorEnd, point: IVec2) => {
+      const target = this.targetOf(end, image);
+      return target ? target.getBBox().grownBy(margin).containsPoint(point) : Vec2.ofXY(end.point).eq(point, margin);
+    };
+    return touches(this.start, route[0]) && touches(this.end, route[route.length - 1]);
   }
 
   // Attached components are re-added to the image when they move (and on undo/redo).
   // Update after the current change, rather than while the image is being modified.
-  private scheduleUpdate() {
+  private scheduleUpdate(whenIdle = false) {
     if (this.updateScheduled) return;
     this.updateScheduled = true;
 
-    queueMicrotask(() => {
+    const schedule = whenIdle && typeof requestIdleCallback === 'function'
+      ? (callback: () => void) => requestIdleCallback(callback, { timeout: 300 })
+      : queueMicrotask;
+    schedule(() => {
       this.updateScheduled = false;
       const image = this.image;
       if (!image || image.lookupElement(this.getId()) !== this) return;
 
       // Out of the image while the route (and bounding box) changes, so it's redrawn correctly.
-      image.updateComponent(this, () => this.updateEnds(image));
+      this.updatingInImage = true;
+      try {
+        image.updateComponent(this, () => this.updateEnds(image));
+      } finally {
+        this.updatingInImage = false;
+      }
     });
   }
 
@@ -629,6 +697,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
     clone.route = this.route?.slice() ?? null;
     clone.routeCache = this.routeCache;
     clone.sketchCache = this.sketchCache;
+    clone.straightCache = this.straightCache;
     clone.recomputeBBox();
     return clone;
   }

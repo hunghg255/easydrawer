@@ -580,6 +580,25 @@ const currentPen = computed(() => {
 
 const cleanups: Array<() => void> = [];
 
+// Work that can wait until the browser is idle, at most once per key until it's done.
+const idleTasks = new Map<string, () => void>();
+function whenIdle(key: string, task: () => void) {
+  const scheduled = idleTasks.has(key);
+  idleTasks.set(key, task);
+  if (scheduled) return;
+  const run = () => {
+    const latest = idleTasks.get(key);
+    idleTasks.delete(key);
+    latest?.();
+  };
+  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 500 });
+  else setTimeout(run, 100);
+}
+// To know when the selection's content may have changed (see selection.onChange).
+let contentVersion = 0;
+let selectionVersion = -1;
+let selectionKey = '';
+
 onMounted(async () => {
   const { Editor, Color4, StickyNote: StickyNoteClass, TextComponent: TextComponentClass } = await import('easydrawer');
 
@@ -675,22 +694,36 @@ onMounted(async () => {
     instance.onChange(() => {
       canUndo.value = instance.canUndo();
       canRedo.value = instance.canRedo();
-      frameCount.value = instance.frames.list().length;
+      contentVersion++;
+      // Looks at every component: when the browser is idle, once for many changes.
+      whenIdle('frames', () => (frameCount.value = instance.frames.list().length));
     }),
     instance.onZoomChange((value) => (zoom.value = value)),
+    // Also called for every frame of a pan or zoom: only move the toolbar then.
     instance.selection.onChange((items) => {
-      selectionCount.value = items.length;
-      selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
-      selectionHasDiagram.value = items.length > 0 && instance.ai.readDiagram(items) !== null;
-      selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
-      selectionHasMindMap.value = items.some((item) => item.getMetadata().mindmap !== undefined);
-      selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
-      selectionHasGroups.value = instance.selection.hasGroups;
-      if (items.length === 0) {
-        showAlign.value = false;
-        showQuickAI.value = false;
+      const key = items.map((item) => item.getId()).join(',');
+      if (key !== selectionKey || contentVersion !== selectionVersion) {
+        selectionKey = key;
+        selectionVersion = contentVersion;
+        selectionCount.value = items.length;
+        selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
+        selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
+        selectionHasMindMap.value = items.some((item) => item.getMetadata().mindmap !== undefined);
+        selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
+        selectionHasGroups.value = instance.selection.hasGroups;
+        if (items.length === 0) {
+          showAlign.value = false;
+          showQuickAI.value = false;
+          selectionHasDiagram.value = false;
+        } else {
+          // Slower (it reads the diagram): when idle.
+          whenIdle('diagram', () => {
+            const current = instance.selection.items;
+            selectionHasDiagram.value = current.length > 0 && instance.ai.readDiagram(current) !== null;
+          });
+        }
+        whenIdle('locked', () => (lockedCount.value = instance.selection.lockedCount));
       }
-      lockedCount.value = instance.selection.lockedCount;
       // After Vue has updated the toolbar's buttons (its width depends on them).
       void nextTick(updateQuickBar);
     }),

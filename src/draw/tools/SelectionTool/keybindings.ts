@@ -109,3 +109,31 @@ KeyboardShortcutManager.registerDefaultKeyboardShortcut(
   ['CtrlOrMeta+Shift+KeyG'],
   'Ungroup selection',
 );
+
+// Flowcharts
+export const addConnectedShortcutIds = {
+  right: 'easydraw.tools.SelectionTool.addConnectedRight',
+  down: 'easydraw.tools.SelectionTool.addConnectedDown',
+  left: 'easydraw.tools.SelectionTool.addConnectedLeft',
+  up: 'easydraw.tools.SelectionTool.addConnectedUp',
+} as const;
+export const selectConnectedShortcutIds = {
+  right: 'easydraw.tools.SelectionTool.selectConnectedRight',
+  down: 'easydraw.tools.SelectionTool.selectConnectedDown',
+  left: 'easydraw.tools.SelectionTool.selectConnectedLeft',
+  up: 'easydraw.tools.SelectionTool.selectConnectedUp',
+} as const;
+for (const [direction, key] of [['right', 'ArrowRight'], ['down', 'ArrowDown'], ['left', 'ArrowLeft'], ['up', 'ArrowUp']] as const) {
+  KeyboardShortcutManager.registerDefaultKeyboardShortcut(
+    addConnectedShortcutIds[direction],
+    [`CtrlOrMeta+${key}`],
+    `Add a linked shape (${direction})`,
+  );
+  KeyboardShortcutManager.registerDefaultKeyboardShortcut(
+    selectConnectedShortcutIds[direction],
+    [`Alt+${key}`],
+    `Select the linked shape (${direction})`,
+  );
+}
+export const editTextShortcutId = 'easydraw.tools.SelectionTool.editText';
+KeyboardShortcutManager.registerDefaultKeyboardShortcut(editTextShortcutId, ['Enter'], 'Edit the text of the selection');

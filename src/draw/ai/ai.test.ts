@@ -4,8 +4,8 @@ import { Vec2 } from '~/math';
 
 import { arrowEnds, assignSides, validateDiagram } from './EditorAI';
 import layoutGraph from './layoutGraph';
-import parseAIJSON from './parseJSON';
-import { AIError } from './types';
+import parseAIJSON, { parsePartialAIJSON } from './parseJSON';
+import { AIError, readTextStream } from './types';
 
 describe('parseAIJSON', () => {
   it('reads JSON wrapped in text and code fences', () => {
@@ -16,6 +16,22 @@ describe('parseAIJSON', () => {
   it('throws AIError when there is no valid JSON', () => {
     expect(() => parseAIJSON('I cannot do that')).toThrow(AIError);
     expect(() => parseAIJSON('{ not json }')).toThrow(AIError);
+  });
+});
+
+describe('parsePartialAIJSON', () => {
+  it('reads the complete parts of an answer that is still arriving', () => {
+    const answer = '```json\n{"direction": "down", "nodes": [{"id": "a", "label": "Log in"}, {"id": "b", "label": "Che';
+    expect(parsePartialAIJSON(answer)).toEqual({ direction: 'down', nodes: [{ id: 'a', label: 'Log in' }] });
+    expect(parsePartialAIJSON('{"nodes": [{"id": "a", "details": ["x", "y"')).toEqual({ nodes: [] });
+    expect(parsePartialAIJSON('{"a": "x, y", "b": ["}"')).toEqual({ a: 'x, y', b: [] });
+    expect(parsePartialAIJSON('{"a": "x\\"')).toEqual({});
+    expect(parsePartialAIJSON('Thinking…')).toBeNull();
+  });
+
+  it('reads a complete answer', () => {
+    const answer = '{"label": "Plan", "children": [{"label": "A", "children": [{"label": "A1"}]}]} done';
+    expect(parsePartialAIJSON(answer)).toEqual(parseAIJSON(answer));
   });
 });
 
@@ -112,5 +128,32 @@ describe('arrowEnds', () => {
     const [tail, head] = arrowEnds(points);
     expect(tail).toMatchObject({ x: 0, y: 0 });
     expect(head).toMatchObject({ x: 100, y: 0 });
+  });
+});
+
+describe('readTextStream', () => {
+  const streamOf = (chunks: string[], type: string) =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+          controller.close();
+        },
+      }),
+      { headers: { 'Content-Type': type } },
+    );
+
+  it('reads the server-sent events of an OpenAI-compatible API', async () => {
+    const seen: string[] = [];
+    const event = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+    const response = streamOf([': processing\n\n', event('{"a"'), event(': 1}').slice(0, 10), event(': 1}').slice(10), 'data: [DONE]\n\n'], 'text/event-stream');
+    expect(await readTextStream(response, (text) => seen.push(text))).toBe('{"a": 1}');
+    expect(seen.at(-1)).toBe('{"a": 1}');
+    expect(seen).toContain('{"a"');
+  });
+
+  it('reads plain text, and errors in events', async () => {
+    expect(await readTextStream(streamOf(['Hel', 'lo'], 'text/plain'))).toBe('Hello');
+    await expect(readTextStream(streamOf(['data: {"error": {"message": "rate limited"}}\n\n'], 'text/event-stream'))).rejects.toThrow(AIError);
   });
 });

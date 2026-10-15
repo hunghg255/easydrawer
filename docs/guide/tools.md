@@ -69,6 +69,7 @@ new Editor(element, {
 | `color` | fill color (`'transparent'` for outlines only) |
 | `borderColor` | border color |
 | `thickness` | border width, `0` for none |
+| `sketch` | hand-drawn style: `true`, or `{ roughness, fillStyle }` (see [below](#hand-drawn-style)) |
 
 ```ts
 editor.tools.configure('shape', { shape: 'star', color: 'gold', borderColor: '#92400e', thickness: 2 });
@@ -81,6 +82,28 @@ editor.tools.use('shape');
     :settings="{ tools: { initial: 'shape', shape: { shape: 'star', color: 'gold', borderColor: '#92400e', thickness: 2 } } }"
   />
 </ClientOnly>
+
+### Hand-drawn style
+
+Like [Excalidraw](https://excalidraw.com): shapes and arrows with wobbly double lines, and fills made of diagonal
+lines (drawn with [Rough.js](https://roughjs.com)).
+
+```ts
+editor.tools.configure('shape', { sketch: true });                              // or { roughness: 2, fillStyle: 'cross-hatch' }
+editor.tools.configure('connector', { sketch: true });
+editor.ai.setSketch(true);                                                       // AI diagrams, mind maps, Mermaid
+editor.tools.configure('text', { fontFamily: '"Patrick Hand", sans-serif' });    // a handwriting font (load it first)
+editor.ai.fontFamily = '"Patrick Hand", sans-serif';
+```
+
+| Option | Values |
+| --- | --- |
+| `roughness` | `0` (straight) to `3` (very sloppy). Default `1.3` |
+| `bowing` | how much lines bend. Default `1.5` |
+| `fillStyle` | `'hachure'` (default), `'cross-hatch'`, `'solid'`, `'zigzag'`, `'dots'` |
+
+The hand-drawn lines are saved with the drawing (SVG). `sketchPath(path, style, options)` turns any path into
+its hand-drawn version. In the [playground](/playground): ⋯ → **Hand-drawn**.
 
 ### Eraser
 
@@ -96,7 +119,7 @@ A stylus with an eraser end (Surface Pen, Wacom) erases automatically.
 | Option | Type |
 | --- | --- |
 | `color` | text color |
-| `fontSize` | `number` |
+| `fontSize` | `number` (default `20`) |
 | `fontFamily` | CSS font family |
 
 ### Select
@@ -108,6 +131,35 @@ A stylus with an eraser end (Surface Pen, Wacom) erases automatically.
 ```ts
 editor.tools.configure('select', { mode: 'lasso' });
 ```
+
+**Double-click** (or double-tap) to edit text:
+
+| On | Does |
+| --- | --- |
+| A sticky note or a text | Edits its text |
+| An arrow (connector) | Adds or edits its label |
+| A shape (rectangle, ellipse, hand-drawn box…) | Edits its text, or types a new one centered in it and grouped with it |
+| A frame's title | Renames the frame |
+
+From code, `editor.selection.editText()` does the same for the selected item (the playground's **T** button in
+the floating toolbar). <kbd>Enter</kbd> with a shape selected does it too.
+
+Text typed in a shape is centered in it, wraps to its width, and is sized to fit it (at most the text tool's size).
+<kbd>Enter</kbd> saves the text, <kbd>Shift</kbd>+<kbd>Enter</kbd> starts a new line, <kbd>Esc</kbd> cancels.
+
+#### Flowcharts from the keyboard
+
+With a shape selected:
+
+| Keys | Does |
+| --- | --- |
+| <kbd>Ctrl/⌘</kbd> + arrow | Adds a copy of the shape in that direction, linked by an arrow, and selects it. Again: the next one is placed beside it |
+| <kbd>Enter</kbd> | Types the text of the shape; <kbd>Enter</kbd> again saves it and selects the shape again |
+| <kbd>Alt</kbd> + arrow | Selects the linked shape in that direction |
+
+So <kbd>Enter</kbd> "Start" <kbd>Enter</kbd> <kbd>Ctrl</kbd>+<kbd>→</kbd> <kbd>Enter</kbd> "Check" <kbd>Enter</kbd>
+<kbd>Ctrl</kbd>+<kbd>↓</kbd>… draws a flowchart without the mouse. From code:
+`editor.selection.addConnected('right')` and `editor.selection.selectConnected('left')`.
 
 ### Laser pointer
 
@@ -154,6 +206,22 @@ between — also when a shape is moved into its way later. The side can be fixed
 editor.tools.configure('connector', { color: '#7c3aed', arrow: 'both', routing: 'elbow' });
 editor.tools.use('connector');
 ```
+
+Double-click an arrow with the select tool to type its label (<kbd>Enter</kbd> saves, <kbd>Esc</kbd> cancels).
+From code:
+
+```ts
+await editor.dispatch(connector.setLabel('yes')); // undoable; '' removes the label
+connector.getLabel();
+editor.tools.connector.editLabel(connector);    // shows the text box
+```
+
+### Hand-drawn or AI-made: the same diagram
+
+Diagrams made by the [AI features](./ai), from [Mermaid](./ai#mermaid-no-ai-needed), or by hand are made of the
+same things: shapes, texts grouped with them, and connectors. So you can mix them: draw a box, double-click it to
+type its text, connect it to an AI-made box with the connector tool and label the arrow. The AI can then edit the
+whole diagram (`editor.ai.editDiagram`), and `editor.ai.toMermaid()` exports it.
 
 <ClientOnly>
   <DrawingDemo
@@ -223,6 +291,12 @@ When the drawing area has focus:
 | `I` | Eyedropper | | | |
 | `N` | Sticky note | | | |
 | `C` | Connector | | `Ctrl/⌘+G` | Group (`+Shift`: ungroup) |
+| | | | `Enter` | Edit the text of the selection |
+| | | | `Ctrl/⌘` + arrow | Add a linked shape (flowcharts) |
+| | | | `Alt` + arrow | Select the linked shape |
+| | | | Arrows (with a selection) | Move the selection (hold to keep moving) |
+| | | | `Ctrl/⌘+D` | Duplicate the selection |
+| | | | `Delete` / `Backspace` | Delete the selection |
 
 Change them with `keyboardShortcutOverrides` (IDs: `easydraw.tools.use.pen`, `easydraw.tools.use.eraser`, …):
 

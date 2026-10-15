@@ -46,6 +46,12 @@ export default abstract class SelectionBuilder {
 
       components = filterComponents(components);
 
+      // Frames (editor.frames) are selected by clicking near their border, so that clicking
+      // inside a frame selects what is in it, or nothing.
+      const isFrame = (component: AbstractComponent) => component.getMetadata().frame !== undefined;
+      const others = components.filter((component) => !isFrame(component));
+      components = others.length > 0 ? others : components.filter((component) => component.intersectsRect(minSizeBox));
+
       if (components.length > 1) {
         components = [components[0]];
       }

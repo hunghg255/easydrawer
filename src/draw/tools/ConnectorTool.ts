@@ -1,4 +1,4 @@
-import { Color4, type IVec2, Rect2, Vec2 } from '~/math';
+import { Color4, type IVec2, Mat33, Rect2, Vec2 } from '~/math';
 
 import BaseTool from './BaseTool';
 import type AbstractComponent from '../components/AbstractComponent';
@@ -8,6 +8,9 @@ import EditorImage from '../image/EditorImage';
 import { type PointerEvt } from '../inputEvents';
 import { PointerDevice } from '../Pointer';
 import { EditorEventType } from '../types';
+import ReactiveValue from '../util/ReactiveValue';
+
+const labelEditorClassName = 'easydrawer-connector-label-editor';
 
 /**
  * Draws arrows/lines between components: drag from one shape (or sticky note, text…) to
@@ -24,11 +27,74 @@ export default class ConnectorTool extends BaseTool {
   private startTarget: AbstractComponent | null = null;
   private preview: Connector | null = null;
 
+  private labelOverlay: HTMLElement;
+  private labelOverlayTransform = ReactiveValue.fromInitialValue(Mat33.identity);
+  private labelInput: HTMLInputElement | null = null;
+  private editingConnector: Connector | null = null;
+
   public constructor(
     private editor: Editor,
     description: string,
   ) {
     super(editor.notifier, description);
+
+    this.labelOverlay = document.createElement('div');
+    this.labelOverlay.classList.add(labelEditorClassName);
+    this.editor.anchorElementToCanvas(this.labelOverlay, this.labelOverlayTransform);
+  }
+
+  /**
+   * Shows a text box on `connector` to add or change its label. Enter saves (undoable), Escape
+   * cancels.
+   */
+  public editLabel(connector: Connector) {
+    this.finishEditingLabel();
+    this.editingConnector = connector;
+
+    const input = document.createElement('input');
+    input.value = connector.getLabel();
+    input.placeholder = this.editor.localization.enterTextToInsert;
+    input.style.fontSize = `${connector.getLabelFontSize()}px`;
+    input.style.color = connector.getConnectorStyle().color.toHexString();
+    const resize = () => {
+      input.style.width = `${Math.max(input.value.length, input.placeholder.length, 4) + 2}ch`;
+    };
+    resize();
+    input.addEventListener('input', resize);
+    input.addEventListener('blur', () => this.finishEditingLabel());
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === 'Escape') {
+        event.preventDefault();
+        this.finishEditingLabel(event.key === 'Enter');
+        this.editor.focus();
+      }
+    });
+
+    this.labelInput = input;
+    this.labelOverlayTransform.set(Mat33.translation(connector.getLabelCenter()));
+    this.labelOverlay.replaceChildren(input);
+    // After the pointer event that opened the editor (which focuses the drawing area).
+    setTimeout(() => {
+      if (this.labelInput === input) {
+        input.focus();
+        input.select();
+      }
+    }, 0);
+  }
+
+  /** Saves (or, with `save = false`, discards) the label being edited, if any. */
+  public finishEditingLabel(save = true) {
+    const input = this.labelInput;
+    const connector = this.editingConnector;
+    this.labelInput = null;
+    this.editingConnector = null;
+    if (!input || !connector) return;
+
+    const label = input.value.trim();
+    input.remove();
+    if (save && label !== connector.getLabel()) {
+      void this.editor.dispatch(connector.setLabel(label));
+    }
   }
 
   public getColor() {
@@ -66,6 +132,16 @@ export default class ConnectorTool extends BaseTool {
   /** `'elbow'`: horizontal and vertical segments that go around other components. */
   public setRouting(routing: ConnectorRouting) {
     this.style = { ...this.style, routing };
+    this.noteUpdated();
+  }
+
+  /** Whether new arrows are hand-drawn (like Excalidraw). */
+  public getSketch(): boolean {
+    return this.style.sketch ?? false;
+  }
+
+  public setSketch(sketch: boolean) {
+    this.style = { ...this.style, sketch };
     this.noteUpdated();
   }
 

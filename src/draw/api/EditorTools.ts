@@ -50,6 +50,7 @@ export function applyToolOptions (tool: BaseTool, options: ToolOptionsMap[ToolNa
       tool.setBorderColor(toColor4(shapeOptions.borderColor));
     }
     if (shapeOptions.thickness !== undefined) tool.setThickness(shapeOptions.thickness);
+    if (shapeOptions.sketch !== undefined) tool.setSketch(shapeOptions.sketch);
     if (shapeOptions.shape !== undefined) {
       tool.setStrokeFactory(
         typeof shapeOptions.shape === 'string' ? shapeTypes[shapeOptions.shape] : shapeOptions.shape,
@@ -86,6 +87,7 @@ export function applyToolOptions (tool: BaseTool, options: ToolOptionsMap[ToolNa
     if (connectorOptions.thickness !== undefined) tool.setThickness(connectorOptions.thickness);
     if (connectorOptions.arrow !== undefined) tool.setArrowMode(connectorOptions.arrow);
     if (connectorOptions.routing !== undefined) tool.setRouting(connectorOptions.routing);
+    if (connectorOptions.sketch !== undefined) tool.setSketch(connectorOptions.sketch);
   }
 }
 

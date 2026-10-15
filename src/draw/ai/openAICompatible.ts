@@ -1,4 +1,4 @@
-import { AIError, type AIRequestHandler } from './types';
+import { AIError, readTextStream, type AIRequestHandler } from './types';
 
 export interface OpenAICompatibleOptions {
   /** Chat completions URL, e.g. `https://openrouter.ai/api/v1/chat/completions`. */
@@ -29,7 +29,7 @@ export interface OpenAICompatibleOptions {
  * ```
  */
 export function openAICompatibleRequest (options: OpenAICompatibleOptions): AIRequestHandler {
-  return async ({ messages, signal }) => {
+  return async ({ messages, signal, onText }) => {
     const response = await fetch(options.url, {
       method: 'POST',
       signal,
@@ -43,11 +43,21 @@ export function openAICompatibleRequest (options: OpenAICompatibleOptions): AIRe
         messages,
         temperature: options.temperature ?? 0.2,
         ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
+        // Streamed when the answer can be shown while it arrives.
+        ...(onText ? { stream: true } : {}),
       }),
     });
 
     if (!response.ok) {
       throw new AIError(`AI request failed: ${response.status} ${response.statusText}`);
+    }
+
+    if (onText && response.body && (response.headers.get('Content-Type') ?? '').includes('text/event-stream')) {
+      const text = await readTextStream(response, onText);
+      if (text.trim() === '') {
+        throw new AIError('The AI returned an empty answer.');
+      }
+      return text;
     }
 
     const data = await response.json();

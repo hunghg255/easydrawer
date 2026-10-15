@@ -1,15 +1,36 @@
 import { type IVec2, Mat33, Rect2, Vec2 } from '~/math';
 
 import { type ColorInput, toColor4 } from './options';
-import AbstractComponent from '../components/AbstractComponent';
-import { isRestylableComponent } from '../components/RestylableComponent';
 import type Command from '../commands/Command';
 import Erase from '../commands/Erase';
 import uniteCommands from '../commands/uniteCommands';
+import AbstractComponent from '../components/AbstractComponent';
+import Connector from '../components/Connector';
+import { isRestylableComponent } from '../components/RestylableComponent';
+import StickyNote from '../components/StickyNote';
+import Stroke from '../components/Stroke';
+import TextComponent from '../components/TextComponent';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
 import type SelectionTool from '../tools/SelectionTool/SelectionTool';
 import { EditorEventType } from '../types';
+
+/** A direction on the screen, for {@link EditorSelection.addConnected} and {@link EditorSelection.selectConnected}. */
+export type FlowDirection = 'right' | 'down' | 'left' | 'up';
+
+const flowDirections: Record<FlowDirection, IVec2> = {
+  right: Vec2.of(1, 0),
+  down: Vec2.of(0, 1),
+  left: Vec2.of(-1, 0),
+  up: Vec2.of(0, -1),
+};
+const oppositeSides: Record<FlowDirection, FlowDirection> = { right: 'left', down: 'up', left: 'right', up: 'down' };
+const sideNames: Record<FlowDirection, 'right' | 'bottom' | 'left' | 'top'> = {
+  right: 'right',
+  down: 'bottom',
+  left: 'left',
+  up: 'top',
+};
 
 /**
  * Reads and changes what is selected with the `'select'` tool. Available as `editor.selection`.
@@ -46,6 +67,150 @@ export default class EditorSelection {
   public set(components: AbstractComponent[]) {
     this.tool.setEnabled(true);
     this.tool.setSelection(components);
+  }
+
+  /**
+   * Edits the text of the selected item: a sticky note or text, the label of an arrow, or the
+   * text of a shape (added centered in it if it has none). Like a double click with the select
+   * tool.
+   *
+   * @returns whether there was something to edit.
+   */
+  public editText(): boolean {
+    const items = this.items;
+    if (new Set(items.map((item) => item.getGroupId() ?? item.getId())).size !== 1) return false;
+    // Notes and texts first (e.g. the text of a shape and its outline are selected together).
+    const priority = (item: AbstractComponent) => (item instanceof StickyNote ? 0 : item instanceof TextComponent ? 1 : 2);
+    for (const item of [...items].sort((a, b) => priority(a) - priority(b))) {
+      if (this.tool.editTextOf(item)) return true;
+    }
+    return false;
+  }
+
+  // The main shape of the selection, if it is one shape or note (with its text…): the
+  // biggest shape or note.
+  private selectedShape(): AbstractComponent | null {
+    const items = this.items;
+    if (new Set(items.map((item) => item.getGroupId() ?? item.getId())).size !== 1) return null;
+    const shapes = items.filter(
+      (item) => item instanceof StickyNote || (item instanceof Stroke && item.getMetadata().frame === undefined),
+    );
+    const area = (item: AbstractComponent) => item.getBBox().area;
+    return shapes.sort((a, b) => area(b) - area(a))[0] ?? null;
+  }
+
+  /**
+   * Flowcharts from the keyboard (<kbd>Ctrl/⌘</kbd> + arrow keys with the select tool): adds a
+   * copy of the selected shape (or note) next to it in `direction`, linked to it by an arrow,
+   * and selects it. Repeat to add more: they're placed next to each other. Undoable.
+   *
+   * @returns the new shape, or `null` if the selection isn't one shape.
+   */
+  public async addConnected(direction: FlowDirection = 'right'): Promise<AbstractComponent | null> {
+    const shape = this.selectedShape();
+    if (!shape) return null;
+
+    const editor = this.editor;
+    const image = editor.image;
+    const pixel = editor.viewport.getSizeOfPixelOnCanvas();
+    const box = shape.getBBox();
+    const gap = 60 * pixel;
+    const dir = Vec2.ofXY(flowDirections[direction]);
+    const horizontal = dir.x !== 0;
+    const base = dir.times((horizontal ? box.w : box.h) + gap);
+    const across = horizontal ? Vec2.of(0, box.h + gap / 2) : Vec2.of(box.w + gap / 2, 0);
+
+    // Next to the shape, or next to the shapes already there (alternating sides).
+    const groupId = shape.getGroupId();
+    const isFree = (rect: Rect2) =>
+      !image
+        .getComponentsIntersecting(rect.grownBy(gap / 4))
+        .some((c) => c.isSelectable() && !(c instanceof Connector) && c !== shape && !(groupId !== null && c.getGroupId() === groupId));
+    let offset = base;
+    for (let i = 0; i <= 12; i++) {
+      const step = i === 0 ? 0 : Math.ceil(i / 2) * (i % 2 === 1 ? 1 : -1);
+      const candidate = base.plus(across.times(step));
+      if (isFree(box.translatedBy(candidate))) {
+        offset = candidate;
+        break;
+      }
+    }
+
+    let copy: AbstractComponent;
+    if (shape instanceof StickyNote) {
+      copy = StickyNote.centeredAt(box.center.plus(offset), {
+        color: shape.getColor(),
+        size: shape.getSize(),
+        fontSize: shape.getFontSize(),
+      });
+    } else {
+      // clone() gives a new ID (transformedPreview keeps the ID of what it copies).
+      copy = shape.clone().transformedPreview(Mat33.translation(offset));
+      // Not in the group of the shape and its text.
+      copy.setGroupDirectly(null);
+      // (The copy's own metadata: e.g. its hand-drawn source was moved with it.)
+      const { diagramNode: _node, mindmap: _mindmap, ...metadata } = copy.getMetadata();
+      copy.setMetadata(Object.keys(metadata).length > 0 ? metadata : null);
+    }
+
+    // An arrow like the other arrows of the shape.
+    const existing = image
+      .getAllComponents()
+      .find((c): c is Connector => c instanceof Connector && c.isAttachedTo(shape.getId()));
+    const style = existing?.getConnectorStyle();
+    const arrow = new Connector(
+      { point: box.center, targetId: shape.getId(), side: sideNames[direction] },
+      { point: copy.getBBox().center, targetId: copy.getId(), side: sideNames[oppositeSides[direction]] },
+      {
+        color: style?.color ?? toColor4('#374151'),
+        thickness: style?.thickness ?? 2 * pixel,
+        arrow: style?.arrow ?? 'end',
+        routing: style?.routing ?? 'elbow',
+        sketch: style?.sketch ?? shape.getMetadata().sketch === '1',
+      },
+    );
+
+    await this.dispatchAll([EditorImage.addComponent(copy), EditorImage.addComponent(arrow)]);
+    this.set([copy]);
+    return copy;
+  }
+
+  /**
+   * Selects the shape linked by an arrow to the selected one that is the most in `direction`
+   * (<kbd>Alt</kbd> + arrow keys with the select tool).
+   *
+   * @returns the newly selected shape, or `null` if there is none.
+   */
+  public selectConnected(direction: FlowDirection): AbstractComponent | null {
+    const shape = this.selectedShape();
+    if (!shape) return null;
+    const image = this.editor.image;
+    const center = shape.getBBox().center;
+    const dir = Vec2.ofXY(flowDirections[direction]);
+
+    let best: AbstractComponent | null = null;
+    let bestScore = -Infinity;
+    for (const connector of image.getAllComponents()) {
+      if (!(connector instanceof Connector) || !connector.isAttachedTo(shape.getId())) continue;
+      for (const end of [connector.getStart(), connector.getEnd()]) {
+        const other = end.targetId && end.targetId !== shape.getId() ? image.lookupElement(end.targetId) : null;
+        if (!other) continue;
+        const delta = other.getBBox().center.minus(center);
+        const along = delta.dot(dir);
+        if (along <= 0) continue;
+        // In the direction, and not too far to the side.
+        const score = along / (delta.magnitude() || 1) - delta.magnitude() * 1e-6;
+        if (score > bestScore) {
+          best = other;
+          bestScore = score;
+        }
+      }
+    }
+    if (best) {
+      const groupId = best.getGroupId();
+      this.set(groupId === null ? [best] : image.getAllComponents().filter((c) => c.getGroupId() === groupId));
+    }
+    return best;
   }
 
   /** Selects everything that isn't locked. */

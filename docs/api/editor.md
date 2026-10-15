@@ -14,7 +14,8 @@ Creates an editor inside `parentElement`. See [Settings](./settings) for the opt
 | --- | --- |
 | `tools` | Named access to the built-in tools. See [editor.tools](./tools). |
 | `selection` | What is selected with the select tool. See [below](#selection). |
-| `ai` | AI features: `generateDiagram(prompt)`, `editDiagram(instruction)`, `editSelection(instruction)`, `drawDiagram(diagram)`, `readDiagram()`, `brainstorm()`, `organizeNotes()`, `runCommand(request)`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
+| `frames` | Named areas of the drawing: slides to present, pages to export. See [below](#frames). |
+| `ai` | AI features: `generateDiagram(prompt)`, `editDiagram(instruction)`, `editSelection(instruction)`, `drawDiagram(diagram)`, `setSketch(on)` (hand-drawn style), `fontFamily`, `drawMermaid(text)`, `toMermaid()`, `generateMindMap(topic)`, `drawMindMap(tree)`, `expandMindMap()`, `diagramFromCode(code)`, `generateChart(prompt)`, `drawChart(chart)`, `generateIllustration(prompt)`, `readDiagram()`, `brainstorm()`, `organizeNotes()`, `runCommand(request)`, `describeScene()`, `requestJSON(messages)`. See [AI features](/guide/ai). |
 
 ## Selection
 
@@ -43,11 +44,34 @@ const stop = editor.selection.onChange((items) => placeToolbar(editor.selection.
 | `align(edge)` | Align to the selection's `'left'`, `'center'`, `'right'`, `'top'`, `'middle'` or `'bottom'` (groups move as one) |
 | `distribute(direction)` | Equal gaps, `'horizontal'` or `'vertical'` (3+ items; the outermost don't move) |
 | `lock()` | Lock the selection: locked components can't be selected, moved or erased |
+| `addConnected(direction)` | Flowcharts: add a copy of the selected shape in `'right' \| 'down' \| 'left' \| 'up'`, linked by an arrow, and select it (<kbd>Ctrl/⌘</kbd>+arrows) |
+| `selectConnected(direction)` | Select the shape linked to the selected one in that direction (<kbd>Alt</kbd>+arrows) |
+| `editText()` | Edit the text of the selected item: a note or text, an arrow's label, or a shape's text (added in it if it has none). Like a double click. Returns `false` if there is nothing to edit |
 | `unlockAll()` | Unlock everything. Returns the number of unlocked components. |
 | `lockedCount` | Number of locked components |
 
 Components also have `isLocked()` / `setLocked(locked)` and `getGroupId()` / `setGroup(groupId | null)`
 (commands: `editor.dispatch(component.setLocked(true))`).
+
+## Frames
+
+A frame is a named rectangle (a border with a title above it, grouped and saved with the drawing). Use
+frames as the slides of a presentation, or to export parts of a board. Click a frame's border or title to
+select it; clicking inside it selects what is in it.
+
+```ts
+await editor.frames.add({ title: 'Intro' });         // around most of the visible area
+await editor.frames.add({ rect: new Rect2(0, 0, 1600, 900), title: 'Plan' });
+await editor.frames.addAroundSelection();             // around the selected items
+
+const frames = editor.frames.list();                  // [{ id, title, rect, parts }], in the order they were added
+await editor.frames.goTo(frames[0]);                  // fit the frame to the screen (or goTo(0))
+editor.frames.contentsOf(frames[0]);                  // the components inside it
+const png = editor.frames.toDataURL(0, { pixelRatio: 2 }); // an image of the frame
+```
+
+The [playground](/playground) presents the frames full screen (⋯ → **Present**; arrows, space or a click for the
+next one, <kbd>Esc</kbd> to stop) and prints them to a PDF (⋯ → **Frames → PDF**).
 
 ## History
 

@@ -36,6 +36,7 @@ interface ShapeToolOptions {
   color?: string | Color4;            // fill ('transparent' = outline only)
   borderColor?: string | Color4;
   thickness?: number;                 // border width
+  sketch?: boolean | { roughness?: number; bowing?: number; fillStyle?: 'hachure' | 'cross-hatch' | 'solid' | 'zigzag' | 'dots' }; // hand-drawn
 }
 interface EraserToolOptions { thickness?: number; mode?: 'full-stroke' | 'partial-stroke' }
 interface TextToolOptions { color?: string | Color4; fontSize?: number; fontFamily?: string }
@@ -46,6 +47,8 @@ interface ConnectorToolOptions {                                              //
   color?: string | Color4;
   thickness?: number;
   arrow?: 'end' | 'both' | 'none';
+  routing?: 'straight' | 'elbow';
+  sketch?: boolean;                   // hand-drawn
 }
 ```
 
@@ -78,10 +81,28 @@ Useful tool-object methods: `pen.getColor()`, `pen.getThickness()`, `pen.getStro
 | `group()`, `ungroup()`, `hasGroups` | Grouped components select/move together; saved in SVG |
 | `align(edge)`, `distribute(direction)` | `'left' \| 'center' \| 'right' \| 'top' \| 'middle' \| 'bottom'`; `'horizontal' \| 'vertical'` |
 | `lock()`, `unlockAll()`, `lockedCount` | Locked components can't be selected, moved or erased; saved in SVG |
+| `addConnected(direction)` | Copy of the selected shape in `'right'\|'down'\|'left'\|'up'`, linked by an arrow, selected (Ctrl/⌘+arrows) |
+| `selectConnected(direction)` | Select the linked shape in that direction (Alt+arrows) |
+| `editText()` | Edit the selected note/text, arrow label, or shape text (adds a centered, grouped text). Same as double-click |
 
 Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
 `StickyNote` (`getText()`, `setText(text)` → command, `StickyNote.centeredAt(point, { text, color })`),
-`Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`).
+`Connector` (`getStart()`, `getEnd()` → `{ point, targetId? }`, `getLabel()`, `setLabel(text)` → command;
+`editor.tools.connector.editLabel(connector)` shows a text box).
+Hand-drawn shapes with grouped text + connectors are diagrams just like AI-made ones (`editor.ai.readDiagram()`).
+
+## `editor.frames`
+
+| Member | Description |
+| --- | --- |
+| `add({ rect?, title? })` | Frame (border + title, grouped, saved in SVG) around `rect` or most of the visible area (async, undoable) |
+| `addAroundSelection({ title?, padding? })` | Frame around the selected items |
+| `list()` | `[{ id, title, rect, parts }]` in the order they were added |
+| `goTo(frameOrIndex, { padding? })` | Fit a frame to the screen (slides) |
+| `contentsOf(frame)` | Components inside a frame |
+| `toDataURL(frameOrIndex, { pixelRatio?, background?, format? })` | Image of a frame |
+
+Clicking inside a frame selects what is in it; its border or title selects the frame.
 
 ## `Editor` methods
 
@@ -110,7 +131,7 @@ Components: `isLocked()`, `setLocked(bool)` → command for `editor.dispatch`.
 
 ## Exports
 
-`Editor`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
+`Editor`, `readTextStream`, `parseAIJSON`, `parsePartialAIJSON`, `openAICompatibleRequest`, `parseMermaid`, `diagramToMermaid`, `layoutMindMap`, `buildChart`, `svgToStrokes`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
 `penStyles`, `shapeTypes`,
 `naturalPenBuilderFactory`, `makeNaturalPenBuilder`, `makeHighlighterBuilder`, `EditorEventType`,
 types `ToolName`, `PenStyleName`, `ShapeTypeName`, `BackgroundTypeName`, `ColorInput`,

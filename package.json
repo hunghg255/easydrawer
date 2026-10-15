@@ -67,7 +67,8 @@
     "dev": "pnpm dev:docs"
   },
   "dependencies": {
-    "bezier-js": "^6.1.4"
+    "bezier-js": "^6.1.4",
+    "roughjs": "^4.6.6"
   },
   "devDependencies": {
     "@hunghg255/eslint-config": "^0.0.17",

@@ -2,11 +2,11 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 
 import type {
+  AIRequest,
   BackgroundTypeName,
   Editor,
   PenStyleName,
   ShapeTypeName,
-  StickyNote,
   ToolName,
 } from 'easydrawer';
 
@@ -37,10 +37,15 @@ const icons: Record<string, string> = {
   duplicate: 'M8 8h12v12H8z M4 16V4h12',
   lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
   unlock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 7.75-1.4',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3 M12 17h.01',
   ai: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 3v4 M17 5h4 M5 17v4 M3 19h4',
   group: 'M3 7V5a2 2 0 0 1 2-2h2 M17 3h2a2 2 0 0 1 2 2v2 M21 17v2a2 2 0 0 1-2 2h-2 M7 21H5a2 2 0 0 1-2-2v-2 M7 7h7v5H7z M10 12h7v5h-7z',
   ungroup: 'M4 5h8v6H4z M12 13h8v6h-8z',
   align: 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
+  frame: 'M3 7h18 M3 17h18 M7 3v18 M17 3v18',
+  play: 'M7 4l13 8-13 8z',
+  mermaid: 'M8 3H6a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h2 M16 3h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-2',
   'align-left': 'M4 3v18 M8 7h12v4H8z M8 14h7v4H8z',
   'align-center': 'M12 3v18 M6 7h12v4H6z M8.5 14h7v4h-7z',
   'align-right': 'M20 3v18 M4 7h12v4H4z M9 14h7v4H9z',
@@ -60,17 +65,17 @@ const alignments = [
   { edge: 'bottom', title: 'Align bottom' },
 ] as const;
 
-const tools: Array<{ name: ToolName; title: string }> = [
-  { name: 'select', title: 'Select' },
-  { name: 'text', title: 'Text' },
-  { name: 'pen', title: 'Pen' },
-  { name: 'highlighter', title: 'Highlighter' },
-  { name: 'eraser', title: 'Eraser' },
-  { name: 'shape', title: 'Shapes' },
-  { name: 'laser', title: 'Laser pointer' },
-  { name: 'eyedropper', title: 'Eyedropper' },
-  { name: 'sticky', title: 'Sticky note' },
-  { name: 'connector', title: 'Connector (arrow between shapes)' },
+const tools: Array<{ name: ToolName; title: string; key?: string }> = [
+  { name: 'select', title: 'Select', key: 'V' },
+  { name: 'pen', title: 'Pen', key: 'P' },
+  { name: 'highlighter', title: 'Highlighter', key: 'M' },
+  { name: 'eraser', title: 'Eraser', key: 'E' },
+  { name: 'shape', title: 'Shapes', key: 'S' },
+  { name: 'connector', title: 'Connector (arrow between shapes)', key: 'C' },
+  { name: 'text', title: 'Text', key: 'T' },
+  { name: 'sticky', title: 'Sticky note', key: 'N' },
+  { name: 'laser', title: 'Laser pointer', key: 'K' },
+  { name: 'eyedropper', title: 'Eyedropper', key: 'I' },
 ];
 
 const shortcuts: Array<[string, string]> = [
@@ -90,7 +95,12 @@ const shortcuts: Array<[string, string]> = [
   ['Ctrl/⌘ + A', 'Select all'],
   ['Delete', 'Delete selection'],
   ['Ctrl/⌘ + G', 'Group (Ctrl/⌘ + Shift + G: ungroup)'],
-  ['Double click', 'Edit a note or text'],
+  ['Double click', 'Edit the text of a note, text, arrow or shape'],
+  ['Ctrl/⌘ + K', 'Ask AI to do something'],
+  ['Enter', 'Edit the text of the selected shape'],
+  ['Ctrl/⌘ + arrows', 'Add a linked shape (flowcharts)'],
+  ['Alt + arrows', 'Select the linked shape'],
+  ['→ / Space, ←, Esc', 'Next / previous frame, stop (while presenting)'],
   ['− / =', 'Thinner / thicker pen'],
   ['Ctrl/⌘ + wheel, pinch', 'Zoom'],
   ['Arrows, two fingers', 'Pan'],
@@ -142,7 +152,99 @@ const showHelp = ref(false);
 // AI panel
 const showAI = ref(false);
 const aiPrompt = ref('');
-type AIAction = 'diagram' | 'edit' | 'brainstorm' | 'organize' | 'command' | 'selection';
+type AIAction =
+  | 'diagram'
+  | 'mindmap'
+  | 'mermaid'
+  | 'expand'
+  | 'chart'
+  | 'picture'
+  | 'code'
+  | 'edit'
+  | 'brainstorm'
+  | 'organize'
+  | 'command'
+  | 'selection';
+
+const showMenu = ref(false);
+
+// What the AI panel creates
+type AIMode = 'diagram' | 'mindmap' | 'chart' | 'picture' | 'code' | 'mermaid';
+const aiMode = ref<AIMode>('diagram');
+const aiModes: Array<{
+  id: AIMode;
+  label: string;
+  action: AIAction;
+  button: string;
+  placeholder: string;
+  examples: string[];
+}> = [
+  {
+    id: 'diagram',
+    label: 'Diagram',
+    action: 'diagram',
+    button: '✨ Generate diagram',
+    placeholder: 'Describe a process, a flowchart, an architecture…',
+    examples: [
+      'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
+      'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
+      'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
+    ],
+  },
+  {
+    id: 'mindmap',
+    label: 'Mind map',
+    action: 'mindmap',
+    button: '🧠 Generate mind map',
+    placeholder: 'A topic, e.g. "launching a mobile app" — then select a topic to grow it',
+    examples: ['Launching a mobile app', 'Kế hoạch du lịch Đà Nẵng 4 ngày', 'Learning machine learning from scratch'],
+  },
+  {
+    id: 'chart',
+    label: 'Chart',
+    action: 'chart',
+    button: '📊 Draw chart',
+    placeholder: 'Data or a description, e.g. "revenue Q1–Q4: 10, 20, 15, 30"',
+    examples: [
+      'Revenue 2024 by quarter: Q1 120, Q2 150, Q3 135, Q4 190 (k$)',
+      'Thị phần trình duyệt: Chrome 65%, Safari 18%, Edge 5%, Firefox 3%, khác 9%',
+      'Monthly visitors Jan–Jun for web and mobile, mobile growing faster',
+    ],
+  },
+  {
+    id: 'picture',
+    label: 'Picture',
+    action: 'picture',
+    button: '🎨 Draw picture',
+    placeholder: 'What to draw, e.g. "a cat reading a book", "database icon"',
+    examples: ['A cute cat reading a book', 'Icon of a cloud database', 'A coffee cup with steam', 'Con thuyền trên biển lúc hoàng hôn'],
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    action: 'code',
+    button: '🧩 Code → diagram',
+    placeholder: 'Paste SQL (→ ERD), classes (→ class diagram) or code (→ flowchart)',
+    examples: [
+      'CREATE TABLE users (id INT PRIMARY KEY, email TEXT);\nCREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES users(id), total DECIMAL);\nCREATE TABLE order_items (id INT PRIMARY KEY, order_id INT REFERENCES orders(id), product TEXT, qty INT);',
+      'class Animal { name: string; speak(): void {} }\nclass Dog extends Animal { breed: string; fetch(): void {} }\nclass Owner { dogs: Dog[]; walk(dog: Dog) {} }',
+      'function login(user) {\n  if (!user.email) throw new Error("missing email");\n  const ok = checkPassword(user);\n  if (!ok) return showError();\n  return openDashboard();\n}',
+    ],
+  },
+  {
+    id: 'mermaid',
+    label: 'Mermaid',
+    action: 'mermaid',
+    button: '🧜 Draw Mermaid (no AI)',
+    placeholder: 'Paste a Mermaid flowchart, erDiagram or classDiagram',
+    examples: [
+      'flowchart TD\n  A([Start]) --> B{Logged in?}\n  B -->|yes| C[Dashboard]\n  B -->|no| D[/Login form/] --> B',
+      'erDiagram\n  CUSTOMER ||--o{ ORDER : places\n  ORDER ||--|{ LINE_ITEM : contains\n  CUSTOMER {\n    int id PK\n    string email\n  }\n  ORDER {\n    int id PK\n    int customer_id FK\n  }',
+      'classDiagram\n  Animal <|-- Dog\n  Animal <|-- Cat\n  class Animal {\n    +String name\n    +speak()\n  }\n  class Dog {\n    +fetch()\n  }',
+    ],
+  },
+];
+const currentAIMode = computed(() => aiModes.find((mode) => mode.id === aiMode.value)!);
 
 // ✨ in the floating toolbar: change the selection with AI.
 const showQuickAI = ref(false);
@@ -158,6 +260,7 @@ function toggleQuickAI() {
 const aiBusy = ref<AIAction | null>(null);
 const selectionHasDiagram = ref(false);
 const selectionHasTopic = ref(false);
+const selectionHasMindMap = ref(false);
 
 // Command palette (Ctrl/⌘+K while the drawing has focus)
 const showCommand = ref(false);
@@ -174,11 +277,6 @@ function openCommand() {
   void nextTick(() => commandInput.value?.focus());
 }
 const aiMessage = ref<{ kind: 'error' | 'info'; text: string } | null>(null);
-const aiExamples = [
-  'Login flow: enter email and password, check them, show an error if wrong, otherwise open the dashboard',
-  'Quy trình đặt hàng online: chọn sản phẩm, thêm vào giỏ, thanh toán, giao hàng, nhận hàng',
-  'Architecture of a web app: browser, CDN, API server, database, cache, background worker',
-];
 let aiAbort: AbortController | null = null;
 
 // Shown after the AI changed the drawing (the panel closes so the result is visible).
@@ -191,13 +289,20 @@ function showAIToast(text: string, duration = 5000) {
 }
 
 // The playground's server function (api/ai.js) forwards requests to OpenRouter.
-async function playgroundAIRequest({ messages, signal }: { messages: unknown[]; signal?: AbortSignal }) {
+// Diagrams, mind maps and charts are drawn step by step while the answer streams in.
+async function playgroundAIRequest({ messages, signal, onText }: AIRequest) {
   const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, stream: !!onText }),
     signal,
   });
+  if (response.ok && (response.headers.get('Content-Type') ?? '').includes('text/event-stream')) {
+    const { readTextStream } = await import('easydrawer');
+    const text = await readTextStream(response, onText);
+    if (!text.trim()) throw new Error('The AI returned an empty answer. Try again.');
+    return text;
+  }
   const data = await response.json().catch(() => null);
   if (!response.ok || typeof data?.content !== 'string') {
     if (data?.error) throw new Error(data.error);
@@ -226,15 +331,34 @@ async function runAI(action: AIAction) {
         return;
       }
       const diagram = await instance.ai.generateDiagram(aiPrompt.value, { signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`✨ Added ${diagram.nodes.length} shapes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+    } else if (action === 'mindmap' || action === 'mermaid' || action === 'chart' || action === 'picture' || action === 'code') {
+      if (!aiPrompt.value.trim()) {
+        aiMessage.value = { kind: 'info', text: 'Type something first, or pick an example.' };
+        return;
+      }
+      if (action === 'mindmap') {
+        const mindMap = await instance.ai.generateMindMap(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🧠 Added a mind map with ${mindMap.children?.length ?? 0} branches — select a topic and “Grow” it.`);
+      } else if (action === 'mermaid') {
+        const diagram = await instance.ai.drawMermaid(aiPrompt.value);
+        showAIToast(`🧜 Drew ${diagram.nodes.length} boxes and ${diagram.edges.length} arrows — Ctrl/⌘+Z to undo.`);
+      } else if (action === 'chart') {
+        const chart = await instance.ai.generateChart(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`📊 Added a ${chart.type} chart${chart.title ? `: ${chart.title}` : ''} — Ctrl/⌘+Z to undo.`);
+      } else if (action === 'picture') {
+        const strokes = await instance.ai.generateIllustration(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🎨 Added a picture (${strokes.length} shapes, grouped) — Ctrl/⌘+Z to undo.`);
+      } else {
+        const diagram = await instance.ai.diagramFromCode(aiPrompt.value, { signal: aiAbort.signal });
+        showAIToast(`🧩 Added a diagram with ${diagram.nodes.length} boxes — Ctrl/⌘+Z to undo.`);
+      }
     } else if (action === 'edit') {
       if (!aiPrompt.value.trim()) {
         aiMessage.value = { kind: 'info', text: 'Describe the change, e.g. "add a step to send a confirmation email".' };
         return;
       }
       const diagram = await instance.ai.editDiagram(aiPrompt.value, { signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`✏️ Updated the diagram (${diagram.nodes.length} shapes) — Ctrl/⌘+Z to undo.`);
     } else if (action === 'selection') {
       const request = quickAIText.value.trim();
@@ -243,9 +367,11 @@ async function runAI(action: AIAction) {
       quickAIText.value = '';
       showQuickAI.value = false;
       showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
+    } else if (action === 'expand') {
+      const topics = await instance.ai.expandMindMap({ signal: aiAbort.signal });
+      showAIToast(`🌿 Added ${topics.length} sub-topics — Ctrl/⌘+Z to undo.`);
     } else if (action === 'brainstorm') {
       const notes = await instance.ai.brainstorm({ signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`💡 Added ${notes.length} ideas — Ctrl/⌘+Z to undo.`);
     } else if (action === 'command') {
       const request = commandText.value.trim();
@@ -256,7 +382,6 @@ async function runAI(action: AIAction) {
       showAIToast(`✨ ${result.message}`, result.actions.length === 0 ? 12000 : 5000);
     } else {
       const groups = await instance.ai.organizeNotes({ signal: aiAbort.signal });
-      showAI.value = false;
       showAIToast(`🗂️ Sorted into ${groups.length} groups: ${groups.map((g) => g.title).join(', ')}.`);
     }
   } catch (error) {
@@ -276,6 +401,112 @@ async function runAI(action: AIAction) {
 
 function cancelAI() {
   aiAbort?.abort();
+}
+
+// The selected diagram (or the whole drawing) as Mermaid text: copied, and shown in the panel.
+async function copyMermaid() {
+  const text = editor.value?.ai.toMermaid();
+  if (!text) {
+    aiMessage.value = { kind: 'info', text: 'There is no diagram to export: draw boxes with text and arrows between them.' };
+    return;
+  }
+  aiMode.value = 'mermaid';
+  aiPrompt.value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    showAIToast('📋 Copied as Mermaid — paste it in GitHub, Notion, Obsidian…');
+  } catch {
+    showAIToast('🧜 The Mermaid text is in the AI panel.');
+  }
+}
+
+// Frames and presentation
+const root = ref<HTMLElement>();
+const frameCount = ref(0);
+const presenting = ref<number | null>(null);
+
+async function addFrame() {
+  showMenu.value = false;
+  const frame = await editor.value?.frames.add();
+  if (frame) showAIToast(`▢ Added “${frame.title}” — double-click its title to rename it. ▶ Present in the ⋯ menu.`);
+}
+
+async function frameSelection() {
+  showMenu.value = false;
+  const frame = await editor.value?.frames.addAroundSelection();
+  if (frame) showAIToast(`▣ Added “${frame.title}” around the selection.`);
+}
+
+async function showSlide(index: number) {
+  const instance = editor.value;
+  if (!instance) return;
+  const count = instance.frames.list().length;
+  if (count === 0) {
+    stopPresentation();
+    return;
+  }
+  presenting.value = Math.min(Math.max(index, 0), count - 1);
+  await instance.frames.goTo(presenting.value, { padding: 8 });
+}
+
+async function startPresentation() {
+  showMenu.value = false;
+  showAI.value = false;
+  const instance = editor.value;
+  if (!instance) return;
+  if (instance.frames.list().length === 0) {
+    showAIToast('Add a frame first: ⋯ → Add frame.');
+    return;
+  }
+  instance.selection.clear();
+  presenting.value = 0;
+  try {
+    await root.value?.requestFullscreen?.();
+  } catch {
+    // Not available (e.g. iOS Safari): present in the page.
+  }
+  await nextTick();
+  await showSlide(0);
+}
+
+function stopPresentation() {
+  presenting.value = null;
+  if (document.fullscreenElement) void document.exitFullscreen?.();
+}
+
+function nextSlide(step: number) {
+  if (presenting.value === null) return;
+  const count = editor.value?.frames.list().length ?? 0;
+  const next = presenting.value + step;
+  if (next >= count) {
+    stopPresentation();
+    return;
+  }
+  void showSlide(next);
+}
+
+// Each frame as a page, printed to PDF by the browser.
+function exportFramesPDF() {
+  showMenu.value = false;
+  const instance = editor.value;
+  if (!instance) return;
+  const frames = instance.frames.list();
+  if (frames.length === 0) return;
+  const images = frames.map((_, i) => instance.frames.toDataURL(i, { pixelRatio: 2 }));
+  const landscape = frames.filter((f) => f.rect.w >= f.rect.h).length >= frames.length / 2;
+  const page = window.open('', '_blank');
+  if (!page) {
+    showAIToast('⚠️ Allow pop-ups to export a PDF.');
+    return;
+  }
+  page.document.write(`<!doctype html><title>Frames</title><style>
+    @page { size: ${landscape ? 'landscape' : 'portrait'}; margin: 0 }
+    body { margin: 0 }
+    img { display: block; width: 100vw; height: 100vh; object-fit: contain; page-break-after: always; break-after: page }
+  </style>${images.map((src) => `<img src="${src}">`).join('')}`);
+  page.document.close();
+  page.addEventListener('load', () => page.print());
+  setTimeout(() => page.print(), 600);
 }
 const stickyColor = ref(noteColors[0]);
 const connectorState = ref({
@@ -322,6 +553,33 @@ const penState = ref({
 });
 const shapeState = ref({ shape: 'rectangle' as ShapeTypeName, thickness: 2 });
 
+// Hand-drawn style (like Excalidraw): sketchy shapes, arrows and diagrams, and a handwriting font.
+const handDrawn = ref(false);
+const handwritingFont = '"Patrick Hand", "Comic Sans MS", "Segoe Print", sans-serif';
+async function setHandDrawn(on: boolean) {
+  const instance = editor.value;
+  if (!instance) return;
+  handDrawn.value = on;
+  try {
+    localStorage.setItem('easydrawer-hand-drawn', on ? '1' : '');
+  } catch {}
+  if (on && !document.getElementById('hand-drawn-font')) {
+    // Patrick Hand: a handwriting font with Vietnamese characters.
+    const link = document.createElement('link');
+    link.id = 'hand-drawn-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap';
+    document.head.append(link);
+    await document.fonts?.load('20px "Patrick Hand"').catch(() => undefined);
+  }
+  const fontFamily = on ? handwritingFont : 'sans-serif';
+  instance.tools.configure('shape', { sketch: on });
+  instance.tools.configure('connector', { sketch: on });
+  instance.tools.configure('text', { fontFamily });
+  instance.ai.setSketch(on);
+  instance.ai.fontFamily = fontFamily;
+}
+
 const currentPen = computed(() => {
   return activeTool.value === 'pen' || activeTool.value === 'highlighter'
     ? penState.value[activeTool.value]
@@ -329,6 +587,25 @@ const currentPen = computed(() => {
 });
 
 const cleanups: Array<() => void> = [];
+
+// Work that can wait until the browser is idle, at most once per key until it's done.
+const idleTasks = new Map<string, () => void>();
+function whenIdle(key: string, task: () => void) {
+  const scheduled = idleTasks.has(key);
+  idleTasks.set(key, task);
+  if (scheduled) return;
+  const run = () => {
+    const latest = idleTasks.get(key);
+    idleTasks.delete(key);
+    latest?.();
+  };
+  if ('requestIdleCallback' in window) window.requestIdleCallback(run, { timeout: 500 });
+  else setTimeout(run, 100);
+}
+// To know when the selection's content may have changed (see selection.onChange).
+let contentVersion = 0;
+let selectionVersion = -1;
+let selectionKey = '';
 
 onMounted(async () => {
   const { Editor, Color4, StickyNote: StickyNoteClass, TextComponent: TextComponentClass } = await import('easydrawer');
@@ -345,8 +622,13 @@ onMounted(async () => {
     ai: { request: playgroundAIRequest },
   });
   editor.value = instance;
+  // For debugging and browser tests in development.
+  if (import.meta.env.DEV) (window as any).__editor = instance;
 
   loadRecentColors();
+  try {
+    if (localStorage.getItem('easydrawer-hand-drawn')) void setHandDrawn(true);
+  } catch {}
 
   // Restore the previous drawing and keep saving it.
   cleanups.push(await instance.autosave({ key: 'easydrawer-playground' }));
@@ -364,6 +646,21 @@ onMounted(async () => {
 
   const onKeyDown = (event: KeyboardEvent) => {
     const target = event.target as HTMLElement | null;
+    if (presenting.value !== null) {
+      const step = { ArrowRight: 1, ArrowDown: 1, PageDown: 1, ' ': 1, Enter: 1, ArrowLeft: -1, ArrowUp: -1, PageUp: -1 }[event.key];
+      if (step) {
+        nextSlide(step);
+      } else if (event.key === 'Escape') {
+        stopPresentation();
+      } else if (event.key === 'Home') {
+        void showSlide(0);
+      } else if (event.key === 'End') {
+        void showSlide(Infinity);
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (target?.closest('input, textarea, [contenteditable="true"]')) return;
     if (event.key === '?') {
       showHelp.value = !showHelp.value;
@@ -371,8 +668,23 @@ onMounted(async () => {
       showHelp.value = false;
     }
   };
-  window.addEventListener('keydown', onKeyDown);
-  cleanups.push(() => window.removeEventListener('keydown', onKeyDown));
+  window.addEventListener('keydown', onKeyDown, true);
+  cleanups.push(() => window.removeEventListener('keydown', onKeyDown, true));
+
+  // Presenting: keep the slide fitted to the screen, and stop when leaving fullscreen.
+  const onResize = () => {
+    if (presenting.value !== null) setTimeout(() => presenting.value !== null && void showSlide(presenting.value), 120);
+  };
+  const onFullscreenChange = () => {
+    if (!document.fullscreenElement && presenting.value !== null) presenting.value = null;
+    onResize();
+  };
+  window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  cleanups.push(() => {
+    window.removeEventListener('resize', onResize);
+    document.removeEventListener('fullscreenchange', onFullscreenChange);
+  });
 
   cleanups.push(
     instance.tools.onChange((name) => {
@@ -390,27 +702,46 @@ onMounted(async () => {
     instance.onChange(() => {
       canUndo.value = instance.canUndo();
       canRedo.value = instance.canRedo();
+      contentVersion++;
+      // Looks at every component: when the browser is idle, once for many changes.
+      whenIdle('frames', () => (frameCount.value = instance.frames.list().length));
     }),
     instance.onZoomChange((value) => (zoom.value = value)),
+    // Also called for every frame of a pan or zoom: only move the toolbar then.
     instance.selection.onChange((items) => {
-      selectionCount.value = items.length;
-      selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
-      selectionHasDiagram.value = items.length > 0 && instance.ai.readDiagram(items) !== null;
-      selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
-      selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
-      selectionHasGroups.value = instance.selection.hasGroups;
-      if (items.length === 0) {
-        showAlign.value = false;
-        showQuickAI.value = false;
+      const key = items.map((item) => item.getId()).join(',');
+      if (key !== selectionKey || contentVersion !== selectionVersion) {
+        selectionKey = key;
+        selectionVersion = contentVersion;
+        selectionCount.value = items.length;
+        selectionHasNote.value = items.some((item) => item instanceof StickyNoteClass);
+        selectionHasTopic.value = items.some((item) => item instanceof StickyNoteClass || item instanceof TextComponentClass);
+        selectionHasMindMap.value = items.some((item) => item.getMetadata().mindmap !== undefined);
+        selectionUnits.value = new Set(items.map((item) => item.getGroupId() ?? item.getId())).size;
+        selectionHasGroups.value = instance.selection.hasGroups;
+        if (items.length === 0) {
+          showAlign.value = false;
+          showQuickAI.value = false;
+          selectionHasDiagram.value = false;
+        } else {
+          // Slower (it reads the diagram): when idle.
+          whenIdle('diagram', () => {
+            const current = instance.selection.items;
+            selectionHasDiagram.value = current.length > 0 && instance.ai.readDiagram(current) !== null;
+          });
+        }
+        whenIdle('locked', () => (lockedCount.value = instance.selection.lockedCount));
       }
-      lockedCount.value = instance.selection.lockedCount;
       // After Vue has updated the toolbar's buttons (its width depends on them).
       void nextTick(updateQuickBar);
     }),
   );
 
   // Hide the floating toolbar while dragging (e.g. moving the selection).
-  const onPointerDown = () => (pointerDown.value = true);
+  const onPointerDown = () => {
+    pointerDown.value = true;
+    showMenu.value = false;
+  };
   const onPointerUp = () => {
     pointerDown.value = false;
     updateQuickBar();
@@ -481,12 +812,11 @@ function updateConnector(options: Partial<{ color: string; arrow: 'end' | 'both'
   editor.value?.tools.configure('connector', options);
 }
 
-function editNote() {
-  const instance = editor.value;
-  const note = instance?.selection.items[0];
-  if (!instance || !note) return;
-  instance.selection.clear();
-  instance.tools.sticky.edit(note as StickyNote);
+// The text of a note or text, the label of an arrow, or the text in a shape (like a double-click).
+function editSelectedText() {
+  if (editor.value && !editor.value.selection.editText()) {
+    showAIToast('This item has no text to edit.');
+  }
 }
 
 async function unlockAll() {
@@ -499,10 +829,15 @@ function setSelectMode(mode: 'rectangle' | 'lasso') {
   editor.value?.tools.configure('select', { mode });
 }
 
-function toggleBackground(type: BackgroundTypeName) {
-  background.value = background.value === type ? 'none' : type;
-  editor.value?.setBackground({ type: background.value });
+function setBackgroundType(type: BackgroundTypeName) {
+  background.value = type;
+  editor.value?.setBackground({ type });
 }
+
+// Tools with options in the flyout next to the rail
+const toolsWithOptions: ToolName[] = ['pen', 'highlighter', 'select', 'shape', 'sticky', 'connector', 'laser'];
+const hasToolOptions = computed(() => !!activeTool.value && toolsWithOptions.includes(activeTool.value));
+const activeToolTitle = computed(() => tools.find((tool) => tool.name === activeTool.value)?.title ?? '');
 
 function cycleStylusOnly() {
   stylusOnly.value = stylusOnly.value === 'auto' ? true : stylusOnly.value ? false : 'auto';
@@ -547,164 +882,97 @@ async function onImagesSelected(event: Event) {
 </script>
 
 <template>
-  <div class="playground">
+  <div ref="root" class="playground" :class="{ presenting: presenting !== null }">
     <div ref="container" class="playground-canvas" />
 
-    <div class="playground-toolbar">
-      <div class="row">
-        <button
-          v-for="tool in tools"
-          :key="tool.name"
-          class="tool"
-          :class="{ active: activeTool === tool.name }"
-          :title="tool.title"
-          :aria-label="tool.title"
-          :aria-pressed="activeTool === tool.name"
-          @click="toggleTool(tool.name)"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons[tool.name]" /></svg>
-        </button>
+    <!-- Tools: a rail on the left (a bar at the bottom on phones) -->
+    <nav class="rail" aria-label="Tools">
+      <button
+        v-for="tool in tools"
+        :key="tool.name"
+        class="tool"
+        :class="{ active: activeTool === tool.name }"
+        :title="`${tool.title}${tool.key ? ` (${tool.key})` : ''}`"
+        :aria-label="tool.title"
+        :aria-pressed="activeTool === tool.name"
+        @click="toggleTool(tool.name)"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons[tool.name]" /></svg>
+      </button>
 
-        <span class="sep" />
+      <span class="sep" />
 
-        <button class="tool" title="Undo" aria-label="Undo" :disabled="!canUndo" @click="editor?.undo()">
-          <svg viewBox="0 0 24 24"><path :d="icons.undo" /></svg>
-        </button>
-        <button class="tool" title="Redo" aria-label="Redo" :disabled="!canRedo" @click="editor?.redo()">
-          <svg viewBox="0 0 24 24"><path :d="icons.redo" /></svg>
-        </button>
-        <button class="tool" title="Clear" aria-label="Clear" @click="editor?.clear()">
-          <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg>
-        </button>
+      <button class="tool" title="Undo (Ctrl/⌘ Z)" aria-label="Undo" :disabled="!canUndo" @click="editor?.undo()">
+        <svg viewBox="0 0 24 24"><path :d="icons.undo" /></svg>
+      </button>
+      <button class="tool" title="Redo (Ctrl/⌘ Shift Z)" aria-label="Redo" :disabled="!canRedo" @click="editor?.redo()">
+        <svg viewBox="0 0 24 24"><path :d="icons.redo" /></svg>
+      </button>
+      <button
+        class="tool"
+        :class="{ active: showMenu }"
+        title="More: background, images, open & save"
+        aria-label="More"
+        :aria-expanded="showMenu"
+        @click="showMenu = !showMenu"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.more" /></svg>
+      </button>
 
-        <span class="sep" />
+      <span class="sep" />
 
-        <button
-          v-for="type in (['solid', 'grid', 'dot'] as const)"
-          :key="type"
-          class="tool"
-          :class="{ active: background === type }"
-          :title="`${type} background`"
-          :aria-label="`${type} background`"
-          @click="toggleBackground(type)"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons[type]" /></svg>
-        </button>
+      <button
+        class="tool ai-button"
+        :class="{ active: showAI }"
+        title="AI: diagrams, charts, pictures, code → diagram"
+        aria-label="AI"
+        :aria-expanded="showAI"
+        @click="showAI = !showAI"
+      >
+        <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
+      </button>
+    </nav>
 
-        <span class="sep" />
-
-        <button class="tool" title="Insert image" aria-label="Insert image" @click="imageInput?.click()">
-          <svg viewBox="0 0 24 24"><path :d="icons.image" /></svg>
-        </button>
-        <button class="tool" title="Open SVG" aria-label="Open SVG" @click="svgInput?.click()">
-          <svg viewBox="0 0 24 24"><path :d="icons.open" /></svg>
-        </button>
-        <button class="tool text" title="Save SVG" @click="saveSvg">SVG</button>
-        <button class="tool text" title="Save PNG" @click="savePng">PNG</button>
-
-        <span class="sep" />
-
-        <button
-          class="tool text ai-button"
-          :class="{ active: showAI }"
-          title="AI: generate diagrams, organize notes"
-          aria-label="AI"
-          @click="showAI = !showAI"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
-          AI
-        </button>
-      </div>
-
-      <div v-if="showAI" class="row options ai-panel">
-        <form class="ai-form" @submit.prevent="runAI('diagram')">
-          <textarea
-            v-model="aiPrompt"
-            rows="2"
-            placeholder="Describe a diagram: a process, a flowchart, an architecture…"
-            :disabled="!!aiBusy"
-            @keydown.enter.exact.prevent="runAI('diagram')"
+    <!-- Options of the active tool, next to the rail -->
+    <div v-if="hasToolOptions && !showMenu" class="flyout" role="group" :aria-label="`${activeToolTitle} options`">
+      <template v-if="currentPen">
+        <div class="swatches">
+          <button
+            v-for="color in (activeTool === 'pen' ? inkColors : highlightColors)"
+            :key="color"
+            class="swatch"
+            :class="{ active: currentPen.color === color }"
+            :style="{ background: color }"
+            :aria-label="color"
+            @click="updatePen({ color })"
           />
-          <div class="ai-actions">
-            <button type="submit" class="ai-primary" :disabled="!!aiBusy">
-              {{ aiBusy === 'diagram' ? 'Drawing…' : '✨ Generate diagram' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy || !selectionHasDiagram"
-              title="Change the selected diagram as described above"
-              @click="runAI('edit')"
+          <button
+            v-for="color in recentColors"
+            :key="`recent-${color}`"
+            class="swatch"
+            :class="{ active: currentPen.color === color }"
+            :style="{ background: color }"
+            :aria-label="`Recent color ${color}`"
+            @click="updatePen({ color })"
+          />
+          <label class="swatch custom" title="Custom color">
+            <input
+              type="color"
+              aria-label="Custom color"
+              @input="updatePen({ color: ($event.target as HTMLInputElement).value })"
             >
-              {{ aiBusy === 'edit' ? 'Editing…' : '✏️ Edit selected diagram' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy || !selectionHasTopic"
-              title="Ideas around the selected sticky note"
-              @click="runAI('brainstorm')"
-            >
-              {{ aiBusy === 'brainstorm' ? 'Thinking…' : '💡 Brainstorm' }}
-            </button>
-            <button
-              type="button"
-              :disabled="!!aiBusy"
-              title="Group the sticky notes (selected, or all) by theme"
-              @click="runAI('organize')"
-            >
-              {{ aiBusy === 'organize' ? 'Organizing…' : '🗂️ Organize sticky notes' }}
-            </button>
-            <button v-if="aiBusy" type="button" @click="cancelAI">Cancel</button>
-          </div>
-        </form>
-        <div class="ai-examples">
-          <span class="label">Try:</span>
-          <button v-for="example in aiExamples" :key="example" type="button" :disabled="!!aiBusy" @click="aiPrompt = example">
-            {{ example.length > 42 ? `${example.slice(0, 40)}…` : example }}
+          </label>
+          <button
+            class="tool small"
+            title="Pick a color from the drawing (I)"
+            aria-label="Pick a color from the drawing"
+            @click="editor?.tools.use('eyedropper')"
+          >
+            <svg viewBox="0 0 24 24"><path :d="icons.eyedropper" /></svg>
           </button>
         </div>
-        <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
-        <p class="ai-tip">
-          Tip: <button type="button" class="link" @click="openCommand">ask anything</button> with
-          <kbd>Ctrl/⌘ K</kbd> — "color the notes about marketing in blue", "what is missing?"…
-        </p>
-      </div>
-
-      <div v-if="currentPen" class="row options">
-        <button
-          v-for="color in (activeTool === 'pen' ? inkColors : highlightColors)"
-          :key="color"
-          class="swatch"
-          :class="{ active: currentPen.color === color }"
-          :style="{ background: color }"
-          :aria-label="color"
-          @click="updatePen({ color })"
-        />
-        <button
-          v-for="color in recentColors"
-          :key="`recent-${color}`"
-          class="swatch"
-          :class="{ active: currentPen.color === color }"
-          :style="{ background: color }"
-          :aria-label="`Recent color ${color}`"
-          @click="updatePen({ color })"
-        />
-        <button
-          class="tool"
-          title="Pick a color from the drawing (I)"
-          aria-label="Pick a color from the drawing"
-          @click="editor?.tools.use('eyedropper')"
-        >
-          <svg viewBox="0 0 24 24"><path :d="icons.eyedropper" /></svg>
-        </button>
-        <input
-          type="color"
-          class="color-input"
-          aria-label="Custom color"
-          @input="updatePen({ color: ($event.target as HTMLInputElement).value })"
-        >
-
         <label class="slider">
-          Size
+          <span>Size</span>
           <input
             type="range"
             min="1"
@@ -714,8 +982,7 @@ async function onImagesSelected(event: Event) {
             @input="updatePen({ thickness: Number(($event.target as HTMLInputElement).value) })"
           >
         </label>
-
-        <div class="segmented">
+        <div class="chips">
           <button
             v-for="item in penStyles"
             :key="item.style"
@@ -725,52 +992,95 @@ async function onImagesSelected(event: Event) {
             {{ item.label }}
           </button>
         </div>
-      </div>
+      </template>
 
-      <div v-if="activeTool === 'select'" class="row options">
-        <div class="segmented">
-          <button :class="{ active: selectMode === 'rectangle' }" @click="setSelectMode('rectangle')">
-            Rectangle
-          </button>
-          <button :class="{ active: selectMode === 'lasso' }" @click="setSelectMode('lasso')">
-            Lasso
+      <template v-else-if="activeTool === 'select'">
+        <div class="chips">
+          <button :class="{ active: selectMode === 'rectangle' }" @click="setSelectMode('rectangle')">Rectangle</button>
+          <button :class="{ active: selectMode === 'lasso' }" @click="setSelectMode('lasso')">Lasso</button>
+        </div>
+        <button v-if="lockedCount > 0" class="text-button" @click="unlockAll">
+          <svg viewBox="0 0 24 24"><path :d="icons.unlock" /></svg>
+          Unlock {{ lockedCount }} locked
+        </button>
+      </template>
+
+      <template v-else-if="activeTool === 'shape'">
+        <div class="shape-grid">
+          <button
+            v-for="shape in shapeNames"
+            :key="shape"
+            :class="{ active: shapeState.shape === shape }"
+            :title="shape"
+            @click="updateShape({ shape })"
+          >
+            {{ shape }}
           </button>
         </div>
-      </div>
+        <span class="label">Fill</span>
+        <div class="swatches">
+          <button
+            v-for="color in ['transparent', ...inkColors]"
+            :key="`fill-${color}`"
+            class="swatch"
+            :style="{ background: color }"
+            :aria-label="`Fill ${color}`"
+            @click="updateShape({ color })"
+          />
+        </div>
+        <span class="label">Border</span>
+        <div class="swatches">
+          <button
+            v-for="color in inkColors"
+            :key="`border-${color}`"
+            class="swatch"
+            :style="{ background: color }"
+            :aria-label="`Border ${color}`"
+            @click="updateShape({ borderColor: color })"
+          />
+        </div>
+        <label class="slider">
+          <span>Border</span>
+          <input
+            type="range"
+            min="0"
+            max="20"
+            step="1"
+            :value="shapeState.thickness"
+            @input="updateShape({ thickness: Number(($event.target as HTMLInputElement).value) })"
+          >
+        </label>
+      </template>
 
-      <div v-if="activeTool === 'select' && lockedCount > 0" class="row options">
-        <span class="label">{{ lockedCount }} locked</span>
-        <button class="tool text" title="Unlock all" @click="unlockAll">
-          <svg viewBox="0 0 24 24"><path :d="icons.unlock" /></svg>
-          Unlock all
-        </button>
-      </div>
-
-      <div v-if="activeTool === 'sticky'" class="row options">
+      <template v-else-if="activeTool === 'sticky'">
         <span class="label">Note color</span>
-        <button
-          v-for="color in noteColors"
-          :key="color"
-          class="swatch"
-          :class="{ active: stickyColor === color }"
-          :style="{ background: color }"
-          :aria-label="`Note ${color}`"
-          @click="setStickyColor(color)"
-        />
-        <span class="label">Click to add a note, click a note to edit it.</span>
-      </div>
+        <div class="swatches">
+          <button
+            v-for="color in noteColors"
+            :key="color"
+            class="swatch"
+            :class="{ active: stickyColor === color }"
+            :style="{ background: color }"
+            :aria-label="`Note ${color}`"
+            @click="setStickyColor(color)"
+          />
+        </div>
+        <p class="hint">Click to add a note, click a note to edit it.</p>
+      </template>
 
-      <div v-if="activeTool === 'connector'" class="row options">
-        <button
-          v-for="color in inkColors"
-          :key="`connector-${color}`"
-          class="swatch"
-          :class="{ active: connectorState.color === color }"
-          :style="{ background: color }"
-          :aria-label="color"
-          @click="updateConnector({ color })"
-        />
-        <div class="segmented">
+      <template v-else-if="activeTool === 'connector'">
+        <div class="swatches">
+          <button
+            v-for="color in inkColors"
+            :key="`connector-${color}`"
+            class="swatch"
+            :class="{ active: connectorState.color === color }"
+            :style="{ background: color }"
+            :aria-label="color"
+            @click="updateConnector({ color })"
+          />
+        </div>
+        <div class="chips">
           <button
             v-for="item in arrowModes"
             :key="item.mode"
@@ -781,7 +1091,7 @@ async function onImagesSelected(event: Event) {
             {{ item.label }}
           </button>
         </div>
-        <div class="segmented">
+        <div class="chips">
           <button :class="{ active: connectorState.routing === 'straight' }" @click="updateConnector({ routing: 'straight' })">
             Straight
           </button>
@@ -789,67 +1099,159 @@ async function onImagesSelected(event: Event) {
             Elbow
           </button>
         </div>
-        <span class="label">Drag from one shape to another — the arrow follows them.</span>
-      </div>
+        <p class="hint">Drag from one shape to another — the arrow follows them.</p>
+      </template>
 
-      <div v-if="activeTool === 'laser'" class="row options">
-        <span class="label">Point at things — the trail fades away and is never saved.</span>
-      </div>
+      <template v-else-if="activeTool === 'laser'">
+        <p class="hint">Point at things — the trail fades away and is never saved.</p>
+      </template>
+    </div>
 
-      <div v-if="activeTool === 'shape'" class="row options">
-        <div class="segmented wrap">
-          <button
-            v-for="shape in shapeNames"
-            :key="shape"
-            :class="{ active: shapeState.shape === shape }"
-            @click="updateShape({ shape })"
-          >
-            {{ shape }}
-          </button>
-        </div>
-        <span class="label">Fill</span>
+    <!-- ⋯ menu -->
+    <div v-if="showMenu" class="flyout menu" role="menu" aria-label="More">
+      <span class="label">Style of new shapes</span>
+      <div class="chips">
+        <button :class="{ active: !handDrawn }" @click="setHandDrawn(false)">Clean</button>
+        <button :class="{ active: handDrawn }" @click="setHandDrawn(true)">✏️ Hand-drawn</button>
+      </div>
+      <span class="sep-h" />
+      <span class="label">Background</span>
+      <div class="chips">
         <button
-          v-for="color in ['transparent', ...inkColors]"
-          :key="`fill-${color}`"
-          class="swatch"
-          :style="{ background: color }"
-          :aria-label="`Fill ${color}`"
-          @click="updateShape({ color })"
-        />
-        <span class="label">Border</span>
-        <button
-          v-for="color in inkColors"
-          :key="`border-${color}`"
-          class="swatch"
-          :style="{ background: color }"
-          :aria-label="`Border ${color}`"
-          @click="updateShape({ borderColor: color })"
-        />
-        <label class="slider">
-          Border
-          <input
-            type="range"
-            min="0"
-            max="20"
-            step="1"
-            :value="shapeState.thickness"
-            @input="updateShape({ thickness: Number(($event.target as HTMLInputElement).value) })"
-          >
-        </label>
+          v-for="type in (['none', 'solid', 'grid', 'dot'] as const)"
+          :key="type"
+          :class="{ active: background === type }"
+          @click="setBackgroundType(type)"
+        >
+          {{ type }}
+        </button>
       </div>
-
-      <div v-if="background !== 'none'" class="row options">
-        <span class="label">Background</span>
+      <div v-if="background !== 'none'" class="swatches">
         <button
           v-for="color in backgroundColors"
           :key="color"
           class="swatch"
           :style="{ background: color }"
-          :aria-label="color"
+          :aria-label="`Background ${color}`"
           @click="editor?.setBackground({ color })"
         />
       </div>
+      <span class="sep-h" />
+      <button class="menu-item" role="menuitem" @click="imageInput?.click()">
+        <svg viewBox="0 0 24 24"><path :d="icons.image" /></svg> Insert image
+      </button>
+      <button class="menu-item" role="menuitem" @click="svgInput?.click()">
+        <svg viewBox="0 0 24 24"><path :d="icons.open" /></svg> Open SVG
+      </button>
+      <button class="menu-item" role="menuitem" @click="saveSvg">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Save as SVG
+      </button>
+      <button class="menu-item" role="menuitem" @click="savePng">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Save as PNG
+      </button>
+      <button class="menu-item" role="menuitem" @click="copyMermaid(); showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.mermaid" /></svg> Copy diagram as Mermaid
+      </button>
+      <span class="sep-h" />
+      <span class="label">Frames · slides</span>
+      <button class="menu-item" role="menuitem" @click="addFrame">
+        <svg viewBox="0 0 24 24"><path :d="icons.frame" /></svg> Add frame (this view)
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="selectionCount === 0" @click="frameSelection">
+        <svg viewBox="0 0 24 24"><path :d="icons.frame" /></svg> Frame the selection
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="frameCount === 0" @click="startPresentation">
+        <svg viewBox="0 0 24 24"><path :d="icons.play" /></svg> Present{{ frameCount > 0 ? ` (${frameCount})` : '' }}
+      </button>
+      <button class="menu-item" role="menuitem" :disabled="frameCount === 0" @click="exportFramesPDF">
+        <svg viewBox="0 0 24 24"><path :d="icons.save" /></svg> Frames → PDF
+      </button>
+      <span class="sep-h" />
+      <button class="menu-item" role="menuitem" @click="cycleStylusOnly">
+        <svg viewBox="0 0 24 24"><path :d="icons.pen" /></svg>
+        Fingers: <b>{{ stylusOnly === 'auto' ? 'auto' : stylusOnly ? 'pan only' : 'draw' }}</b>
+      </button>
+      <button class="menu-item" role="menuitem" @click="showHelp = true; showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.help" /></svg> Keyboard shortcuts
+      </button>
+      <button class="menu-item danger" role="menuitem" aria-label="Clear" @click="editor?.clear(); showMenu = false">
+        <svg viewBox="0 0 24 24"><path :d="icons.clear" /></svg> Clear drawing
+      </button>
     </div>
+
+    <!-- AI panel (right side; a bottom sheet on phones) -->
+    <aside v-if="showAI" class="ai-panel" aria-label="AI">
+      <header class="ai-header">
+        <b>✨ AI</b>
+        <button class="tool small" aria-label="Close AI panel" @click="showAI = false">✕</button>
+      </header>
+      <div class="chips ai-modes" role="tablist">
+        <button
+          v-for="mode in aiModes"
+          :key="mode.id"
+          role="tab"
+          :aria-selected="aiMode === mode.id"
+          :class="{ active: aiMode === mode.id }"
+          @click="aiMode = mode.id; aiMessage = null"
+        >
+          {{ mode.label }}
+        </button>
+      </div>
+      <form class="ai-form" @submit.prevent="runAI(currentAIMode.action)">
+        <textarea
+          v-model="aiPrompt"
+          :rows="aiMode === 'code' || aiMode === 'mermaid' ? 8 : 3"
+          :class="{ code: aiMode === 'code' || aiMode === 'mermaid' }"
+          :placeholder="currentAIMode.placeholder"
+          :disabled="!!aiBusy"
+          @keydown.enter.exact="aiMode !== 'code' && aiMode !== 'mermaid' && ($event.preventDefault(), runAI(currentAIMode.action))"
+        />
+        <div class="ai-actions">
+          <button type="submit" class="ai-primary" :disabled="!!aiBusy">
+            {{ aiBusy === currentAIMode.action ? 'Working…' : currentAIMode.button }}
+          </button>
+          <button v-if="aiBusy" type="button" @click="cancelAI">Cancel</button>
+        </div>
+      </form>
+      <div class="ai-examples">
+        <button
+          v-for="example in currentAIMode.examples"
+          :key="example"
+          type="button"
+          :disabled="!!aiBusy"
+          @click="aiPrompt = example"
+        >
+          {{ example.length > 60 ? `${example.slice(0, 58)}…` : example }}
+        </button>
+      </div>
+      <p v-if="aiMessage" class="ai-message" :class="aiMessage.kind">{{ aiMessage.text }}</p>
+
+      <div class="ai-section">
+        <span class="label">With the selection</span>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasDiagram" @click="runAI('edit')">
+          ✏️ {{ aiBusy === 'edit' ? 'Editing…' : 'Edit selected diagram (uses the text above)' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasMindMap" @click="runAI('expand')">
+          🌿 {{ aiBusy === 'expand' ? 'Growing…' : 'Grow the selected mind map topic' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy" @click="copyMermaid">
+          🧜 Copy {{ selectionHasDiagram ? 'selected diagram' : 'diagram' }} as Mermaid
+        </button>
+        <button class="text-button" :disabled="!!aiBusy || !selectionHasTopic" @click="runAI('brainstorm')">
+          💡 {{ aiBusy === 'brainstorm' ? 'Thinking…' : 'Brainstorm around the selected note' }}
+        </button>
+        <button class="text-button" :disabled="!!aiBusy" @click="runAI('organize')">
+          🗂️ {{ aiBusy === 'organize' ? 'Organizing…' : 'Organize sticky notes by theme' }}
+        </button>
+      </div>
+      <p class="ai-tip">
+        <button type="button" class="link" @click="openCommand">Ask anything</button>
+        with <kbd>Ctrl/⌘ K</kbd> — "color the notes about marketing in blue"…
+      </p>
+    </aside>
+
+    <input ref="svgInput" type="file" accept="image/svg+xml" hidden @change="onSvgSelected">
+    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onImagesSelected">
 
     <div
       ref="quickBar"
@@ -875,7 +1277,13 @@ async function onImagesSelected(event: Event) {
       >
         <svg viewBox="0 0 24 24"><path :d="icons.ai" /></svg>
       </button>
-      <button v-if="selectionCount === 1 && selectionHasNote" class="tool" title="Edit text" aria-label="Edit text" @click="editNote">
+      <button
+        v-if="selectionUnits === 1"
+        class="tool"
+        title="Edit text — of a note, an arrow, a text or a shape (or double-click it)"
+        aria-label="Edit text"
+        @click="editSelectedText"
+      >
         <svg viewBox="0 0 24 24"><path :d="icons.text" /></svg>
       </button>
       <button
@@ -961,6 +1369,17 @@ async function onImagesSelected(event: Event) {
 
     <div v-if="aiToast" class="ai-toast" role="status">{{ aiToast }}</div>
 
+    <!-- Presentation: click or arrow keys for the next frame, Esc to stop -->
+    <template v-if="presenting !== null">
+      <div class="present-overlay" @click="nextSlide(1)" />
+      <div class="present-controls" role="toolbar" aria-label="Presentation">
+        <button aria-label="Previous slide" :disabled="presenting === 0" @click="nextSlide(-1)">‹</button>
+        <span>{{ presenting + 1 }} / {{ frameCount }}</span>
+        <button aria-label="Next slide" @click="nextSlide(1)">›</button>
+        <button aria-label="Stop presenting" @click="stopPresentation">✕</button>
+      </div>
+    </template>
+
     <div v-if="showCommand" class="command-backdrop" @click.self="showCommand = false">
       <form class="command" @submit.prevent="runAI('command')">
         <div class="command-row">
@@ -1010,15 +1429,8 @@ async function onImagesSelected(event: Event) {
       </div>
     </div>
 
-    <button class="help-button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" @click="showHelp = !showHelp">?</button>
 
-    <button class="stylus-mode" title="Palm rejection" @click="cycleStylusOnly">
-      Fingers:
-      <b>{{ stylusOnly === 'auto' ? 'auto' : stylusOnly ? 'pan only' : 'draw' }}</b>
-    </button>
 
-    <input ref="svgInput" type="file" accept="image/svg+xml" hidden @change="onSvgSelected">
-    <input ref="imageInput" type="file" accept="image/*" multiple hidden @change="onImagesSelected">
   </div>
 </template>
 
@@ -1036,59 +1448,57 @@ async function onImagesSelected(event: Event) {
   inset: 0;
 }
 
-.playground-toolbar {
+/* Shared panel look */
+.rail,
+.flyout,
+.ai-panel {
   position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
   z-index: 10;
-  max-width: calc(100% - 16px);
   box-sizing: border-box;
-  padding: 8px;
   background: #fff;
   color: #374151;
   border: 1px solid #e5e7eb;
-  border-radius: 14px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
-.row {
+/* Tool rail on the left */
+.rail {
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-  justify-content: center;
-}
-
-.options {
-  margin-top: 8px;
-  padding-top: 8px;
-  gap: 8px;
-  border-top: 1px dashed #e5e7eb;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 14px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 .tool {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
   color: inherit;
   touch-action: manipulation;
 }
 
-.tool.text {
-  width: auto;
-  padding: 0 8px;
-  font-size: 12px;
-  font-weight: 600;
+.tool.small {
+  width: 30px;
+  height: 30px;
 }
 
-.tool svg {
+.tool svg,
+.menu-item svg,
+.text-button svg {
   width: 20px;
   height: 20px;
   fill: none;
@@ -1103,27 +1513,72 @@ async function onImagesSelected(event: Event) {
 }
 
 @media (hover: hover) {
-  .tool:not(:disabled):hover {
+  .tool:not(:disabled):hover,
+  .menu-item:hover,
+  .text-button:not(:disabled):hover {
     background: #f3f4f6;
   }
 }
 
 .tool.active,
-.segmented button.active {
+.chips button.active,
+.shape-grid button.active {
   background: #e8eefc;
   color: #1d4ed8;
 }
 
+.rail .ai-button {
+  color: #4f46e5;
+}
+
+.rail .ai-button.active {
+  background: #eef2ff;
+}
+
 .sep {
-  width: 1px;
-  height: 20px;
-  margin: 0 4px;
-  background: #d1d5db;
+  flex-shrink: 0;
+  width: 22px;
+  height: 1px;
+  margin: 4px auto;
+  background: #e5e7eb;
+}
+
+.sep-h {
+  display: block;
+  height: 1px;
+  margin: 2px 0;
+  background: #f3f4f6;
+}
+
+/* Options of the active tool, and the ⋯ menu: next to the rail */
+.flyout {
+  left: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 232px;
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.flyout.menu {
+  gap: 4px;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
 .swatch {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 2px solid #fff;
   box-shadow: 0 0 0 1px #d1d5db;
@@ -1135,53 +1590,122 @@ async function onImagesSelected(event: Event) {
   box-shadow: 0 0 0 2px #2563eb;
 }
 
-.color-input {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  background: none;
+.swatch.custom {
+  position: relative;
+  overflow: hidden;
+  background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);
+  cursor: pointer;
 }
 
-.slider,
-.label {
+.swatch.custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.slider {
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   color: #6b7280;
 }
 
-.segmented {
+.slider input {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.chips {
   display: flex;
-  padding: 2px;
-  border-radius: 8px;
-  background: #f3f4f6;
-}
-
-.segmented.wrap {
   flex-wrap: wrap;
-  justify-content: center;
+  gap: 4px;
 }
 
-.segmented button {
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+.chips button,
+.shape-grid button {
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #f3f4f6;
+  font-size: 12px;
   text-transform: capitalize;
   touch-action: manipulation;
 }
 
-.ai-button svg {
-  margin-right: 4px;
+.shape-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 
+.shape-grid button {
+  padding: 6px 2px;
+  font-size: 11px;
+}
+
+.text-button,
+.menu-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: left;
+  touch-action: manipulation;
+}
+
+.text-button:disabled {
+  opacity: 0.45;
+}
+
+.menu-item.danger {
+  color: #dc2626;
+}
+
+/* AI panel on the right */
 .ai-panel {
+  top: 12px;
+  right: 12px;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 48px);
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  width: min(560px, calc(100vw - 48px));
-  margin-left: auto;
-  margin-right: auto;
+  gap: 10px;
+  width: 340px;
+  padding: 12px;
+  overflow-y: auto;
+  border-radius: 14px;
+  user-select: auto;
+  -webkit-user-select: auto;
+}
+
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+}
+
+.ai-modes button {
+  flex: 1 0 28%;
+  text-transform: none;
 }
 
 .ai-form {
@@ -1201,6 +1725,12 @@ async function onImagesSelected(event: Event) {
   resize: vertical;
 }
 
+.ai-form textarea.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  white-space: pre;
+}
+
 .ai-actions,
 .ai-examples {
   display: flex;
@@ -1209,9 +1739,8 @@ async function onImagesSelected(event: Event) {
   align-items: center;
 }
 
-.ai-actions button,
-.ai-examples button {
-  padding: 6px 10px;
+.ai-actions button {
+  padding: 7px 12px;
   border-radius: 8px;
   background: #f3f4f6;
   font-size: 13px;
@@ -1219,6 +1748,7 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-actions .ai-primary {
+  flex: 1;
   background: #4f46e5;
   color: #fff;
   font-weight: 600;
@@ -1230,9 +1760,20 @@ async function onImagesSelected(event: Event) {
 }
 
 .ai-examples button {
+  padding: 5px 9px;
+  border-radius: 8px;
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
+  text-align: left;
+}
+
+.ai-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 8px;
+  border-top: 1px dashed #e5e7eb;
 }
 
 .ai-tip {
@@ -1323,6 +1864,68 @@ async function onImagesSelected(event: Event) {
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
+}
+
+.playground.presenting > :not(.playground-canvas, .present-overlay, .present-controls) {
+  display: none !important;
+}
+
+.playground.presenting {
+  height: 100dvh;
+}
+
+.present-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  cursor: pointer;
+}
+
+.present-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 4px);
+  transform: translateX(-50%);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(31, 41, 55, 0.85);
+  color: #fff;
+  font-size: 13px;
+  opacity: 0.35;
+  transition: opacity 0.2s;
+}
+
+.present-controls:hover,
+.present-controls:focus-within {
+  opacity: 1;
+}
+
+.present-controls button {
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.present-controls button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.present-controls button:disabled {
+  opacity: 0.4;
+}
+
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .ai-toast {
@@ -1511,33 +2114,6 @@ async function onImagesSelected(event: Event) {
   white-space: nowrap;
 }
 
-.help-button {
-  position: absolute;
-  right: 12px;
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 44px);
-  z-index: 10;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  font-weight: 600;
-}
-
-.stylus-mode {
-  position: absolute;
-  right: 12px;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  z-index: 10;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #374151;
-  font-size: 13px;
-}
-
 /* Tablets & phones: larger touch targets */
 @media (pointer: coarse) {
   .tool {
@@ -1551,8 +2127,14 @@ async function onImagesSelected(event: Event) {
   }
 
   .swatch {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .chips button,
+  .shape-grid button {
+    padding: 9px 12px;
+    font-size: 14px;
   }
 
   .quick-bar .swatch.small {
@@ -1564,15 +2146,51 @@ async function onImagesSelected(event: Event) {
     width: 44px;
     height: 44px;
   }
+}
 
-  .segmented button {
-    padding: 10px 14px;
-    font-size: 15px;
+/* Phones: tools at the bottom, panels above them */
+@media (max-width: 640px) {
+  .rail {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: none;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
-  .slider input {
-    width: 180px;
-    height: 32px;
+  .sep {
+    width: 1px;
+    height: 22px;
+    margin: auto 4px;
+  }
+
+  .flyout {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px);
+    transform: none;
+    width: auto;
+    max-height: 45vh;
+  }
+
+  .ai-panel {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 66px);
+    width: auto;
+    max-height: 60vh;
+  }
+
+  .zoom-controls {
+    top: 8px;
+    bottom: auto;
+    left: 8px;
   }
 }
 </style>

@@ -145,6 +145,11 @@ export default class StickyNote extends AbstractComponent implements Restyleable
     ).transformedBy(this.transform);
   }
 
+  public override getProportionalRenderingTime(): number {
+    // Two filled paths, and the lines of text (see TextComponent).
+    return 4 + this.lines.length * 8;
+  }
+
   public override render(canvas: AbstractRenderer, _visibleRect?: Rect2): void {
     canvas.startObject(this.contentBBox);
 

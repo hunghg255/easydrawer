@@ -1,6 +1,8 @@
 # EasyDrawer
 
-A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, SVG/PNG export.
+A drawing/whiteboard library for the web: natural-looking ink, shapes, text, images, sticky notes, arrows that
+stay attached, frames for presenting, and SVG/PNG export. AI features draw diagrams, mind maps, charts and pictures
+from text, and turn SQL or code into diagrams; Mermaid diagrams can be imported and exported without AI.
 Works with mouse, touch and styluses (Apple Pencil, Wacom, Surface Pen), with palm rejection on tablets.
 
 - [Documentation & playground](https://easydrawer.vercel.app/) — source in [`docs/`](./docs) (`pnpm dev`); the playground is at [`/playground`](https://easydrawer.vercel.app/playground)
@@ -81,6 +83,19 @@ editor.selection.align('left');          // center, right, top, middle, bottom
 editor.selection.distribute('horizontal');
 editor.selection.lock();                 // locked objects can't be selected, moved or erased
 editor.selection.unlockAll();
+
+// Flowcharts from the keyboard: Ctrl/⌘+arrows add a linked shape, Enter types its text
+await editor.selection.addConnected('right');
+
+// Hand-drawn style (like Excalidraw)
+editor.tools.configure('shape', { sketch: true });
+editor.tools.configure('connector', { sketch: true });
+editor.ai.setSketch(true);
+
+// Frames: named areas to present as slides or export
+await editor.frames.add({ title: 'Intro' });   // around the visible area; addAroundSelection()
+await editor.frames.goTo(0);                   // fit a frame to the screen
+editor.frames.toDataURL(0);                    // PNG of a frame
 ```
 
 ### Document
@@ -109,7 +124,7 @@ editor.onZoomChange((zoom) => console.log(`${Math.round(zoom * 100)}%`));
 ## AI features
 
 Give the editor a function that calls a language model (through your own server, which keeps the API key),
-then generate diagrams from text and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
+then generate diagrams from text or code, charts and pictures, and organize sticky notes. See the [AI guide](https://easydrawer.vercel.app/guide/ai).
 
 ```ts
 const editor = new Editor(element, {
@@ -119,10 +134,18 @@ const editor = new Editor(element, {
 await editor.ai.generateDiagram('Checkout: cart → payment → paid? yes: ship, no: retry');
 await editor.ai.editDiagram('Add a confirmation email after the payment'); // the selected diagram, even hand-drawn
 await editor.ai.editSelection('remove the error step'); // diagram edit, or a command for anything else
+await editor.ai.generateMindMap('Launching a mobile app'); // then select a topic: expandMindMap()
+await editor.ai.drawMermaid('flowchart TD\n  A --> B{OK?}'); // and editor.ai.toMermaid() — no AI needed
+await editor.ai.diagramFromCode('CREATE TABLE users (…); CREATE TABLE orders (…);'); // ER diagram
+await editor.ai.generateChart('Revenue per quarter, 2023 vs 2024'); // bar / line / pie chart
+await editor.ai.generateIllustration('A lighthouse at sunset'); // picture made of editable shapes
 await editor.ai.brainstorm();    // ideas around the selected sticky note
 await editor.ai.organizeNotes(); // sort sticky notes into themed columns
 await editor.ai.runCommand('Color the notes about marketing in blue'); // anything, in plain language
 ```
+
+Diagrams, mind maps and charts are drawn step by step while the answer arrives when the request handler streams it
+(`onText` + `readTextStream(response, onText)`) — see [Streaming](https://easydrawer.vercel.app/guide/ai#streaming).
 
 ## Natural ink
 
@@ -165,6 +188,13 @@ editor.tools.configure('pen', { style: brush });
   ```
   and make your toolbar buttons at least 44×44 px on touch screens (`@media (pointer: coarse)`), as the
   [playground](./docs/.vitepress/theme/components/Playground.vue) does.
+
+## Performance
+
+Big boards stay smooth: a dragged, resized or rotated selection is drawn as one bitmap until it's dropped,
+connectors follow it live (elbow routes are cached and updated when the browser is idle), hand-drawn shapes are only
+redrawn when resized, and autosave waits for idle time. See the [performance guide](https://easydrawer.vercel.app/guide/performance)
+for tips for your own code.
 
 ## Project structure
 

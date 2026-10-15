@@ -4,6 +4,7 @@ import { type IVec2, Vec2, Vec3, Color4, Mat33, Rect2 } from '~/math';
 
 import EditorAI from './ai/EditorAI';
 import { type AISettings } from './ai/types';
+import EditorFrames from './api/EditorFrames';
 import EditorSelection from './api/EditorSelection';
 import EditorTools from './api/EditorTools';
 import {
@@ -335,6 +336,9 @@ export class Editor {
    */
   public readonly selection: EditorSelection;
 
+  /** Frames: named areas of the drawing, to present as slides or export. See {@link EditorFrames}. */
+  public readonly frames: EditorFrames;
+
   /** AI features: generate diagrams from text, organize sticky notes. See {@link EditorAI}. */
   public readonly ai: EditorAI;
 
@@ -507,6 +511,7 @@ export class Editor {
     this.toolController = new ToolController(this, this.localization);
     this.tools = new EditorTools(this);
     this.selection = new EditorSelection(this);
+    this.frames = new EditorFrames(this);
     this.ai = new EditorAI(this);
 
     // TODO: Make this pipeline configurable (e.g. allow users to add global input stabilization)
@@ -1272,9 +1277,10 @@ export class Editor {
   ) {
     console.assert(updateChunkSize > 0);
     this.display.setDraftMode(true);
+    // Show progress only when it takes a while: re-rendering everything in between is slow.
+    let lastProgress = performance.now();
+    let showedProgress = false;
     for (let i = 0; i < commands.length; i += updateChunkSize) {
-      this.showLoadingWarning(i / commands.length);
-
       for (let j = i; j < commands.length && j < i + updateChunkSize; j++) {
         const cmd = commands[j];
 
@@ -1286,15 +1292,19 @@ export class Editor {
       }
 
       // Re-render to show progress, but only if we're not done.
-      if (i + updateChunkSize < commands.length) {
+      const done = i + updateChunkSize >= commands.length;
+      if (!done && performance.now() - lastProgress > 100) {
+        this.showLoadingWarning((i + updateChunkSize) / commands.length);
+        showedProgress = true;
         await new Promise((resolve) => {
           this.rerender();
           requestAnimationFrame(resolve);
         });
+        lastProgress = performance.now();
       }
     }
     this.display.setDraftMode(false);
-    this.hideLoadingWarning();
+    if (showedProgress) this.hideLoadingWarning();
   }
 
   /** @see {@link asyncApplyOrUnapplyCommands } */
@@ -2210,7 +2220,7 @@ export class Editor {
     options: { key?: string; delay?: number; storage?: Pick<Storage, 'getItem' | 'setItem'> } = {},
   ): Promise<() => void> {
     const key = options.key ?? 'easydrawer';
-    const delay = options.delay ?? 400;
+    const delay = options.delay ?? 1000;
 
     let storage = options.storage;
     try {
@@ -2233,24 +2243,44 @@ export class Editor {
     }
 
     let timeout: ReturnType<typeof setTimeout> | null = null;
+    let idleCallback: number | null = null;
+    let pending = false;
     const save = () => {
       timeout = null;
+      idleCallback = null;
+      pending = false;
       try {
-        storage!.setItem(key, this.toSVGString());
+        storage.setItem(key, this.toSVGString());
       } catch (error) {
         console.warn('easydrawer: could not autosave the drawing', error);
       }
     };
+    // Exporting a big drawing takes a while: when the browser is idle (not while drawing).
+    const saveWhenIdle = () => {
+      timeout = null;
+      if (typeof requestIdleCallback === 'function') {
+        idleCallback = requestIdleCallback(save, { timeout: 2000 });
+      } else {
+        save();
+      }
+    };
+    const cancel = () => {
+      if (timeout) clearTimeout(timeout);
+      if (idleCallback !== null && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleCallback);
+      timeout = null;
+      idleCallback = null;
+    };
 
     const stopListening = this.onChange(() => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(save, delay);
+      cancel();
+      pending = true;
+      timeout = setTimeout(saveWhenIdle, delay);
     });
 
     return () => {
       stopListening();
-      if (timeout) {
-        clearTimeout(timeout);
+      if (pending) {
+        cancel();
         save();
       }
     };

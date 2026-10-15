@@ -1,32 +1,44 @@
 import { Color4, type IVec2, Mat33, Path, Rect2, Vec2 } from '~/math';
 
+import buildChart, { type Chart, validateChart } from './charts';
 import layoutGraph from './layoutGraph';
-import parseAIJSON from './parseJSON';
+import { diagramToMermaid, parseMermaid } from './mermaid';
+import layoutMindMap, { type MindMapNode, validateMindMap } from './mindMap';
+import parseAIJSON, { parsePartialAIJSON } from './parseJSON';
+import svgToStrokes from './svgToStrokes';
 import { AIError, type AIMessage, type AIRequestHandler } from './types';
+import type Command from '../commands/Command';
+import Erase from '../commands/Erase';
+import uniteCommands from '../commands/uniteCommands';
 import type AbstractComponent from '../components/AbstractComponent';
 import Connector from '../components/Connector';
-import { type RouteSide } from '../components/util/routeOrthogonal';
 import ImageComponent from '../components/ImageComponent';
 import StickyNote from '../components/StickyNote';
 import Stroke from '../components/Stroke';
 import TextComponent from '../components/TextComponent';
-import type Command from '../commands/Command';
-import Erase from '../commands/Erase';
-import uniteCommands from '../commands/uniteCommands';
+import { type RouteSide } from '../components/util/routeOrthogonal';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
+import type RenderablePathSpec from '../rendering/RenderablePathSpec';
 import { pathToRenderable } from '../rendering/RenderablePathSpec';
+import { newSketchSeed, sketchParts, sketchSourceOf, type SketchOptions } from '../rendering/sketch';
 import type TextRenderingStyle from '../rendering/TextRenderingStyle';
 
 /** Colors the AI can choose for diagram nodes and note groups. */
 export type AIColorName = 'blue' | 'green' | 'yellow' | 'pink' | 'purple' | 'gray';
-export type DiagramNodeKind = 'process' | 'decision' | 'terminal' | 'io';
+/**
+ * Kinds of diagram nodes. `'entity'` is a box with a title and a list of `details` (e.g. a
+ * database table and its columns, or a class and its members).
+ */
+export type DiagramNodeKind = 'process' | 'decision' | 'terminal' | 'io' | 'entity';
 
 export interface DiagramNode {
   id: string;
   label: string;
   kind: DiagramNodeKind;
   color?: AIColorName;
+  /** For `'entity'` nodes: lines below the title (columns, fields, methods…). */
+  details?: string[];
 }
 
 export interface DiagramEdge {
@@ -57,10 +69,15 @@ export interface NoteGroup {
 
 interface AIOptions {
   signal?: AbortSignal;
+  /**
+   * Draw the answer step by step while it arrives, if the request handler streams it
+   * (see `AIRequest.onText`). Default: `true`.
+   */
+  stream?: boolean;
 }
 
 const colorNames: AIColorName[] = ['blue', 'green', 'yellow', 'pink', 'purple', 'gray'];
-const nodeKinds: DiagramNodeKind[] = ['process', 'decision', 'terminal', 'io'];
+const nodeKinds: DiagramNodeKind[] = ['process', 'decision', 'terminal', 'io', 'entity'];
 
 const shapeColors: Record<AIColorName, { fill: string; border: string }> = {
   blue: { fill: '#dbeafe', border: '#1d4ed8' },
@@ -70,6 +87,8 @@ const shapeColors: Record<AIColorName, { fill: string; border: string }> = {
   purple: { fill: '#ede9fe', border: '#6d28d9' },
   gray: { fill: '#f3f4f6', border: '#4b5563' },
 };
+
+const mindMapColors: AIColorName[] = ['blue', 'green', 'yellow', 'pink', 'purple'];
 
 const noteColors: Record<AIColorName, string> = {
   yellow: '#fde68a',
@@ -85,21 +104,67 @@ const defaultKindColors: Record<DiagramNodeKind, AIColorName> = {
   process: 'blue',
   decision: 'yellow',
   io: 'purple',
+  entity: 'blue',
 };
 
 const diagramPrompt = `You convert descriptions into diagrams (flowcharts, processes, architectures, mind maps).
 Answer with ONE JSON object and nothing else:
 {"direction":"down","nodes":[{"id":"n1","label":"Start","kind":"terminal","color":"green"}],"edges":[{"from":"n1","to":"n2","label":""}]}
 Rules:
-- "kind": "terminal" (start/end), "process" (a step or a thing), "decision" (a question or condition), "io" (input/output, data).
+- "kind": "terminal" (start/end), "process" (a step or a thing), "decision" (a question or condition), "io" (input/output, data),
+  "entity" (a box with a title and "details": a list of lines, e.g. a table and its columns).
 - "color": one of ${colorNames.join(', ')}. Optional.
 - Edges leaving a decision have short labels (e.g. "yes"/"no"). Other edge labels are usually empty.
 - "direction": "right" for timelines and short pipelines, otherwise "down".
 - At most 25 nodes. Labels are short (at most 6 words), in the same language as the description.`;
 
+const codeDiagramPrompt = `You turn source code or SQL into a diagram.
+Answer with ONE JSON object and nothing else:
+{"direction":"right","nodes":[{"id":"users","label":"users","kind":"entity","details":["id: int PK","email: text"]}],"edges":[{"from":"orders","to":"users","label":"user_id"}]}
+Choose the diagram from the input:
+- SQL (CREATE TABLE, schemas): an entity-relationship diagram. One "entity" node per table, "label" = table name,
+  "details" = its columns as "name: type" with PK / FK. One edge per foreign key, from the table with the key to the
+  referenced table, "label" = the key column. "direction": "right".
+- Classes, interfaces, structs, types: a class diagram. One "entity" node per class, "details" = fields
+  ("+ name: type") then methods ("+ name(): type"). Edges for inheritance ("extends"/"implements") and use ("uses").
+  "direction": "down".
+- Other code (functions, scripts, handlers): a flowchart of its logic with "kind" "terminal" (start/end),
+  "process", "decision" (conditions, labeled edges "yes"/"no"…) and "io" (input/output, calls to other systems).
+  "direction": "down".
+At most 25 nodes. Short labels.`;
+
+const chartPrompt = `You turn data or a description into a chart.
+Answer with ONE JSON object and nothing else:
+{"type":"bar","title":"Revenue 2024","unit":"","labels":["Q1","Q2","Q3","Q4"],"series":[{"name":"Revenue","values":[10,20,15,30]}]}
+Rules:
+- "type": "pie" for parts of a whole, "line" for a trend over time, otherwise "bar".
+- One value per label in each series. Numbers only (no units in values; put the unit in "unit", e.g. "%", "k$").
+- Use the numbers given. Without numbers, use realistic example numbers.
+- Title, labels and series names in the same language as the request.`;
+
+const illustrationPrompt = `You draw simple, clean, flat vector illustrations and icons.
+Answer with ONLY an SVG document and nothing else, like:
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">…</svg>
+Rules:
+- Use only <path>, <circle>, <ellipse>, <rect>, <line>, <polyline>, <polygon> and <g>, with fill and stroke colors.
+- Friendly flat style, a few harmonious colors, at most 60 elements.
+- No text, gradients, filters, images, masks, CSS or scripts.`;
+
 const editDiagramPrompt = `${diagramPrompt}
 You are EDITING an existing diagram: answer with the complete updated diagram.
-Keep the ids, labels, kinds and colors of the nodes that should not change.`;
+Keep the ids, labels, kinds, colors and "details" of the nodes that should not change.`;
+
+const mindMapPrompt = `You make mind maps.
+Answer with ONE JSON object and nothing else:
+{"label":"Central topic","children":[{"label":"Branch","children":[{"label":"Sub-topic"}]}]}
+Rules:
+- 4 to 7 branches, each with 2 to 4 sub-topics. A third level only when it really helps.
+- Labels are short (at most 5 words), in the same language as the request.`;
+
+const expandMindMapPrompt = `You extend a mind map.
+Answer with ONE JSON object and nothing else: {"children":["first sub-topic","second sub-topic"]}
+Give short (at most 5 words), concrete and varied sub-topics of the LAST topic of the path, different from the
+existing ones, in the same language as the topics.`;
 
 const brainstormPrompt = `You help people brainstorm.
 Answer with ONE JSON object and nothing else: {"ideas":["first idea","second idea"]}
@@ -117,6 +182,8 @@ Actions (most of them apply to the selected items):
 {"type":"addNote","text":"...","color":"yellow|green|blue|pink|purple|gray"}
 {"type":"generateDiagram","prompt":"description of a new diagram"}
 {"type":"editDiagram","instruction":"what to change in the selected diagram"}
+{"type":"mindMap","topic":"the central topic, with any details"} draw a new mind map
+{"type":"expandMindMap"} add sub-topics to the selected mind map topic
 {"type":"brainstorm"} ideas around the selected sticky note
 {"type":"organizeNotes"} sort sticky notes into themed columns
 For questions about the board, use no actions and answer in "message".
@@ -152,6 +219,9 @@ export function validateDiagram (json: any): Diagram {
       label: shortText(raw?.label ?? raw?.text, 80) || '…',
       kind: oneOf(raw?.kind ?? raw?.type, nodeKinds, 'process'),
       color: raw?.color ? oneOf(raw.color, colorNames, 'blue') : undefined,
+      ...(Array.isArray(raw?.details)
+        ? { details: raw.details.slice(0, 24).map((d: unknown) => shortText(d, 60)).filter((d: string) => d !== '') }
+        : {}),
     });
   }
   if (nodes.length === 0) {
@@ -298,6 +368,29 @@ export default class EditorAI {
     this.requestHandler = editor.getCurrentSettings().ai?.request ?? null;
   }
 
+  /**
+   * Draws diagrams, mind maps and brainstorm links in a hand-drawn style (like Excalidraw):
+   * `true`, sketch options, or `null` for clean lines (the default).
+   */
+  public sketch: SketchOptions | null = null;
+
+  /** Font of the text of diagrams, mind maps and note titles. Default: `'sans-serif'`. */
+  public fontFamily = 'sans-serif';
+
+  public setSketch(sketch: SketchOptions | boolean | null) {
+    this.sketch = sketch === true ? {} : sketch || null;
+  }
+
+  // A shape, hand-drawn if `sketch` is set (filled with a solid color, so that text stays readable).
+  private shapeStroke(parts: RenderablePathSpec[]) {
+    if (!this.sketch) return new Stroke(parts);
+    const options = { fillStyle: 'solid' as const, ...this.sketch, scale: this.editor.viewport.getSizeOfPixelOnCanvas(), seed: newSketchSeed() };
+    const stroke = new Stroke(sketchParts(parts, options));
+    // To draw it again when it's resized (see Stroke).
+    stroke.setMetadata({ sketch: '1', sketchSource: sketchSourceOf(parts, options) });
+    return stroke;
+  }
+
   /** Whether a request handler has been given. */
   public get isConfigured() {
     return this.requestHandler !== null;
@@ -307,20 +400,103 @@ export default class EditorAI {
     this.requestHandler = handler;
   }
 
+  /** Sends `messages` to the AI and returns the text of its answer. */
+  public async requestText(messages: AIMessage[], options: AIOptions = {}): Promise<string> {
+    if (!this.requestHandler) {
+      throw new AIError('AI is not configured: give a request handler with the "ai" editor setting.');
+    }
+    try {
+      return await this.requestHandler({ messages, json: false, signal: options.signal });
+    } catch (error) {
+      if (error instanceof AIError) throw error;
+      throw new AIError(`AI request failed: ${(error as Error)?.message ?? error}`, error);
+    }
+  }
+
   /** Sends `messages` to the AI and returns the JSON object of its answer. */
-  public async requestJSON(messages: AIMessage[], options: AIOptions = {}): Promise<any> {
+  public async requestJSON(
+    messages: AIMessage[],
+    options: AIOptions & { onText?: (textSoFar: string) => void } = {},
+  ): Promise<any> {
     if (!this.requestHandler) {
       throw new AIError('AI is not configured: give a request handler with the "ai" editor setting.');
     }
 
     let answer: string;
     try {
-      answer = await this.requestHandler({ messages, json: true, signal: options.signal });
+      answer = await this.requestHandler({ messages, json: true, signal: options.signal, onText: options.onText });
     } catch (error) {
       if (error instanceof AIError) throw error;
       throw new AIError(`AI request failed: ${(error as Error)?.message ?? error}`, error);
     }
     return parseAIJSON(answer);
+  }
+
+  /**
+   * Like {@link requestJSON}, but while the answer arrives (if the request handler streams
+   * it), shows what `build` makes of the complete part of it so far: `read` checks it (and
+   * throws if it can't be used yet). The preview isn't part of the drawing or of the undo
+   * history, and is removed at the end.
+   */
+  private async requestJSONWithPreview<T>(
+    messages: AIMessage[],
+    options: AIOptions,
+    read: (json: any) => T,
+    build: (value: T, ignore: Set<AbstractComponent>) => AbstractComponent[],
+  ): Promise<any> {
+    if (options.stream === false) return this.requestJSON(messages, options);
+
+    const editor = this.editor;
+    let shown: Command[] = [];
+    let shownComponents = new Set<AbstractComponent>();
+    let latestText = '';
+    let lastKey = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let done = false;
+
+    const clear = () => {
+      for (const command of shown.reverse()) command.unapply(editor);
+      shown = [];
+      shownComponents = new Set();
+      editor.queueRerender();
+    };
+    const update = () => {
+      timer = null;
+      if (done) return;
+      const json = parsePartialAIJSON(latestText);
+      if (!json) return;
+      let value: T;
+      try {
+        value = read(json);
+      } catch {
+        return;
+      }
+      const key = JSON.stringify(value);
+      if (key === lastKey) return;
+      lastKey = key;
+
+      const components = build(value, shownComponents);
+      clear();
+      shown = components.map((component) => EditorImage.addComponent(component));
+      for (const command of shown) command.apply(editor);
+      shownComponents = new Set(components);
+      editor.queueRerender();
+    };
+
+    try {
+      return await this.requestJSON(messages, {
+        ...options,
+        onText: (text) => {
+          latestText = text;
+          // Not too often: building and drawing take a moment.
+          timer ??= setTimeout(update, 120);
+        },
+      });
+    } finally {
+      done = true;
+      if (timer) clearTimeout(timer);
+      clear();
+    }
   }
 
   /**
@@ -361,12 +537,14 @@ export default class EditorAI {
    * @returns the diagram as returned by the AI (after validation).
    */
   public async generateDiagram(prompt: string, options: AIOptions = {}): Promise<Diagram> {
-    const json = await this.requestJSON(
+    const json = await this.requestJSONWithPreview(
       [
         { role: 'system', content: diagramPrompt },
         { role: 'user', content: prompt.slice(0, 4000) },
       ],
       options,
+      validateDiagram,
+      (diagram, ignore) => this.buildDiagram(diagram, this.editor.viewport.visibleRect.center, ignore),
     );
     const diagram = validateDiagram(json);
     await this.drawDiagram(diagram);
@@ -389,13 +567,28 @@ export default class EditorAI {
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const textStyle: TextRenderingStyle = {
       size: 15 * scale,
-      fontFamily: 'sans-serif',
+      fontFamily: this.fontFamily,
       renderingStyle: { fill: Color4.fromHex('#1f2937') },
     };
     const lineHeight = textStyle.size * 1.25;
 
+    const titleStyle: TextRenderingStyle = { ...textStyle, fontWeight: 'bold' };
+    const detailStyle: TextRenderingStyle = { ...textStyle, size: 13 * scale, fontFamily: 'monospace' };
+    const headerHeight = 36 * scale;
+    const detailHeight = 18 * scale;
+
     // Sizes
     const sized = diagram.nodes.map((node) => {
+      if (node.kind === 'entity') {
+        const details = node.details ?? [];
+        const width = Math.max(
+          160 * scale,
+          TextComponent.measureTextWidth(node.label, titleStyle) + 36 * scale,
+          ...details.map((d) => TextComponent.measureTextWidth(d, detailStyle) + 28 * scale),
+        );
+        const height = headerHeight + (details.length > 0 ? details.length * detailHeight + 14 * scale : 0);
+        return { node, lines: [node.label], width, height };
+      }
       const lines = wrapText(node.label, textStyle, 170 * scale);
       const textWidth = Math.max(...lines.map((line) => TextComponent.measureTextWidth(line, textStyle)));
       let width = Math.max(130 * scale, textWidth + 36 * scale);
@@ -428,8 +621,8 @@ export default class EditorAI {
       const nodeCenter = Vec2.of(center.x + position.x, center.y + position.y);
       const colors = shapeColors[node.color ?? defaultKindColors[node.kind]];
 
-      const shape = new Stroke([
-        pathToRenderable(nodePath(node.kind, width, height).transformedBy(Mat33.translation(nodeCenter)), {
+      const shape = this.shapeStroke([
+        pathToRenderable(nodePath(node.kind === 'entity' ? 'process' : node.kind, width, height).transformedBy(Mat33.translation(nodeCenter)), {
           fill: Color4.fromHex(colors.fill),
           stroke: { color: Color4.fromHex(colors.border), width: 2 * scale },
         }),
@@ -437,6 +630,7 @@ export default class EditorAI {
       const groupId = `group-${shape.getId()}`;
       shape.setGroupDirectly(groupId);
       shape.setMetadata({
+        ...shape.getMetadata(),
         diagramNode: node.id,
         kind: node.kind,
         direction: diagram.direction,
@@ -444,6 +638,42 @@ export default class EditorAI {
       });
       shapeById.set(node.id, shape);
       created.push(shape);
+
+      if (node.kind === 'entity') {
+        // Title, a line, and the details below it.
+        const top = nodeCenter.y - height / 2;
+        const left = nodeCenter.x - width / 2;
+        const titleWidth = TextComponent.measureTextWidth(node.label, titleStyle);
+        const title = TextComponent.fromLines(
+          [node.label],
+          Mat33.translation(Vec2.of(nodeCenter.x - titleWidth / 2, top + headerHeight / 2 + titleStyle.size * 0.35)),
+          titleStyle,
+        );
+        title.setGroupDirectly(groupId);
+        created.push(title);
+
+        const details = node.details ?? [];
+        if (details.length > 0) {
+          const separator = this.shapeStroke([
+            pathToRenderable(Path.fromString(`M${left},${top + headerHeight} L${left + width},${top + headerHeight}`), {
+              fill: Color4.transparent,
+              stroke: { color: Color4.fromHex(colors.border), width: 1.5 * scale },
+            }),
+          ]);
+          separator.setGroupDirectly(groupId);
+          created.push(separator);
+        }
+        for (const [i, detail] of details.entries()) {
+          const line = TextComponent.fromLines(
+            [detail],
+            Mat33.translation(Vec2.of(left + 14 * scale, top + headerHeight + 7 * scale + (i + 1) * detailHeight - 4 * scale)),
+            detailStyle,
+          );
+          line.setGroupDirectly(groupId);
+          created.push(line);
+        }
+        continue;
+      }
 
       // Centered lines of text
       const textTop = nodeCenter.y - (lines.length * lineHeight) / 2;
@@ -467,7 +697,7 @@ export default class EditorAI {
       const connector = new Connector(
         { point: from.getBBox().center, targetId: from.getId(), side: sides[i].start },
         { point: to.getBBox().center, targetId: to.getId(), side: sides[i].end },
-        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label, routing: 'elbow' },
+        { color: Color4.fromHex('#374151'), thickness: 2 * scale, arrow: 'end', label: edge.label, routing: 'elbow', sketch: !!this.sketch },
       );
       created.push(connector);
     }
@@ -532,6 +762,409 @@ export default class EditorAI {
   }
 
   /**
+   * Draws a [Mermaid](https://mermaid.js.org) diagram (`flowchart`/`graph`, `erDiagram` or
+   * `classDiagram`) with editable shapes and connectors. No AI needed.
+   *
+   * @throws `MermaidError` if the text can't be read.
+   * @returns the diagram that was drawn.
+   */
+  public async drawMermaid(text: string, options: { center?: IVec2 } = {}): Promise<Diagram> {
+    const diagram = parseMermaid(text);
+    await this.drawDiagram(diagram, options);
+    return diagram;
+  }
+
+  /**
+   * The selected diagram (or the whole drawing) as [Mermaid](https://mermaid.js.org) text, or
+   * `null` if there is no diagram. See {@link readDiagram}.
+   */
+  public toMermaid(components?: AbstractComponent[]): string | null {
+    const result = this.readDiagram(components);
+    return result ? diagramToMermaid(result.diagram) : null;
+  }
+
+  /**
+   * Asks the AI for a mind map about `topic` and draws it: the topic in the middle, colored
+   * branches on both sides. Select a topic and use {@link expandMindMap} to grow it.
+   */
+  public async generateMindMap(topic: string, options: AIOptions = {}): Promise<MindMapNode> {
+    const json = await this.requestJSONWithPreview(
+      [
+        { role: 'system', content: mindMapPrompt },
+        { role: 'user', content: topic.slice(0, 4000) },
+      ],
+      options,
+      validateMindMap,
+      (mindMap, ignore) => this.buildMindMap(mindMap, this.editor.viewport.visibleRect.center, ignore),
+    );
+    const mindMap = validateMindMap(json);
+    await this.drawMindMap(mindMap);
+    return mindMap;
+  }
+
+  /** Draws a mind map (as returned by {@link generateMindMap}) next to what is already drawn. */
+  public async drawMindMap(mindMap: MindMapNode, options: { center?: IVec2 } = {}) {
+    await this.addAndShow(this.buildMindMap(mindMap, options.center ?? this.editor.viewport.visibleRect.center, new Set()));
+  }
+
+  // Creates the components of a mind map (not added to the image).
+  private buildMindMap(mindMap: MindMapNode, preferredCenter: IVec2, ignore: Set<AbstractComponent>) {
+    const editor = this.editor;
+    const scale = editor.viewport.getSizeOfPixelOnCanvas();
+    const layout = layoutMindMap(mindMap, (node, depth) => this.mindMapNodeSize(node.label, depth), {
+      levelGap: 56 * scale,
+      siblingGap: 14 * scale,
+    });
+
+    const box = Rect2.union(...layout.map((n) => new Rect2(n.x - n.width / 2, n.y - n.height / 2, n.width, n.height)));
+    const center = this.findFreeSpot(box, preferredCenter, ignore);
+    const offset = Vec2.ofXY(center);
+
+    const created: AbstractComponent[] = [];
+    const shapes: Stroke[] = [];
+    for (const placed of layout) {
+      const color = mindMapColors[(placed.branch + mindMapColors.length) % mindMapColors.length];
+      const { components, shape } = this.buildMindMapNode(placed.node.label, placed.depth, offset.plus(Vec2.of(placed.x, placed.y)), color, placed.side);
+      created.push(...components);
+      shapes.push(shape);
+      if (placed.parent >= 0) {
+        created.push(this.mindMapLink(shapes[placed.parent], shape, color, placed.depth));
+      }
+    }
+    return created;
+  }
+
+  /**
+   * Asks the AI for sub-topics of the selected mind map topic (drawn by {@link drawMindMap})
+   * and adds them next to it.
+   *
+   * @returns the shapes of the new topics.
+   */
+  public async expandMindMap(options: AIOptions & { count?: number } = {}): Promise<Stroke[]> {
+    const editor = this.editor;
+    const image = editor.image;
+    const all = image.getAllComponents();
+    const isTopic = (c: AbstractComponent): c is Stroke => c instanceof Stroke && c.getMetadata().mindmap !== undefined;
+
+    // The selected topic (its shape, or its text).
+    let topic: Stroke | undefined;
+    for (const item of editor.selection.items) {
+      if (isTopic(item)) {
+        topic = item;
+        break;
+      }
+      const groupId = item.getGroupId();
+      topic ??= groupId === null ? undefined : all.find((c): c is Stroke => isTopic(c) && c.getGroupId() === groupId);
+    }
+    if (!topic) {
+      throw new AIError('Select a topic of a mind map first.');
+    }
+
+    const labelOf = (shape: Stroke) => {
+      const groupId = shape.getGroupId();
+      return all
+        .filter((c): c is TextComponent => c instanceof TextComponent && groupId !== null && c.getGroupId() === groupId)
+        .map((t) => t.getText())
+        .join(' ');
+    };
+    const links = all.filter((c): c is Connector => c instanceof Connector);
+    const parentOf = (shape: Stroke) => {
+      const link = links.find((l) => l.getEnd().targetId === shape.getId());
+      const parent = link ? image.lookupElement(link.getStart().targetId ?? '') : null;
+      return parent && isTopic(parent) ? parent : null;
+    };
+    const childrenOf = (shape: Stroke) =>
+      links
+        .filter((l) => l.getStart().targetId === shape.getId())
+        .map((l) => image.lookupElement(l.getEnd().targetId ?? ''))
+        .filter((c): c is Stroke => c !== null && isTopic(c));
+
+    const path: string[] = [];
+    for (let node: Stroke | null = topic; node && path.length < 8; node = parentOf(node)) {
+      path.unshift(labelOf(node));
+    }
+    const existing = childrenOf(topic);
+    const count = Math.min(Math.max(options.count ?? 4, 1), 8);
+    const json = await this.requestJSON(
+      [
+        { role: 'system', content: expandMindMapPrompt },
+        {
+          role: 'user',
+          content:
+            `Path: ${path.join(' > ').slice(0, 1000)}\n` +
+            (existing.length > 0 ? `Existing sub-topics: ${existing.map(labelOf).join('; ').slice(0, 1000)}\n` : '') +
+            `Give ${count} sub-topics.`,
+        },
+      ],
+      options,
+    );
+    const labels: string[] = (Array.isArray(json?.children) ? json.children : Array.isArray(json?.ideas) ? json.ideas : [])
+      .map((child: any) => shortText(typeof child === 'string' ? child : child?.label, 80))
+      .filter((label: string) => label !== '')
+      .slice(0, count);
+    if (labels.length === 0) {
+      throw new AIError('The AI did not return any sub-topics.');
+    }
+
+    // Rebuild the tree of the whole mind map from the board, add the new topics, and lay it out
+    // again around its central topic (which doesn't move).
+    let root = topic;
+    for (let parent = parentOf(root), i = 0; parent && parent !== topic && i < 50; parent = parentOf(parent), i++) root = parent;
+    const rootDepth = Number(root.getMetadata().mindmap) || 0;
+    // The size of a screen pixel when the mind map was drawn.
+    const mapScale = (root.getBBox().h / this.mindMapNodeSize(labelOf(root), rootDepth, 1).height) || this.editor.viewport.getSizeOfPixelOnCanvas();
+
+    type TreeNode = MindMapNode & { shape?: Stroke; children: TreeNode[] };
+    const visited = new Set<Stroke>();
+    const treeOf = (shape: Stroke): TreeNode => {
+      visited.add(shape);
+      const children = childrenOf(shape)
+        .filter((child) => !visited.has(child))
+        .sort((a, b) => a.getBBox().center.y - b.getBBox().center.y)
+        .map(treeOf);
+      const side = shape.getMetadata().side;
+      return { label: labelOf(shape), shape, children, ...(side === 'left' || side === 'right' ? { side } : {}) };
+    };
+    const tree = treeOf(root);
+    const findNode = (node: TreeNode): TreeNode | undefined => node.shape === topic ? node : node.children.map(findNode).find((n) => n);
+    const target = findNode(tree)!;
+
+    const rootSide = root.getMetadata().side === 'left' ? 'left' : 'right';
+    const newNodes: TreeNode[] = labels.map((label) => ({ label, children: [] }));
+    if (target === tree) {
+      // New branches go to the side with fewer topics.
+      const weight = (node: MindMapNode): number => 1 + (node.children ?? []).reduce((sum, child) => sum + weight(child), 0);
+      for (const node of newNodes) {
+        const right = tree.children.filter((c) => (c.side ?? rootSide) === 'right').reduce((sum, c) => sum + weight(c), 0);
+        const left = tree.children.filter((c) => (c.side ?? rootSide) === 'left').reduce((sum, c) => sum + weight(c), 0);
+        node.side = rootDepth > 0 ? rootSide : right <= left ? 'right' : 'left';
+        tree.children.push(node);
+      }
+    } else {
+      target.children.push(...newNodes);
+    }
+    // A detached part of a mind map stays on its side.
+    if (rootDepth > 0) {
+      for (const branch of tree.children) branch.side = rootSide;
+    }
+
+    const layout = layoutMindMap(
+      tree,
+      (node, d) => {
+        const shape = (node as TreeNode).shape;
+        return shape ? { width: shape.getBBox().w, height: shape.getBBox().h } : this.mindMapNodeSize(node.label, d + rootDepth, mapScale);
+      },
+      { levelGap: 56 * mapScale, siblingGap: 14 * mapScale },
+    );
+
+    const origin = root.getBBox().center;
+    const moves: Command[] = [];
+    const created: AbstractComponent[] = [];
+    const shapes = new Map<MindMapNode, Stroke>();
+    const colorOf = new Map<MindMapNode, AIColorName>();
+    const nextBranchColor = () =>
+      mindMapColors[(tree.children.length - newNodes.length + created.filter((c) => c instanceof Connector).length) % mindMapColors.length];
+    for (const placed of layout) {
+      const node = placed.node as TreeNode;
+      const center = origin.plus(Vec2.of(placed.x, placed.y));
+      if (node.shape) {
+        shapes.set(node, node.shape);
+        colorOf.set(node, oneOf(node.shape.getMetadata().color, colorNames, 'blue'));
+        const delta = center.minus(node.shape.getBBox().center);
+        if (delta.magnitude() > 1e-6 * mapScale) {
+          const groupId = node.shape.getGroupId();
+          const parts = groupId === null ? [node.shape] : all.filter((c) => c.getGroupId() === groupId);
+          moves.push(...parts.map((part) => part.transformBy(Mat33.translation(delta))));
+        }
+        continue;
+      }
+      const parent = layout[placed.parent].node;
+      const color = placed.depth + rootDepth === 1 ? nextBranchColor() : (colorOf.get(parent) ?? 'blue');
+      colorOf.set(node, color);
+      const { components, shape } = this.buildMindMapNode(node.label, placed.depth + rootDepth, center, color, placed.side, mapScale);
+      created.push(...components, this.mindMapLink(shapes.get(parent)!, shape, color, placed.depth + rootDepth, mapScale));
+      shapes.set(node, shape);
+    }
+
+    await this.addAndShow(created, [], [], moves);
+    return newNodes.map((node) => shapes.get(node)!);
+  }
+
+  private mindMapNodeSize(label: string, depth: number, scale = this.editor.viewport.getSizeOfPixelOnCanvas()) {
+    const style = this.mindMapTextStyle(depth, scale);
+    const lines = wrapText(label, style, (depth === 0 ? 300 : 190) * scale);
+    const textWidth = Math.max(...lines.map((line) => TextComponent.measureTextWidth(line, style)));
+    const padding = (depth === 0 ? 26 : depth === 1 ? 18 : 12) * scale;
+    return {
+      width: textWidth + padding * 2,
+      height: lines.length * style.size * 1.25 + padding * (depth === 0 ? 1.1 : 0.9),
+    };
+  }
+
+  private mindMapTextStyle(depth: number, scale: number): TextRenderingStyle {
+    return {
+      size: (depth === 0 ? 22 : depth === 1 ? 17 : 15) * scale,
+      fontFamily: this.fontFamily,
+      ...(depth <= 1 ? { fontWeight: 'bold' } : {}),
+      renderingStyle: { fill: Color4.fromHex(depth === 0 ? '#ffffff' : '#1f2937') },
+    };
+  }
+
+  // A topic: a rounded box with its text, grouped.
+  private buildMindMapNode(
+    label: string,
+    depth: number,
+    center: IVec2,
+    color: AIColorName,
+    side: number,
+    scale = this.editor.viewport.getSizeOfPixelOnCanvas(),
+  ) {
+    const style = this.mindMapTextStyle(depth, scale);
+    const { width, height } = this.mindMapNodeSize(label, depth, scale);
+    const colors = shapeColors[color];
+    const fill = depth === 0 ? '#1e293b' : depth === 1 ? colors.fill : '#ffffff';
+    const border = depth === 0 ? '#1e293b' : colors.border;
+    const shape = this.shapeStroke([
+      pathToRenderable(nodePath(depth === 0 ? 'terminal' : 'process', width, height).transformedBy(Mat33.translation(center)), {
+        fill: Color4.fromHex(fill),
+        stroke: { color: Color4.fromHex(border), width: (depth <= 1 ? 2.5 : 1.5) * scale },
+      }),
+    ]);
+    const groupId = `group-${shape.getId()}`;
+    shape.setGroupDirectly(groupId);
+    shape.setMetadata({ ...shape.getMetadata(), mindmap: String(depth), color, ...(side !== 0 ? { side: side < 0 ? 'left' : 'right' } : {}) });
+
+    const components: AbstractComponent[] = [shape];
+    const lines = wrapText(label, style, (depth === 0 ? 300 : 190) * scale);
+    const lineHeight = style.size * 1.25;
+    const textTop = center.y - (lines.length * lineHeight) / 2;
+    for (const [i, line] of lines.entries()) {
+      const lineWidth = TextComponent.measureTextWidth(line, style);
+      const baseline = textTop + (i + 1) * lineHeight - (lineHeight - style.size) / 2 - style.size * 0.18;
+      const text = TextComponent.fromLines([line], Mat33.translation(Vec2.of(center.x - lineWidth / 2, baseline)), style);
+      text.setGroupDirectly(groupId);
+      components.push(text);
+    }
+    return { components, shape };
+  }
+
+  private mindMapLink(from: Stroke, to: Stroke, color: AIColorName, depth: number, scale = this.editor.viewport.getSizeOfPixelOnCanvas()) {
+    return new Connector(
+      { point: from.getBBox().center, targetId: from.getId() },
+      { point: to.getBBox().center, targetId: to.getId() },
+      { color: Color4.fromHex(shapeColors[color].border), thickness: (depth === 1 ? 3 : 2) * scale, arrow: 'none', sketch: !!this.sketch },
+    );
+  }
+
+  /**
+   * Turns source code or SQL into a diagram: an entity-relationship diagram for SQL tables,
+   * a class diagram for classes and types, or a flowchart of the logic for other code.
+   */
+  public async diagramFromCode(code: string, options: AIOptions = {}): Promise<Diagram> {
+    const json = await this.requestJSONWithPreview(
+      [
+        { role: 'system', content: codeDiagramPrompt },
+        { role: 'user', content: code.slice(0, 12000) },
+      ],
+      options,
+      validateDiagram,
+      (diagram, ignore) => this.buildDiagram(diagram, this.editor.viewport.visibleRect.center, ignore),
+    );
+    const diagram = validateDiagram(json);
+    await this.drawDiagram(diagram);
+    return diagram;
+  }
+
+  /**
+   * Asks the AI for a chart (bar, line or pie) of the data or description in `prompt`
+   * (e.g. "revenue Q1–Q4: 10, 20, 15, 30", or pasted table data) and draws it.
+   */
+  public async generateChart(prompt: string, options: AIOptions = {}): Promise<Chart> {
+    const json = await this.requestJSONWithPreview(
+      [
+        { role: 'system', content: chartPrompt },
+        { role: 'user', content: prompt.slice(0, 8000) },
+      ],
+      options,
+      validateChart,
+      (chart, ignore) => this.buildChartComponents(chart, ignore),
+    );
+    const chart = validateChart(json);
+    await this.drawChart(chart);
+    return chart;
+  }
+
+  /**
+   * Draws a chart (as returned by {@link generateChart}) next to what is already drawn.
+   * The chart is made of normal shapes and text, grouped.
+   */
+  public async drawChart(chart: Chart) {
+    await this.addAndShow(this.buildChartComponents(chart, new Set()));
+  }
+
+  // Creates the components of a chart, grouped (not added to the image).
+  private buildChartComponents(chart: Chart, ignore: Set<AbstractComponent>) {
+    const editor = this.editor;
+    const scale = editor.viewport.getSizeOfPixelOnCanvas();
+    const { size } = buildChart(chart, Vec2.zero, scale);
+    const box = new Rect2(-size.x / 2, -size.y / 2, size.x, size.y);
+    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, ignore);
+    const { components } = buildChart(chart, Vec2.ofXY(center).minus(size.times(0.5)), scale);
+
+    const groupId = `group-${components[0]?.getId()}`;
+    for (const component of components) {
+      component.setGroupDirectly(groupId);
+    }
+    components[0]?.setMetadata({ chart: chart.type });
+    return components;
+  }
+
+  /**
+   * Asks the AI to draw an illustration or icon described by `prompt` (e.g. "a cat reading a
+   * book", "database icon"), as editable shapes, next to what is already drawn.
+   *
+   * @returns the new strokes.
+   */
+  public async generateIllustration(prompt: string, options: AIOptions & { size?: number } = {}): Promise<Stroke[]> {
+    const answer = await this.requestText(
+      [
+        { role: 'system', content: illustrationPrompt },
+        { role: 'user', content: prompt.slice(0, 2000) },
+      ],
+      options,
+    );
+    const svg = answer.match(/<svg[\S\s]*<\/svg>/i)?.[0];
+    if (!svg) {
+      throw new AIError('The AI answer does not contain an SVG image.');
+    }
+
+    const strokes = svgToStrokes(svg).slice(0, 400);
+    if (strokes.length === 0) {
+      throw new AIError('The SVG from the AI has nothing that can be drawn.');
+    }
+
+    // Scale to `size` screen pixels, next to the rest of the drawing.
+    const editor = this.editor;
+    const bbox = Rect2.union(...strokes.map((s) => s.getBBox()));
+    const targetSize = (options.size ?? 260) * editor.viewport.getSizeOfPixelOnCanvas();
+    const factor = targetSize / Math.max(bbox.w, bbox.h, 1e-6);
+    const box = new Rect2((-bbox.w * factor) / 2, (-bbox.h * factor) / 2, bbox.w * factor, bbox.h * factor);
+    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, new Set());
+    const transform = Mat33.translation(Vec2.ofXY(center))
+      .rightMul(Mat33.scaling2D(factor))
+      .rightMul(Mat33.translation(bbox.center.times(-1)));
+
+    const placed = strokes.map((stroke) => stroke.transformedPreview(transform) as Stroke);
+    const groupId = `group-${placed[0].getId()}`;
+    for (const stroke of placed) {
+      stroke.setGroupDirectly(groupId);
+    }
+    placed[0].setMetadata({ illustration: prompt.slice(0, 80) });
+    await this.addAndShow(placed);
+    return placed;
+  }
+
+  /**
    * Reads a diagram from `components` (by default the selection, or everything): diagrams
    * drawn by {@link drawDiagram}, and hand-made ones — shapes with text inside, sticky notes,
    * connectors, and arrows/lines drawn between two shapes.
@@ -569,17 +1202,27 @@ export default class EditorAI {
 
     // Nodes: shapes made by drawDiagram, shapes with text or attached connectors, notes, and
     // texts with attached connectors. Other strokes may be hand-drawn arrows (see below).
-    type NodeSource = { component: AbstractComponent; label: string; meta: Readonly<Record<string, string>> };
+    type NodeSource = {
+      component: AbstractComponent;
+      label: string;
+      details?: string[];
+      meta: Readonly<Record<string, string>>;
+    };
     const sources: NodeSource[] = [];
     const nodeOf = new Map<AbstractComponent, number>();
-    const addNode = (component: AbstractComponent, label: string) => {
+    const addNode = (component: AbstractComponent, label: string, details?: string[]) => {
       nodeOf.set(component, sources.length);
-      sources.push({ component, label, meta: component.getMetadata() });
+      sources.push({ component, label, details, meta: component.getMetadata() });
     };
     for (const stroke of strokes) {
       const labels = labelsOf.get(stroke)!;
       if (stroke.getMetadata().diagramNode || labels.length > 0 || connectedIds.has(stroke.getId())) {
-        addNode(stroke, labels.map((t) => t.getText()).join(' '));
+        if (stroke.getMetadata().kind === 'entity') {
+          // Title, then one text per detail line.
+          addNode(stroke, labels[0]?.getText() ?? '', labels.slice(1).map((t) => t.getText()));
+        } else {
+          addNode(stroke, labels.map((t) => t.getText()).join(' '));
+        }
         for (const label of labels) nodeOf.set(label, nodeOf.get(stroke)!);
       }
     }
@@ -593,6 +1236,13 @@ export default class EditorAI {
     if (sources.length === 0) return null;
 
     const parts = new Set<AbstractComponent>(nodeOf.keys());
+    // Everything grouped with a node (e.g. the line under the title of an entity) is part of it.
+    const nodeGroups = new Set<string | null>(sources.map((s) => s.component.getGroupId()).filter((g) => g !== null));
+    for (const component of all) {
+      if (component.getGroupId() !== null && nodeGroups.has(component.getGroupId()) && !(component instanceof Connector)) {
+        parts.add(component);
+      }
+    }
     const edges: DiagramEdge[] = [];
     const edgeKeys = new Set<string>();
     const addEdge = (from: number | undefined, to: number | undefined, label?: string) => {
@@ -637,11 +1287,12 @@ export default class EditorAI {
       }
     }
 
-    const nodes: DiagramNode[] = sources.map(({ label, meta }, i) => ({
+    const nodes: DiagramNode[] = sources.map(({ label, details, meta }, i) => ({
       id: `n${i + 1}`,
       label: shortText(label, 80) || '…',
       kind: oneOf(meta.kind, nodeKinds, label.trim().endsWith('?') ? 'decision' : 'process'),
       color: meta.color ? oneOf(meta.color, colorNames, 'blue') : undefined,
+      ...(details ? { details } : {}),
     }));
 
     // Direction: from the metadata, or from how the nodes are laid out.
@@ -765,7 +1416,7 @@ export default class EditorAI {
         new Connector(
           { point: sourceBox.center, targetId: source.getId() },
           { point: center, targetId: note.getId() },
-          { color: Color4.fromHex('#9ca3af'), thickness, arrow: 'none' },
+          { color: Color4.fromHex('#9ca3af'), thickness, arrow: 'none', sketch: !!this.sketch },
         ),
       );
     }
@@ -798,7 +1449,7 @@ export default class EditorAI {
       const result: Record<string, unknown> = { ...item, id: shortIdOf.get(component) };
       for (const key of ['from', 'to'] as const) {
         if (typeof item[key] === 'string') {
-          const target = editor.image.lookupElement(item[key] as string);
+          const target = editor.image.lookupElement(item[key]);
           result[key] = target ? shortIdOf.get(target) : undefined;
         }
       }
@@ -880,6 +1531,11 @@ export default class EditorAI {
           if (typeof action.instruction !== 'string') continue;
           await this.editDiagram(action.instruction, options);
           break;
+        case 'mindMap':
+          if (typeof action.topic !== 'string') continue;
+          await this.generateMindMap(action.topic, options);
+          break;
+        case 'expandMindMap': await this.expandMindMap(options); break;
         case 'brainstorm': await this.brainstorm(options); break;
         case 'organizeNotes': await this.organizeNotes(options); break;
         default:
@@ -958,7 +1614,7 @@ export default class EditorAI {
       const title = TextComponent.fromLines(
         [group.title],
         Mat33.translation(Vec2.of(left, origin.y + titleSize)),
-        { size: titleSize, fontFamily: 'sans-serif', fontWeight: 'bold', renderingStyle: { fill: Color4.fromHex('#1f2937') } },
+        { size: titleSize, fontFamily: this.fontFamily, fontWeight: 'bold', renderingStyle: { fill: Color4.fromHex('#1f2937') } },
       );
       title.setGroupDirectly(groupId);
       titles.push(title);

@@ -27,6 +27,7 @@ export interface CommandLocalization {
   lockedElements: (count: number) => string;
   unlockedElements: (count: number) => string;
   editedNoteText: string;
+  editedConnectorLabel: string;
   groupedElements: string;
   ungroupedElements: string;
 }
@@ -63,6 +64,7 @@ export const defaultCommandLocalization: CommandLocalization = {
   lockedElements: (count) => `Locked ${count} element${count === 1 ? '' : 's'}`,
   unlockedElements: (count) => `Unlocked ${count} element${count === 1 ? '' : 's'}`,
   editedNoteText: 'Edited note',
+  editedConnectorLabel: 'Edited arrow label',
   groupedElements: 'Grouped',
   ungroupedElements: 'Ungrouped',
 };

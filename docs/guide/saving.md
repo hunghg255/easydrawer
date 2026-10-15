@@ -47,7 +47,7 @@ The simplest way: restore the last drawing (if any) and keep saving it to `local
 const stopAutosave = await editor.autosave({ key: 'my-drawing' });
 ```
 
-Options: `key` (default `'easydrawer'`), `delay` in ms (default `400`), and `storage` (any object with
+Options: `key` (default `'easydrawer'`), `delay` in ms (default `1000`), and `storage` (any object with
 `getItem`/`setItem`, e.g. `sessionStorage`).
 
 To save somewhere else, use `onChange`, which is called after every change (draw, erase, undo, redo…):
@@ -60,6 +60,19 @@ editor.onChange(() => {
   timeout = setTimeout(() => localStorage.setItem('drawing', editor.toSVGString()), 500);
 });
 ```
+
+## Parts of the drawing
+
+```ts
+// A frame (a named area, see Frames & presenting) as an image
+const png = editor.frames.toDataURL(0, { pixelRatio: 2 });
+
+// A diagram as Mermaid text, for GitHub, Notion, Obsidian…
+const mermaid = editor.ai.toMermaid(); // the selected diagram, or the whole drawing
+await editor.ai.drawMermaid(mermaid!); // and back
+```
+
+See [Frames & presenting](./frames) and [Mermaid](./ai#mermaid-no-ai-needed).
 
 ## Images
 

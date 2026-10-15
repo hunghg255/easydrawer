@@ -8,7 +8,9 @@ import ToPointerAutoscroller from './ToPointerAutoscroller';
 import { SelectionMode } from './types';
 import showSelectionContextMenu from './util/showSelectionContextMenu';
 import type AbstractComponent from '../../components/AbstractComponent';
+import Connector from '../../components/Connector';
 import StickyNote from '../../components/StickyNote';
+import Stroke from '../../components/Stroke';
 import TextComponent from '../../components/TextComponent';
 import type Editor from '../../Editor';
 import {
@@ -25,8 +27,7 @@ import { EditorEventType } from '../../types';
 import { MutableReactiveValue } from '../../util/ReactiveValue';
 import Viewport from '../../Viewport';
 import BaseTool from '../BaseTool';
-import type StickyNoteTool from '../StickyNoteTool';
-import type TextTool from '../TextTool';
+import type ConnectorTool from '../ConnectorTool';
 import {
   duplicateSelectionShortcut,
   groupSelectionShortcut,
@@ -46,7 +47,12 @@ import {
   stretchYSelectionShortcutId,
   stretchXYSelectionShortcutId,
   shrinkXYSelectionShortcutId,
+  addConnectedShortcutIds,
+  selectConnectedShortcutIds,
+  editTextShortcutId,
 } from '../keybindings';
+import type StickyNoteTool from '../StickyNoteTool';
+import type TextTool from '../TextTool';
 
 export const cssPrefix = 'selection-tool-';
 
@@ -182,10 +188,8 @@ export default class SelectionTool extends BaseTool {
       current = current.snappedToGrid(this.editor.viewport);
     }
 
-    // Double click/tap on a sticky note or text: edit it.
-    if (allPointers.length === 1 && this.isDoubleTap(current) && this.editTextAt(current.canvasPos)) {
-      return false;
-    }
+    // For double clicks/taps (see onPointerUp).
+    this.tapStart = allPointers.length === 1 ? { time: Date.now(), screenPos: current.screenPos } : null;
 
     // Don't rely on .isPrimary -- it's buggy in Firefox. See https://github.com/personalizedrefrigerator/easydrawer/issues/71
     if (allPointers.length === 1) {
@@ -231,40 +235,104 @@ export default class SelectionTool extends BaseTool {
     return false;
   }
 
+  private tapStart: { time: number; screenPos: IVec2 } | null = null;
   private lastTap: { time: number; screenPos: IVec2 } | null = null;
 
+  // Whether the gesture that ends with `pointer` is the second of two quick taps/clicks in the
+  // same place. Pressing again to drag what was just selected is not a double tap.
   private isDoubleTap(pointer: Pointer) {
     const now = Date.now();
+    const start = this.tapStart;
+    this.tapStart = null;
+    const isTap = !!start && now - start.time < 350 && pointer.screenPos.distanceTo(start.screenPos) < 6;
+    if (!isTap) {
+      this.lastTap = null;
+      return false;
+    }
     const last = this.lastTap;
-    const isDouble = !!last && now - last.time < 400 && pointer.screenPos.distanceTo(last.screenPos) < 12;
+    const isDouble = !!last && start.time - last.time < 450 && pointer.screenPos.distanceTo(last.screenPos) < 12;
     this.lastTap = isDouble ? null : { time: now, screenPos: pointer.screenPos };
     return isDouble;
   }
 
-  /** Opens the editor of the sticky note or text at `canvasPos`, if any. */
-  private editTextAt(canvasPos: IVec2): boolean {
-    const radius = this.editor.viewport.getSizeOfPixelOnCanvas() * 4;
-    const region = Rect2.fromCorners(canvasPos.minus(Vec2.of(radius, radius)), canvasPos.plus(Vec2.of(radius, radius)));
-    const target = this.editor.image
-      .getComponentsIntersecting(region)
-      .findLast((c) => (c instanceof StickyNote || c instanceof TextComponent) && c.isEditable());
-    if (!target) return false;
-
+  /**
+   * Edits the text of `component`: the text of a sticky note or text, the label of an arrow,
+   * or the text of a shape (the text grouped with it, or a new one centered in it).
+   *
+   * @returns whether there was something to edit.
+   */
+  public editTextOf(component: AbstractComponent): boolean {
     const toolController = this.editor.toolController;
-    if (target instanceof StickyNote) {
+    // Later: enabled during a pointer event, the text tool would also receive it (and start a new text).
+    const withTextTool = (action: (tool: TextTool) => void) => {
+      const textTool = toolController.getToolByName('text') as TextTool | null;
+      if (!textTool) return false;
+      this.clearSelection();
+      setTimeout(() => {
+        textTool.setEnabled(true);
+        action(textTool);
+      }, 0);
+      return true;
+    };
+
+    if (component instanceof StickyNote) {
       const stickyTool = toolController.getToolByName('sticky') as StickyNoteTool | null;
       if (!stickyTool) return false;
       this.clearSelection();
-      stickyTool.edit(target);
+      stickyTool.edit(component);
       return true;
     }
+    if (component instanceof TextComponent) {
+      return withTextTool((tool) => tool.editText(component));
+    }
+    if (component instanceof Connector) {
+      const connectorTool = toolController.getToolByName('connector') as ConnectorTool | null;
+      if (!connectorTool) return false;
+      this.clearSelection();
+      connectorTool.editLabel(component);
+      return true;
+    }
+    // Frames are renamed with their title.
+    if (component instanceof Stroke && component.getMetadata().frame === undefined) {
+      const groupId = component.getGroupId();
+      const groupText =
+        groupId === null
+          ? undefined
+          : this.editor.image.getAllComponents().find((c): c is TextComponent => c instanceof TextComponent && c.getGroupId() === groupId);
+      return withTextTool((tool) => {
+        if (groupText) tool.editText(groupText);
+        else tool.addTextIn(component);
+        // Then the shape (with its text) is selected again, e.g. to add the next shape of a
+        // flowchart with Ctrl/⌘ + arrow keys.
+        tool.whenEditingDone(() => {
+          if (!this.editor.image.findParent(component)) return;
+          const id = component.getGroupId();
+          this.editor.selection.set(id === null ? [component] : this.editor.image.getAllComponents().filter((c) => c.getGroupId() === id));
+        });
+      });
+    }
+    return false;
+  }
 
-    const textTool = toolController.getToolByName('text') as TextTool | null;
-    if (!textTool) return false;
-    this.clearSelection();
-    textTool.setEnabled(true);
-    textTool.editText(target as TextComponent);
-    return true;
+  // Double click/tap: edits the note, text, arrow label or shape text at `canvasPos`.
+  private editTextAt(canvasPos: IVec2): boolean {
+    const radius = this.editor.viewport.getSizeOfPixelOnCanvas() * 4;
+    const region = Rect2.fromCorners(canvasPos.minus(Vec2.of(radius, radius)), canvasPos.plus(Vec2.of(radius, radius)));
+    const nearby = this.editor.image.getComponentsIntersecting(region).filter((c) => c.isEditable());
+    const minSize = this.editor.viewport.getSizeOfPixelOnCanvas() * 20;
+
+    const target =
+      nearby.findLast((c) => c instanceof StickyNote || c instanceof TextComponent) ??
+      nearby.findLast((c) => c instanceof Connector && c.intersectsRect(region)) ??
+      nearby.findLast(
+        (c) =>
+          c instanceof Stroke &&
+          c.getMetadata().frame === undefined &&
+          c.getBBox().containsPoint(canvasPos) &&
+          c.getBBox().w > minSize &&
+          c.getBBox().h > minSize,
+      );
+    return target ? this.editTextOf(target) : false;
   }
 
   public override onPointerMove(event: PointerEvt): void {
@@ -327,9 +395,15 @@ export default class SelectionTool extends BaseTool {
     this.removeSelectionScheduled = false;
     this.selectionBoxHandlingEvt = false;
     this.lastPointer = null;
+
+    // Double click/tap: edit the text of what is under the pointer.
+    if (event.allPointers.length <= 1 && this.isDoubleTap(event.current)) {
+      this.editTextAt(event.current.canvasPos);
+    }
   }
 
   public override onGestureCancel(): void {
+    this.tapStart = null;
     if (this.selectionBuilder) {
       this.selectionBuilder = null;
       this.editor.clearWetInk();
@@ -429,7 +503,23 @@ export default class SelectionTool extends BaseTool {
     } else if (this.selectionBox && shortcucts.matchesShortcut(groupSelectionShortcut, event)) {
       void this.editor.selection.group();
       return true;
-    } else if (event.ctrlKey) {
+    } else if (this.selectionBox && shortcucts.matchesShortcut(editTextShortcutId, event)) {
+      return this.editor.selection.editText();
+    }
+
+    if (this.selectionBox) {
+      for (const direction of ['right', 'down', 'left', 'up'] as const) {
+        if (shortcucts.matchesShortcut(addConnectedShortcutIds[direction], event)) {
+          void this.editor.selection.addConnected(direction);
+          return true;
+        }
+        if (shortcucts.matchesShortcut(selectConnectedShortcutIds[direction], event)) {
+          return this.editor.selection.selectConnected(direction) !== null;
+        }
+      }
+    }
+
+    if (event.ctrlKey) {
       // Don't transform the selection with, for example, ctrl+i.
       // Pass it to another tool, if apliccable.
       return false;

@@ -66,11 +66,20 @@ editor.selection.lock(); editor.selection.unlockAll(); // locked = can't be sele
 editor.selection.group(); editor.selection.ungroup();  // Ctrl/⌘+G, Ctrl/⌘+Shift+G
 editor.selection.align('left');                        // 'center' | 'right' | 'top' | 'middle' | 'bottom'
 editor.selection.distribute('horizontal');             // or 'vertical'
-// Double-click a note/text with the select tool to edit it. Dragged selections snap to nearby objects.
+// Flowcharts: editor.selection.addConnected('right' | 'down' | 'left' | 'up') (Ctrl/⌘+arrows), selectConnected(dir) (Alt+arrows), Enter edits text
+// Hand-drawn style: tools.configure('shape' | 'connector', { sketch: true }); editor.ai.setSketch(true); sketchPath(path, style)
+// Frames (slides): editor.frames.add({ title }) / addAroundSelection() / list() / goTo(i) / toDataURL(i)
+// Double-click with the select tool: edit a note/text, an arrow's label, or a shape's text (editor.selection.editText()).
+// connector.setLabel('yes') → command. Hand-drawn boxes + text + connectors are diagrams like AI-made ones. Dragged selections snap to nearby objects.
 
 // AI (needs settings.ai.request: a function calling YOUR server, never an API key in the browser)
 await editor.ai.generateDiagram('Login flow: …');      // shapes + text + attached arrows, one undo step
 await editor.ai.drawDiagram({ direction: 'down', nodes: [{ id, label, kind: 'process' }], edges: [{ from, to, label }] });
+await editor.ai.generateMindMap('topic'); await editor.ai.expandMindMap(); // grows the selected topic
+await editor.ai.drawMermaid(text); editor.ai.toMermaid();  // flowchart / erDiagram / classDiagram, no AI
+await editor.ai.diagramFromCode(sqlOrCode);              // SQL → ER diagram (kind 'entity' + details), classes, flowchart
+await editor.ai.generateChart('…'); editor.ai.drawChart({ type: 'bar', title, labels, series: [{ name, values }] });
+await editor.ai.generateIllustration('…');             // SVG from the model → editable strokes (svgToStrokes)
 await editor.ai.editDiagram('add a step …');          // change the selected diagram, AI-made or hand-drawn (readDiagram())
 await editor.ai.editSelection('…');                    // edits a selected diagram, else runs a command
 await editor.ai.brainstorm();                          // ideas as notes around the selected note
@@ -78,6 +87,8 @@ await editor.ai.organizeNotes();                       // sticky notes → theme
 await editor.ai.runCommand('color the notes about X in blue'); // → { message, actions }
 editor.ai.describeScene(); await editor.ai.requestJSON(messages); // build custom AI features
 // Server helper: openAICompatibleRequest({ url, model, apiKey }) for OpenAI/OpenRouter/Groq/Ollama…
+// Streaming (diagrams/mind maps/charts drawn while the answer arrives): request: ({ messages, signal, onText }) =>
+//   fetch with { stream: !!onText }, then `return readTextStream(response, onText)` (SSE or plain text). { stream: false } turns it off.
 
 // History & document
 editor.undo(); editor.redo();

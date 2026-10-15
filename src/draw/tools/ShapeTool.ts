@@ -10,11 +10,13 @@ import StationaryPenDetector, {
 import type AbstractComponent from '../components/AbstractComponent';
 import { makeFreehandLineBuilder } from '../components/builders/FreehandLineBuilder';
 import { type ComponentBuilder, type ComponentBuilderFactory } from '../components/builders/types';
+import Stroke from '../components/Stroke';
 import type Editor from '../Editor';
 import EditorImage from '../image/EditorImage';
 import { type KeyPressEvent, type PointerEvt } from '../inputEvents';
 import type Pointer from '../Pointer';
 import { PointerDevice } from '../Pointer';
+import { newSketchSeed, sketchParts, sketchSourceOf, type SketchOptions } from '../rendering/sketch';
 import { EditorEventType, type StrokeDataPoint } from '../types';
 import { type MutableReactiveValue, ReactiveValue } from '../util/ReactiveValue';
 
@@ -260,6 +262,18 @@ export default class ShapeTool extends BaseTool {
     this.previewStroke();
   }
 
+  private sketch: SketchOptions | null = null;
+
+  /** Draws new shapes in a hand-drawn style (like Excalidraw), or not (`null`). */
+  public setSketch(sketch: SketchOptions | boolean | null) {
+    this.sketch = sketch === true ? {} : sketch || null;
+    this.noteUpdated();
+  }
+
+  public getSketch(): SketchOptions | null {
+    return this.sketch;
+  }
+
   private finalizeStroke() {
     if (this.builder) {
       // If autocorrectedShape was cleared recently enough, it was
@@ -268,7 +282,14 @@ export default class ShapeTool extends BaseTool {
         this.autocorrectedShape = this.lastAutocorrectedShape;
       }
 
-      const stroke = this.autocorrectedShape ?? this.builder.build();
+      let stroke = this.autocorrectedShape ?? this.builder.build();
+      if (this.sketch && stroke instanceof Stroke) {
+        const options = { ...this.sketch, scale: this.editor.viewport.getSizeOfPixelOnCanvas(), seed: newSketchSeed() };
+        const clean = stroke.getParts();
+        stroke = new Stroke(sketchParts(clean, options));
+        // To draw it again when it's resized (see Stroke).
+        stroke.setMetadata({ sketch: '1', sketchSource: sketchSourceOf(clean, options) });
+      }
       this.previewStroke();
 
       if (stroke.getBBox().area > 0) {
@@ -278,7 +299,9 @@ export default class ShapeTool extends BaseTool {
           );
         }
 
-        const canFlatten = true;
+        // Flattening copies the preview to the drawing: not for hand-drawn shapes, whose
+        // preview isn't hand-drawn.
+        const canFlatten = !this.sketch;
         const action = EditorImage.addComponent(stroke, canFlatten);
         this.editor.dispatch(action);
       } else {

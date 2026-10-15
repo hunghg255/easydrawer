@@ -144,6 +144,9 @@ await editor.ai.organizeNotes(); // sort sticky notes into themed columns
 await editor.ai.runCommand('Color the notes about marketing in blue'); // anything, in plain language
 ```
 
+Diagrams, mind maps and charts are drawn step by step while the answer arrives when the request handler streams it
+(`onText` + `readTextStream(response, onText)`) — see [Streaming](https://easydrawer.vercel.app/guide/ai#streaming).
+
 ## Natural ink
 
 The default pen (`style: 'natural'`) is designed to feel like real ink:
@@ -185,6 +188,13 @@ editor.tools.configure('pen', { style: brush });
   ```
   and make your toolbar buttons at least 44×44 px on touch screens (`@media (pointer: coarse)`), as the
   [playground](./docs/.vitepress/theme/components/Playground.vue) does.
+
+## Performance
+
+Big boards stay smooth: a dragged, resized or rotated selection is drawn as one bitmap until it's dropped,
+connectors follow it live (elbow routes are cached and updated when the browser is idle), hand-drawn shapes are only
+redrawn when resized, and autosave waits for idle time. See the [performance guide](https://easydrawer.vercel.app/guide/performance)
+for tips for your own code.
 
 ## Project structure
 

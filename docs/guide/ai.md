@@ -18,7 +18,9 @@ EasyDrawer can ask a language model to draw for you:
   selected shapes and group them", "what is missing in this flowchart?". In the playground: <kbd>Ctrl/⌘ K</kbd>.
 
 Everything the AI adds or moves is a single step in the undo history, and is made of normal shapes, text,
-notes and connectors that you can keep editing. Try it in the [playground](/playground) (the ✨ **AI** button).
+notes and connectors that you can keep editing. Diagrams, mind maps and charts are [drawn step by step while the
+answer arrives](#streaming) when your server streams it. Try it in the [playground](/playground) (the ✨ **AI**
+button).
 
 ## Setup
 
@@ -71,6 +73,62 @@ export async function POST(req: Request) {
 ```
 
 The playground's own function is in [`api/ai.js`](https://github.com/hunghg255/easydrawer/blob/main/api/ai.js).
+
+## Streaming: drawn while the answer arrives {#streaming}
+
+Models take a few seconds (sometimes more) to write a whole diagram. If the answer is **streamed**,
+`generateDiagram`, `diagramFromCode`, `generateMindMap` and `generateChart` draw it step by step: the shapes appear
+as soon as they are written, then the arrows, and a mind map grows branch by branch. The preview isn't part of the
+drawing or of the undo history; at the end it's replaced by the finished result (one undo step, selected).
+Streaming also avoids server timeouts with slow models, since data keeps arriving.
+
+The request handler gets an `onText` callback when the answer can be streamed: call it with **all the text so
+far** each time more arrives, and still return the whole text at the end. `readTextStream(response, onText)` does
+that for a `fetch` response, reading either plain text chunks or the server-sent events of an OpenAI-compatible
+API:
+
+```ts
+import { readTextStream } from 'easydrawer';
+
+const editor = new Editor(element, {
+  ai: {
+    request: async ({ messages, signal, onText }) => {
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, stream: !!onText }),
+        signal,
+      });
+      if (!response.ok) throw new Error((await response.json()).error);
+      if (onText && response.body) return readTextStream(response, onText);
+      return (await response.json()).content;
+    },
+  },
+});
+```
+
+On the server, ask the API for a stream (`"stream": true`) and pass its body on:
+
+```ts
+export async function POST(req: Request) {
+  const { messages, stream } = await req.json();
+  // Validate `messages` first.
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: process.env.OPENROUTER_MODEL, messages, stream }),
+  });
+  if (stream && response.ok) {
+    return new Response(response.body, { headers: { 'Content-Type': 'text/event-stream' } });
+  }
+  const data = await response.json();
+  return Response.json({ content: data.choices?.[0]?.message?.content });
+}
+```
+
+`openAICompatibleRequest` streams by itself when it's given `onText`. Handlers that ignore `onText` keep working:
+the result is drawn at the end. To turn the preview off for one call, pass `{ stream: false }`:
+`editor.ai.generateDiagram(prompt, { stream: false })`.
 
 ## Text → diagram
 
@@ -247,8 +305,9 @@ const answer = await editor.ai.requestJSON([
 ]);
 ```
 
-All methods accept `{ signal }` (an `AbortSignal`) to cancel, and throw `AIError` when the AI isn't
-configured, fails, or gives an unusable answer.
+All methods accept `{ signal }` (an `AbortSignal`) to cancel (a preview being drawn is removed), and throw
+`AIError` when the AI isn't configured, fails, or gives an unusable answer. For your own streamed features,
+`parsePartialAIJSON(text)` reads the complete part of a JSON answer that is still arriving.
 
 ## Choosing a model
 

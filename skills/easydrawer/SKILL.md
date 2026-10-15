@@ -87,6 +87,8 @@ await editor.ai.organizeNotes();                       // sticky notes → theme
 await editor.ai.runCommand('color the notes about X in blue'); // → { message, actions }
 editor.ai.describeScene(); await editor.ai.requestJSON(messages); // build custom AI features
 // Server helper: openAICompatibleRequest({ url, model, apiKey }) for OpenAI/OpenRouter/Groq/Ollama…
+// Streaming (diagrams/mind maps/charts drawn while the answer arrives): request: ({ messages, signal, onText }) =>
+//   fetch with { stream: !!onText }, then `return readTextStream(response, onText)` (SSE or plain text). { stream: false } turns it off.
 
 // History & document
 editor.undo(); editor.redo();

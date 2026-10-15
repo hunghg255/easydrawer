@@ -46,6 +46,9 @@ export async function POST(request) {
     return json({ error: 'Invalid request.' }, 400);
   }
 
+  // Streamed: the playground draws diagrams step by step while the answer arrives.
+  const stream = body.stream === true;
+
   let response;
   try {
     response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -61,10 +64,18 @@ export async function POST(request) {
         messages: body.messages,
         temperature: 0.2,
         max_tokens: 4000,
+        stream,
       }),
     });
   } catch {
     return json({ error: 'Could not reach the AI service.' }, 502);
+  }
+
+  if (stream && response.ok && response.body) {
+    // OpenRouter's server-sent events, as they are (the client reads them).
+    return new Response(response.body, {
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+    });
   }
 
   const data = await response.json().catch(() => null);

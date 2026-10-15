@@ -294,6 +294,9 @@ When the drawing area has focus:
 | | | | `Enter` | Edit the text of the selection |
 | | | | `Ctrl/⌘` + arrow | Add a linked shape (flowcharts) |
 | | | | `Alt` + arrow | Select the linked shape |
+| | | | Arrows (with a selection) | Move the selection (hold to keep moving) |
+| | | | `Ctrl/⌘+D` | Duplicate the selection |
+| | | | `Delete` / `Backspace` | Delete the selection |
 
 Change them with `keyboardShortcutOverrides` (IDs: `easydraw.tools.use.pen`, `easydraw.tools.use.eraser`, …):
 

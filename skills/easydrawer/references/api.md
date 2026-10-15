@@ -131,7 +131,7 @@ Clicking inside a frame selects what is in it; its border or title selects the f
 
 ## Exports
 
-`Editor`, `parseMermaid`, `diagramToMermaid`, `layoutMindMap`, `buildChart`, `svgToStrokes`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
+`Editor`, `readTextStream`, `parseAIJSON`, `parsePartialAIJSON`, `openAICompatibleRequest`, `parseMermaid`, `diagramToMermaid`, `layoutMindMap`, `buildChart`, `svgToStrokes`, `Color4`, `Vec2`, `Mat33`, `Rect2`, `Path`, `Stroke`, `StickyNote`, `Connector`, `EditorImage`,
 `penStyles`, `shapeTypes`,
 `naturalPenBuilderFactory`, `makeNaturalPenBuilder`, `makeHighlighterBuilder`, `EditorEventType`,
 types `ToolName`, `PenStyleName`, `ShapeTypeName`, `BackgroundTypeName`, `ColorInput`,

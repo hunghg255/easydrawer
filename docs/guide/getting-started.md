@@ -82,3 +82,4 @@ document.querySelector('#undo').addEventListener('click', () => editor.undo());
 - [Saving & loading](./saving)
 - [AI features](./ai) — diagrams, mind maps, charts and pictures from text; Mermaid import/export
 - [Frames & presenting](./frames) — slides, presentations and PDF export
+- [Performance](./performance) — what keeps big boards smooth, and tips for your code

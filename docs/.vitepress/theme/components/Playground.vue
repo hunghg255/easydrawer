@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue';
 
 import type {
+  AIRequest,
   BackgroundTypeName,
   Editor,
   PenStyleName,
@@ -288,13 +289,20 @@ function showAIToast(text: string, duration = 5000) {
 }
 
 // The playground's server function (api/ai.js) forwards requests to OpenRouter.
-async function playgroundAIRequest({ messages, signal }: { messages: unknown[]; signal?: AbortSignal }) {
+// Diagrams, mind maps and charts are drawn step by step while the answer streams in.
+async function playgroundAIRequest({ messages, signal, onText }: AIRequest) {
   const response = await fetch('/api/ai', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, stream: !!onText }),
     signal,
   });
+  if (response.ok && (response.headers.get('Content-Type') ?? '').includes('text/event-stream')) {
+    const { readTextStream } = await import('easydrawer');
+    const text = await readTextStream(response, onText);
+    if (!text.trim()) throw new Error('The AI returned an empty answer. Try again.');
+    return text;
+  }
   const data = await response.json().catch(() => null);
   if (!response.ok || typeof data?.content !== 'string') {
     if (data?.error) throw new Error(data.error);

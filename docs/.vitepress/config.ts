@@ -30,6 +30,7 @@ export default defineConfig({
             { text: 'Natural ink', link: '/guide/natural-ink' },
             { text: 'Tablets & stylus', link: '/guide/tablets' },
             { text: 'Saving & loading', link: '/guide/saving' },
+            { text: 'Performance', link: '/guide/performance' },
             { text: 'Frameworks (React, Vue)', link: '/guide/frameworks' },
           ],
         },

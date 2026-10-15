@@ -72,6 +72,7 @@ export default class Connector extends AbstractComponent implements RestyleableC
   private style: ConnectorStyle;
 
   private image: EditorImage | null = null;
+  private imageListener: { remove: () => void } | null = null;
   private updateScheduled = false;
 
   // The points of an 'elbow' route, from start to end (null for straight connectors, or
@@ -436,10 +437,18 @@ export default class Connector extends AbstractComponent implements RestyleableC
     return route;
   }
 
+  public override onRemoveFromImage(): void {
+    // Also removed for a moment when it changes (and added back): listen again then.
+    this.imageListener?.remove();
+    this.imageListener = null;
+    this.image = null;
+  }
+
   public override onAddToImage(image: EditorImage): void {
     if (this.image !== image) {
+      this.imageListener?.remove();
       this.image = image;
-      image.notifier.on(EditorImageEventType.ComponentAdded, (event) => {
+      this.imageListener = image.notifier.on(EditorImageEventType.ComponentAdded, (event) => {
         if (event.kind !== EditorImageEventType.ComponentAdded) return;
         if (event.componentId === this.start.targetId || event.componentId === this.end.targetId) {
           // Right away if the line no longer touches it.

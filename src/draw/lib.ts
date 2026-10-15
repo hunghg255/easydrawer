@@ -57,10 +57,10 @@ export {
   type DiagramNodeKind,
   type NoteGroup,
 } from './ai/EditorAI';
-export { AIError, type AIMessage, type AIRequest, type AIRequestHandler, type AISettings } from './ai/types';
+export { AIError, readTextStream, type AIMessage, type AIRequest, type AIRequestHandler, type AISettings } from './ai/types';
 export { openAICompatibleRequest, type OpenAICompatibleOptions } from './ai/openAICompatible';
 export { default as layoutGraph, type LayoutEdge, type LayoutNode, type LayoutOptions } from './ai/layoutGraph';
-export { default as parseAIJSON } from './ai/parseJSON';
+export { default as parseAIJSON, parsePartialAIJSON } from './ai/parseJSON';
 export { default as buildChart, chartColors, type Chart, type ChartSeries, type ChartType } from './ai/charts';
 export { sketchParts, sketchPath, sketchSeedOf, type SketchFillStyle, type SketchOptions } from './rendering/sketch';
 export { diagramToMermaid, MermaidError, parseMermaid } from './ai/mermaid';

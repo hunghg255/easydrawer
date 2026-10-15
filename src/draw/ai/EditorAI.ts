@@ -4,7 +4,7 @@ import buildChart, { type Chart, validateChart } from './charts';
 import layoutGraph from './layoutGraph';
 import { diagramToMermaid, parseMermaid } from './mermaid';
 import layoutMindMap, { type MindMapNode, validateMindMap } from './mindMap';
-import parseAIJSON from './parseJSON';
+import parseAIJSON, { parsePartialAIJSON } from './parseJSON';
 import svgToStrokes from './svgToStrokes';
 import { AIError, type AIMessage, type AIRequestHandler } from './types';
 import type Command from '../commands/Command';
@@ -69,6 +69,11 @@ export interface NoteGroup {
 
 interface AIOptions {
   signal?: AbortSignal;
+  /**
+   * Draw the answer step by step while it arrives, if the request handler streams it
+   * (see `AIRequest.onText`). Default: `true`.
+   */
+  stream?: boolean;
 }
 
 const colorNames: AIColorName[] = ['blue', 'green', 'yellow', 'pink', 'purple', 'gray'];
@@ -409,19 +414,89 @@ export default class EditorAI {
   }
 
   /** Sends `messages` to the AI and returns the JSON object of its answer. */
-  public async requestJSON(messages: AIMessage[], options: AIOptions = {}): Promise<any> {
+  public async requestJSON(
+    messages: AIMessage[],
+    options: AIOptions & { onText?: (textSoFar: string) => void } = {},
+  ): Promise<any> {
     if (!this.requestHandler) {
       throw new AIError('AI is not configured: give a request handler with the "ai" editor setting.');
     }
 
     let answer: string;
     try {
-      answer = await this.requestHandler({ messages, json: true, signal: options.signal });
+      answer = await this.requestHandler({ messages, json: true, signal: options.signal, onText: options.onText });
     } catch (error) {
       if (error instanceof AIError) throw error;
       throw new AIError(`AI request failed: ${(error as Error)?.message ?? error}`, error);
     }
     return parseAIJSON(answer);
+  }
+
+  /**
+   * Like {@link requestJSON}, but while the answer arrives (if the request handler streams
+   * it), shows what `build` makes of the complete part of it so far: `read` checks it (and
+   * throws if it can't be used yet). The preview isn't part of the drawing or of the undo
+   * history, and is removed at the end.
+   */
+  private async requestJSONWithPreview<T>(
+    messages: AIMessage[],
+    options: AIOptions,
+    read: (json: any) => T,
+    build: (value: T, ignore: Set<AbstractComponent>) => AbstractComponent[],
+  ): Promise<any> {
+    if (options.stream === false) return this.requestJSON(messages, options);
+
+    const editor = this.editor;
+    let shown: Command[] = [];
+    let shownComponents = new Set<AbstractComponent>();
+    let latestText = '';
+    let lastKey = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let done = false;
+
+    const clear = () => {
+      for (const command of shown.reverse()) command.unapply(editor);
+      shown = [];
+      shownComponents = new Set();
+      editor.queueRerender();
+    };
+    const update = () => {
+      timer = null;
+      if (done) return;
+      const json = parsePartialAIJSON(latestText);
+      if (!json) return;
+      let value: T;
+      try {
+        value = read(json);
+      } catch {
+        return;
+      }
+      const key = JSON.stringify(value);
+      if (key === lastKey) return;
+      lastKey = key;
+
+      const components = build(value, shownComponents);
+      clear();
+      shown = components.map((component) => EditorImage.addComponent(component));
+      for (const command of shown) command.apply(editor);
+      shownComponents = new Set(components);
+      editor.queueRerender();
+    };
+
+    try {
+      return await this.requestJSON(messages, {
+        ...options,
+        onText: (text) => {
+          latestText = text;
+          // Not too often: building and drawing take a moment.
+          timer ??= setTimeout(update, 120);
+        },
+      });
+    } finally {
+      done = true;
+      if (timer) clearTimeout(timer);
+      clear();
+    }
   }
 
   /**
@@ -462,12 +537,14 @@ export default class EditorAI {
    * @returns the diagram as returned by the AI (after validation).
    */
   public async generateDiagram(prompt: string, options: AIOptions = {}): Promise<Diagram> {
-    const json = await this.requestJSON(
+    const json = await this.requestJSONWithPreview(
       [
         { role: 'system', content: diagramPrompt },
         { role: 'user', content: prompt.slice(0, 4000) },
       ],
       options,
+      validateDiagram,
+      (diagram, ignore) => this.buildDiagram(diagram, this.editor.viewport.visibleRect.center, ignore),
     );
     const diagram = validateDiagram(json);
     await this.drawDiagram(diagram);
@@ -711,12 +788,14 @@ export default class EditorAI {
    * branches on both sides. Select a topic and use {@link expandMindMap} to grow it.
    */
   public async generateMindMap(topic: string, options: AIOptions = {}): Promise<MindMapNode> {
-    const json = await this.requestJSON(
+    const json = await this.requestJSONWithPreview(
       [
         { role: 'system', content: mindMapPrompt },
         { role: 'user', content: topic.slice(0, 4000) },
       ],
       options,
+      validateMindMap,
+      (mindMap, ignore) => this.buildMindMap(mindMap, this.editor.viewport.visibleRect.center, ignore),
     );
     const mindMap = validateMindMap(json);
     await this.drawMindMap(mindMap);
@@ -725,6 +804,11 @@ export default class EditorAI {
 
   /** Draws a mind map (as returned by {@link generateMindMap}) next to what is already drawn. */
   public async drawMindMap(mindMap: MindMapNode, options: { center?: IVec2 } = {}) {
+    await this.addAndShow(this.buildMindMap(mindMap, options.center ?? this.editor.viewport.visibleRect.center, new Set()));
+  }
+
+  // Creates the components of a mind map (not added to the image).
+  private buildMindMap(mindMap: MindMapNode, preferredCenter: IVec2, ignore: Set<AbstractComponent>) {
     const editor = this.editor;
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const layout = layoutMindMap(mindMap, (node, depth) => this.mindMapNodeSize(node.label, depth), {
@@ -733,7 +817,7 @@ export default class EditorAI {
     });
 
     const box = Rect2.union(...layout.map((n) => new Rect2(n.x - n.width / 2, n.y - n.height / 2, n.width, n.height)));
-    const center = this.findFreeSpot(box, options.center ?? editor.viewport.visibleRect.center, new Set());
+    const center = this.findFreeSpot(box, preferredCenter, ignore);
     const offset = Vec2.ofXY(center);
 
     const created: AbstractComponent[] = [];
@@ -747,7 +831,7 @@ export default class EditorAI {
         created.push(this.mindMapLink(shapes[placed.parent], shape, color, placed.depth));
       }
     }
-    await this.addAndShow(created);
+    return created;
   }
 
   /**
@@ -977,12 +1061,14 @@ export default class EditorAI {
    * a class diagram for classes and types, or a flowchart of the logic for other code.
    */
   public async diagramFromCode(code: string, options: AIOptions = {}): Promise<Diagram> {
-    const json = await this.requestJSON(
+    const json = await this.requestJSONWithPreview(
       [
         { role: 'system', content: codeDiagramPrompt },
         { role: 'user', content: code.slice(0, 12000) },
       ],
       options,
+      validateDiagram,
+      (diagram, ignore) => this.buildDiagram(diagram, this.editor.viewport.visibleRect.center, ignore),
     );
     const diagram = validateDiagram(json);
     await this.drawDiagram(diagram);
@@ -994,12 +1080,14 @@ export default class EditorAI {
    * (e.g. "revenue Q1–Q4: 10, 20, 15, 30", or pasted table data) and draws it.
    */
   public async generateChart(prompt: string, options: AIOptions = {}): Promise<Chart> {
-    const json = await this.requestJSON(
+    const json = await this.requestJSONWithPreview(
       [
         { role: 'system', content: chartPrompt },
         { role: 'user', content: prompt.slice(0, 8000) },
       ],
       options,
+      validateChart,
+      (chart, ignore) => this.buildChartComponents(chart, ignore),
     );
     const chart = validateChart(json);
     await this.drawChart(chart);
@@ -1011,11 +1099,16 @@ export default class EditorAI {
    * The chart is made of normal shapes and text, grouped.
    */
   public async drawChart(chart: Chart) {
+    await this.addAndShow(this.buildChartComponents(chart, new Set()));
+  }
+
+  // Creates the components of a chart, grouped (not added to the image).
+  private buildChartComponents(chart: Chart, ignore: Set<AbstractComponent>) {
     const editor = this.editor;
     const scale = editor.viewport.getSizeOfPixelOnCanvas();
     const { size } = buildChart(chart, Vec2.zero, scale);
     const box = new Rect2(-size.x / 2, -size.y / 2, size.x, size.y);
-    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, new Set());
+    const center = this.findFreeSpot(box, editor.viewport.visibleRect.center, ignore);
     const { components } = buildChart(chart, Vec2.ofXY(center).minus(size.times(0.5)), scale);
 
     const groupId = `group-${components[0]?.getId()}`;
@@ -1023,7 +1116,7 @@ export default class EditorAI {
       component.setGroupDirectly(groupId);
     }
     components[0]?.setMetadata({ chart: chart.type });
-    await this.addAndShow(components);
+    return components;
   }
 
   /**

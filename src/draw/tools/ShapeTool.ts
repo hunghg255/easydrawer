@@ -298,7 +298,9 @@ export default class ShapeTool extends BaseTool {
           );
         }
 
-        const canFlatten = true;
+        // Flattening copies the preview to the drawing: not for hand-drawn shapes, whose
+        // preview isn't hand-drawn.
+        const canFlatten = !this.sketch;
         const action = EditorImage.addComponent(stroke, canFlatten);
         this.editor.dispatch(action);
       } else {

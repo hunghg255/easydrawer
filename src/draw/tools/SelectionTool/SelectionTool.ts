@@ -188,10 +188,8 @@ export default class SelectionTool extends BaseTool {
       current = current.snappedToGrid(this.editor.viewport);
     }
 
-    // Double click/tap on a sticky note or text: edit it.
-    if (allPointers.length === 1 && this.isDoubleTap(current) && this.editTextAt(current.canvasPos)) {
-      return false;
-    }
+    // For double clicks/taps (see onPointerUp).
+    this.tapStart = allPointers.length === 1 ? { time: Date.now(), screenPos: current.screenPos } : null;
 
     // Don't rely on .isPrimary -- it's buggy in Firefox. See https://github.com/personalizedrefrigerator/easydrawer/issues/71
     if (allPointers.length === 1) {
@@ -237,12 +235,22 @@ export default class SelectionTool extends BaseTool {
     return false;
   }
 
+  private tapStart: { time: number; screenPos: IVec2 } | null = null;
   private lastTap: { time: number; screenPos: IVec2 } | null = null;
 
+  // Whether the gesture that ends with `pointer` is the second of two quick taps/clicks in the
+  // same place. Pressing again to drag what was just selected is not a double tap.
   private isDoubleTap(pointer: Pointer) {
     const now = Date.now();
+    const start = this.tapStart;
+    this.tapStart = null;
+    const isTap = !!start && now - start.time < 350 && pointer.screenPos.distanceTo(start.screenPos) < 6;
+    if (!isTap) {
+      this.lastTap = null;
+      return false;
+    }
     const last = this.lastTap;
-    const isDouble = !!last && now - last.time < 400 && pointer.screenPos.distanceTo(last.screenPos) < 12;
+    const isDouble = !!last && start.time - last.time < 450 && pointer.screenPos.distanceTo(last.screenPos) < 12;
     this.lastTap = isDouble ? null : { time: now, screenPos: pointer.screenPos };
     return isDouble;
   }
@@ -387,9 +395,15 @@ export default class SelectionTool extends BaseTool {
     this.removeSelectionScheduled = false;
     this.selectionBoxHandlingEvt = false;
     this.lastPointer = null;
+
+    // Double click/tap: edit the text of what is under the pointer.
+    if (event.allPointers.length <= 1 && this.isDoubleTap(event.current)) {
+      this.editTextAt(event.current.canvasPos);
+    }
   }
 
   public override onGestureCancel(): void {
+    this.tapStart = null;
     if (this.selectionBuilder) {
       this.selectionBuilder = null;
       this.editor.clearWetInk();
